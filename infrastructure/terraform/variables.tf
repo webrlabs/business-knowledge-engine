@@ -229,7 +229,7 @@ variable "function_sku_name" {
 variable "function_os_type" {
   description = "Function App plan OS type (Windows or Linux)."
   type        = string
-  default     = "Windows"
+  default     = "Linux"
 }
 
 variable "function_vnet_integration_enabled" {

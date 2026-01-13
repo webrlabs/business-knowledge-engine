@@ -58,7 +58,7 @@ resource "azurerm_linux_function_app" "this" {
 
   site_config {
     application_stack {
-      node_version = "~18"
+      node_version = "18"
     }
   }
 
@@ -82,7 +82,7 @@ resource "azurerm_windows_function_app" "this" {
 
   site_config {
     application_stack {
-      node_version = "~18"
+      node_version = "18"
     }
   }
 
