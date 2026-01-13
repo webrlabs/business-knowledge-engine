@@ -1,0 +1,56 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "maxTelemetryItemsPerSecond": 20,
+        "evaluationInterval": "01:00:00",
+        "initialSamplingPercentage": 100.0,
+        "samplingPercentageIncreaseTimeout": "00:00:01",
+        "samplingPercentageDecreaseTimeout": "00:00:01",
+        "minSamplingPercentage": 0.1,
+        "maxSamplingPercentage": 100.0,
+        "movingAverageRatio": 1.0
+      },
+      "enableLiveMetrics": true,
+      "enableDependencyTracking": true,
+      "enablePerformanceCountersCollection": true
+    },
+    "logLevel": {
+      "default": "Information",
+      "Host.Results": "Information",
+      "Function": "Information",
+      "Host.Aggregator": "Information"
+    }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.*, 5.0.0)"
+  },
+  "healthMonitor": {
+    "enabled": true,
+    "healthCheckInterval": "00:00:10",
+    "healthCheckWindow": "00:02:00",
+    "healthCheckThreshold": 6,
+    "counterThreshold": 0.80
+  },
+  "functionTimeout": "00:10:00",
+  "extensions": {
+    "durableTask": {
+      "hubName": "KnowledgePlatformHub",
+      "storageProvider": {
+        "connectionStringName": "AzureWebJobsStorage",
+        "partitionCount": 4
+      },
+      "maxConcurrentActivityFunctions": 10,
+      "maxConcurrentOrchestratorFunctions": 10
+    },
+    "http": {
+      "routePrefix": "api",
+      "maxOutstandingRequests": 200,
+      "maxConcurrentRequests": 100,
+      "dynamicThrottlesEnabled": true
+    }
+  }
+}

@@ -1,0 +1,264 @@
+const { getOpenAIService } = require('./openai-service');
+const {
+  ENTITY_TYPES,
+  RELATIONSHIP_TYPES,
+  ENTITY_EXTRACTION_SYSTEM_PROMPT,
+  RELATIONSHIP_EXTRACTION_SYSTEM_PROMPT,
+  buildEntityExtractionPrompt,
+  buildRelationshipExtractionPrompt,
+} = require('../prompts/entity-extraction');
+
+class EntityExtractorService {
+  constructor() {
+    this.openaiService = getOpenAIService();
+  }
+
+  async extractEntities(text, documentContext = {}) {
+    if (!text || text.trim().length === 0) {
+      return [];
+    }
+
+    const userPrompt = buildEntityExtractionPrompt(text, documentContext);
+
+    const response = await this.openaiService.getJsonCompletion([
+      { role: 'system', content: ENTITY_EXTRACTION_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ]);
+
+    const entities = response.content?.entities || [];
+
+    // Validate and normalize entities
+    return entities
+      .filter((e) => e.name && e.type)
+      .map((e) => ({
+        name: this._normalizeEntityName(e.name),
+        type: ENTITY_TYPES.includes(e.type) ? e.type : 'Unknown',
+        description: e.description || '',
+        confidence: typeof e.confidence === 'number' ? Math.min(1, Math.max(0, e.confidence)) : 0.8,
+        sourceSpan: e.sourceSpan || '',
+      }));
+  }
+
+  async extractRelationships(text, entities, documentContext = {}) {
+    if (!text || !entities || entities.length < 2) {
+      return [];
+    }
+
+    const userPrompt = buildRelationshipExtractionPrompt(text, entities);
+
+    const response = await this.openaiService.getJsonCompletion([
+      { role: 'system', content: RELATIONSHIP_EXTRACTION_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ]);
+
+    const relationships = response.content?.relationships || [];
+
+    // Validate relationships
+    const entityNames = new Set(entities.map((e) => e.name));
+
+    return relationships
+      .filter((r) => {
+        // Ensure both entities exist
+        const fromExists = entityNames.has(r.from) || this._fuzzyMatchEntity(r.from, entityNames);
+        const toExists = entityNames.has(r.to) || this._fuzzyMatchEntity(r.to, entityNames);
+        return fromExists && toExists && r.type;
+      })
+      .map((r) => ({
+        from: this._resolveEntityName(r.from, entityNames),
+        to: this._resolveEntityName(r.to, entityNames),
+        type: RELATIONSHIP_TYPES.includes(r.type) ? r.type : 'RELATED_TO',
+        confidence: typeof r.confidence === 'number' ? Math.min(1, Math.max(0, r.confidence)) : 0.7,
+        evidence: r.evidence || '',
+      }));
+  }
+
+  async processChunk(chunk, existingEntities = [], documentContext = {}) {
+    // Extract entities from this chunk
+    const newEntities = await this.extractEntities(chunk.content || chunk, documentContext);
+
+    // Resolve against existing entities to avoid duplicates
+    const resolvedEntities = this._resolveEntities(newEntities, existingEntities);
+
+    // Extract relationships using all entities (existing + new)
+    const allEntities = [...existingEntities, ...resolvedEntities.added];
+    const relationships = await this.extractRelationships(
+      chunk.content || chunk,
+      allEntities,
+      documentContext
+    );
+
+    return {
+      entities: resolvedEntities.added,
+      mergedEntities: resolvedEntities.merged,
+      relationships,
+    };
+  }
+
+  async processDocument(chunks, documentId, documentTitle) {
+    const allEntities = [];
+    const allRelationships = [];
+    const entityMap = new Map();
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const context = {
+        title: documentTitle,
+        section: chunk.metadata?.sectionTitle,
+        pageNumber: chunk.metadata?.pageNumber,
+      };
+
+      const result = await this.processChunk(chunk.content, allEntities, context);
+
+      // Add document reference to entities
+      for (const entity of result.entities) {
+        entity.sourceDocumentId = documentId;
+        if (!entityMap.has(entity.name)) {
+          entityMap.set(entity.name, entity);
+          allEntities.push(entity);
+        }
+      }
+
+      // Add document reference to relationships
+      for (const rel of result.relationships) {
+        rel.sourceDocumentId = documentId;
+        allRelationships.push(rel);
+      }
+    }
+
+    // Deduplicate relationships
+    const uniqueRelationships = this._deduplicateRelationships(allRelationships);
+
+    return {
+      entities: allEntities,
+      relationships: uniqueRelationships,
+    };
+  }
+
+  _normalizeEntityName(name) {
+    if (!name) return '';
+
+    // Remove common prefixes/suffixes and normalize whitespace
+    return name
+      .replace(/^(the|a|an)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  _fuzzyMatchEntity(name, entityNames) {
+    const normalizedName = this._normalizeEntityName(name).toLowerCase();
+
+    for (const existingName of entityNames) {
+      const normalizedExisting = existingName.toLowerCase();
+
+      // Check for exact match after normalization
+      if (normalizedName === normalizedExisting) {
+        return true;
+      }
+
+      // Check if one contains the other
+      if (normalizedName.includes(normalizedExisting) || normalizedExisting.includes(normalizedName)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  _resolveEntityName(name, entityNames) {
+    // First try exact match
+    if (entityNames.has(name)) {
+      return name;
+    }
+
+    // Try normalized match
+    const normalizedName = this._normalizeEntityName(name);
+    if (entityNames.has(normalizedName)) {
+      return normalizedName;
+    }
+
+    // Try fuzzy match
+    const lowerName = normalizedName.toLowerCase();
+    for (const existingName of entityNames) {
+      if (existingName.toLowerCase() === lowerName) {
+        return existingName;
+      }
+    }
+
+    return normalizedName;
+  }
+
+  _resolveEntities(newEntities, existingEntities) {
+    const existingNames = new Map(existingEntities.map((e) => [e.name.toLowerCase(), e]));
+    const added = [];
+    const merged = [];
+
+    for (const entity of newEntities) {
+      const lowerName = entity.name.toLowerCase();
+
+      if (existingNames.has(lowerName)) {
+        // Entity exists - potentially merge information
+        const existing = existingNames.get(lowerName);
+        merged.push({
+          existing,
+          new: entity,
+        });
+
+        // Update confidence if new is higher
+        if (entity.confidence > existing.confidence) {
+          existing.confidence = entity.confidence;
+        }
+
+        // Append description if different
+        if (entity.description && entity.description !== existing.description) {
+          existing.description = existing.description
+            ? `${existing.description}; ${entity.description}`
+            : entity.description;
+        }
+      } else {
+        // New entity
+        added.push(entity);
+        existingNames.set(lowerName, entity);
+      }
+    }
+
+    return { added, merged };
+  }
+
+  _deduplicateRelationships(relationships) {
+    const seen = new Map();
+
+    for (const rel of relationships) {
+      const key = `${rel.from}|${rel.type}|${rel.to}`;
+
+      if (seen.has(key)) {
+        // Keep the one with higher confidence
+        const existing = seen.get(key);
+        if (rel.confidence > existing.confidence) {
+          seen.set(key, rel);
+        }
+      } else {
+        seen.set(key, rel);
+      }
+    }
+
+    return Array.from(seen.values());
+  }
+}
+
+// Singleton instance
+let instance = null;
+
+function getEntityExtractorService() {
+  if (!instance) {
+    instance = new EntityExtractorService();
+  }
+  return instance;
+}
+
+module.exports = {
+  EntityExtractorService,
+  getEntityExtractorService,
+};

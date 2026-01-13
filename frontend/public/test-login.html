@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Automated Login Test</title>
+</head>
+<body>
+    <h1>Automated Login Test</h1>
+    <p>Redirecting to login and auto-filling credentials...</p>
+
+    <script>
+        // Redirect to main page
+        window.location.href = 'http://localhost:3000';
+
+        // After redirect, fill in the form
+        setTimeout(() => {
+            const emailField = document.querySelector('input[type="email"]');
+            const passwordField = document.querySelector('input[type="password"]');
+            const submitButton = document.querySelector('button[type="submit"]');
+
+            if (emailField && passwordField && submitButton) {
+                emailField.value = 'admin@contoso.com';
+                passwordField.value = 'demo123';
+
+                // Trigger form submit after a short delay
+                setTimeout(() => {
+                    submitButton.click();
+                }, 500);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,766 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 249, 250, 251;
+}
+
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 17, 24, 39;
+  --background-end-rgb: 31, 41, 55;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Typography System - Clear Hierarchy and Readability */
+@layer components {
+  /* Heading Styles with Clear Hierarchy */
+  .heading-1 {
+    @apply text-4xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight;
+  }
+
+  .heading-2 {
+    @apply text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-snug;
+  }
+
+  .heading-3 {
+    @apply text-2xl font-semibold text-gray-900 dark:text-white tracking-tight leading-snug;
+  }
+
+  .heading-4 {
+    @apply text-xl font-semibold text-gray-900 dark:text-white leading-normal;
+  }
+
+  .heading-5 {
+    @apply text-lg font-semibold text-gray-900 dark:text-white leading-normal;
+  }
+
+  .heading-6 {
+    @apply text-base font-semibold text-gray-900 dark:text-white leading-normal;
+  }
+
+  /* Body Text Styles */
+  .body-large {
+    @apply text-lg text-gray-700 dark:text-gray-200 leading-relaxed;
+  }
+
+  .body-base {
+    @apply text-base text-gray-700 dark:text-gray-200 leading-relaxed;
+  }
+
+  .body-small {
+    @apply text-sm text-gray-600 dark:text-gray-300 leading-normal;
+  }
+
+  /* Subtitle and Caption Styles */
+  .subtitle {
+    @apply text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide;
+  }
+
+  .caption {
+    @apply text-xs text-gray-500 dark:text-gray-400 leading-tight;
+  }
+
+  /* Link Styles */
+  .link {
+    @apply text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline transition-colors;
+  }
+
+  .link-subtle {
+    @apply text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors;
+  }
+
+  /* Emphasis Styles */
+  .text-emphasis {
+    @apply font-semibold text-gray-900 dark:text-white;
+  }
+
+  .text-muted {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .text-subtle {
+    @apply text-gray-400 dark:text-gray-500;
+  }
+
+  /* Code and Monospace Text */
+  .code-inline {
+    @apply px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-sm font-mono text-gray-800 dark:text-gray-200;
+  }
+
+  .code-block {
+    @apply p-4 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto;
+  }
+
+  /* Label and Tag Typography */
+  .label {
+    @apply text-sm font-medium text-gray-700 dark:text-gray-300;
+  }
+
+  .label-required::after {
+    content: ' *';
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  /* Paragraph Spacing */
+  .prose {
+    @apply space-y-4 text-base text-gray-700 dark:text-gray-200 leading-relaxed;
+  }
+
+  .prose p {
+    @apply mb-4;
+  }
+
+  .prose h1 {
+    @apply heading-1 mb-4 mt-8;
+  }
+
+  .prose h2 {
+    @apply heading-2 mb-3 mt-6;
+  }
+
+  .prose h3 {
+    @apply heading-3 mb-3 mt-6;
+  }
+
+  .prose ul {
+    @apply list-disc pl-6 mb-4 space-y-2;
+  }
+
+  .prose ol {
+    @apply list-decimal pl-6 mb-4 space-y-2;
+  }
+
+  .prose a {
+    @apply link;
+  }
+}
+
+/* Base HTML Element Styling for Semantic Typography */
+@layer base {
+  /* Semantic heading elements get consistent styling */
+  h1 {
+    @apply text-4xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight mb-4;
+  }
+
+  h2 {
+    @apply text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-snug mb-3;
+  }
+
+  h3 {
+    @apply text-2xl font-semibold text-gray-900 dark:text-white tracking-tight leading-snug mb-3;
+  }
+
+  h4 {
+    @apply text-xl font-semibold text-gray-900 dark:text-white leading-normal mb-2;
+  }
+
+  h5 {
+    @apply text-lg font-semibold text-gray-900 dark:text-white leading-normal mb-2;
+  }
+
+  h6 {
+    @apply text-base font-semibold text-gray-900 dark:text-white leading-normal mb-2;
+  }
+
+  /* Paragraph styling for readability */
+  p {
+    @apply text-base text-gray-700 dark:text-gray-200 leading-relaxed mb-4;
+  }
+
+  /* Link styling */
+  a {
+    @apply text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors;
+  }
+
+  /* List styling */
+  ul {
+    @apply list-disc pl-6 mb-4 space-y-1;
+  }
+
+  ol {
+    @apply list-decimal pl-6 mb-4 space-y-1;
+  }
+
+  li {
+    @apply text-gray-700 dark:text-gray-200;
+  }
+
+  /* Strong and emphasis */
+  strong {
+    @apply font-semibold text-gray-900 dark:text-white;
+  }
+
+  em {
+    @apply italic;
+  }
+
+  /* Code elements */
+  code {
+    @apply px-1.5 py-0.5 rounded bg-gray-100 dark:text-gray-200 text-sm font-mono;
+  }
+
+  pre {
+    @apply p-4 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-mono overflow-x-auto mb-4;
+  }
+
+  /* Blockquote */
+  blockquote {
+    @apply border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-300 mb-4;
+  }
+
+  /* Horizontal rule */
+  hr {
+    @apply border-gray-200 dark:border-gray-700 my-8;
+  }
+
+  /* Tables */
+  table {
+    @apply w-full text-sm text-left text-gray-700 dark:text-gray-200 mb-4;
+  }
+
+  thead {
+    @apply bg-gray-50 dark:bg-gray-800 text-xs uppercase font-semibold text-gray-600 dark:text-gray-300;
+  }
+
+  th {
+    @apply px-6 py-3;
+  }
+
+  td {
+    @apply px-6 py-4 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  /* Form labels */
+  label {
+    @apply text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block;
+  }
+}
+
+/* Enhanced Focus Indicators for Keyboard Navigation (WCAG 2.1 Compliant) */
+@layer base {
+  /* Global focus styles for all focusable elements */
+  *:focus {
+    outline: none; /* Remove default outline, we'll use custom ring */
+  }
+
+  /* Visible focus indicator with high contrast (WCAG 2.4.7) - Brand Primary */
+  *:focus-visible {
+    outline: 3px solid #0043ad; /* Primary-600 */
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Enhanced focus for links */
+  a:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+
+  /* Enhanced focus for buttons */
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 67, 173, 0.1);
+  }
+
+  /* Enhanced focus for form inputs */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    border-color: #0043ad;
+    box-shadow: 0 0 0 4px rgba(0, 67, 173, 0.1);
+  }
+
+  /* Enhanced focus for checkboxes and radio buttons */
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 67, 173, 0.1);
+  }
+
+  /* Enhanced focus for custom interactive elements */
+  [tabindex]:focus-visible,
+  [contenteditable]:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 67, 173, 0.1);
+  }
+
+  /* Enhanced focus for navigation items */
+  nav a:focus-visible,
+  nav button:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: 2px;
+    background-color: rgba(0, 67, 173, 0.05);
+  }
+
+  /* Enhanced focus for table cells and interactive elements */
+  td:focus-visible,
+  th:focus-visible {
+    outline: 3px solid #0043ad;
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 2px rgba(0, 67, 173, 0.2);
+  }
+
+  /* Skip link focus (for accessibility) */
+  .skip-link:focus-visible {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    padding: 1rem 2rem;
+    background-color: #0043ad;
+    color: white;
+    text-decoration: none;
+    outline: 3px solid #00307a;
+    outline-offset: 2px;
+  }
+}
+
+/* Enhanced Button States */
+@layer components {
+  /* Primary Button (Brand Azure Blue) */
+  .btn-primary {
+    @apply bg-primary-600 text-white py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-primary-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-primary-800 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Secondary Button (Brand Purple) */
+  .btn-brand-secondary {
+    @apply bg-secondary-600 text-white py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-secondary-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-secondary-800 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-secondary-600 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Accent Button (Brand Teal) */
+  .btn-accent {
+    @apply bg-accent-600 text-white py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-accent-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-accent-800 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-accent-600 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Secondary Button (Gray) */
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-gray-300 hover:shadow-md hover:scale-[1.02]
+           active:bg-gray-400 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-200 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Danger Button (Red) */
+  .btn-danger {
+    @apply bg-red-600 text-white py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-red-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-red-800 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Success Button (Green) */
+  .btn-success {
+    @apply bg-green-600 text-white py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-green-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-green-800 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Outline Button (Brand Primary) */
+  .btn-outline {
+    @apply bg-transparent border-2 border-primary-600 text-primary-600 py-3 px-6 rounded-lg font-semibold
+           transition-all duration-150 ease-in-out
+           hover:bg-primary-50 hover:border-primary-700 hover:text-primary-700 hover:shadow-md hover:scale-[1.02]
+           active:bg-primary-100 active:scale-[0.98] active:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  /* Small Button */
+  .btn-sm {
+    @apply py-2 px-4 text-sm;
+  }
+
+  /* Icon Button */
+  .btn-icon {
+    @apply p-2 rounded-lg transition-all duration-150 ease-in-out
+           hover:bg-gray-100 hover:scale-[1.1]
+           active:bg-gray-200 active:scale-[0.95]
+           focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:scale-100;
+  }
+
+  /* Navigation Button */
+  .btn-nav {
+    @apply flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium
+           transition-all duration-150 ease-in-out
+           text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm
+           active:bg-gray-200 active:scale-[0.98]
+           focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1;
+  }
+
+  .btn-nav-active {
+    @apply bg-primary-50 text-primary-700 border-l-4 border-primary-600
+           hover:bg-primary-100;
+  }
+
+  /* Consistent Layout Components */
+  /* Page Container */
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
+  }
+
+  /* Card Component */
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+
+  .card-header {
+    @apply border-b border-gray-200 pb-4 mb-4;
+  }
+
+  .card-body {
+    @apply space-y-4;
+  }
+
+  .card-footer {
+    @apply border-t border-gray-200 pt-4 mt-4;
+  }
+
+  /* Section Spacing */
+  .section {
+    @apply py-8 space-y-6;
+  }
+
+  .section-header {
+    @apply mb-6;
+  }
+
+  .section-content {
+    @apply space-y-4;
+  }
+
+  /* Form Layouts */
+  .form-group {
+    @apply space-y-2 mb-4;
+  }
+
+  .form-row {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4 mb-4;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent
+           transition-colors;
+  }
+
+  .form-error {
+    @apply text-sm text-red-600 mt-1;
+  }
+
+  .form-hint {
+    @apply text-sm text-gray-500 mt-1;
+  }
+
+  /* List Layouts */
+  .list-item {
+    @apply px-4 py-3 border-b border-gray-200 last:border-b-0
+           hover:bg-gray-50 transition-colors;
+  }
+
+  .list-item-content {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  /* Stack Layouts */
+  .stack-tight {
+    @apply space-y-2;
+  }
+
+  .stack-normal {
+    @apply space-y-4;
+  }
+
+  .stack-relaxed {
+    @apply space-y-6;
+  }
+
+  .stack-loose {
+    @apply space-y-8;
+  }
+
+  /* Grid Layouts */
+  .grid-tight {
+    @apply grid gap-2;
+  }
+
+  .grid-normal {
+    @apply grid gap-4;
+  }
+
+  .grid-relaxed {
+    @apply grid gap-6;
+  }
+
+  .grid-loose {
+    @apply grid gap-8;
+  }
+
+  /* Inline Spacing */
+  .inline-tight {
+    @apply space-x-2;
+  }
+
+  .inline-normal {
+    @apply space-x-4;
+  }
+
+  .inline-relaxed {
+    @apply space-x-6;
+  }
+
+  /* Modal Dialog */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6;
+  }
+
+  .modal-header {
+    @apply border-b border-gray-200 pb-4 mb-4;
+  }
+
+  .modal-body {
+    @apply space-y-4 py-4;
+  }
+
+  .modal-footer {
+    @apply border-t border-gray-200 pt-4 mt-4 flex justify-end gap-3;
+  }
+
+  /* Panel Layouts */
+  .panel {
+    @apply border border-gray-200 rounded-lg overflow-hidden;
+  }
+
+  .panel-header {
+    @apply bg-gray-50 px-4 py-3 border-b border-gray-200 font-medium text-gray-900;
+  }
+
+  .panel-body {
+    @apply p-4;
+  }
+
+  /* Sidebar Layout */
+  .sidebar {
+    @apply w-64 bg-white border-r border-gray-200 flex flex-col;
+  }
+
+  .sidebar-header {
+    @apply p-4 border-b border-gray-200;
+  }
+
+  .sidebar-content {
+    @apply flex-1 overflow-y-auto p-4 space-y-2;
+  }
+
+  .sidebar-footer {
+    @apply p-4 border-t border-gray-200;
+  }
+
+  /* Header and Nav Spacing */
+  .page-header {
+    @apply flex items-center justify-between mb-6 pb-4 border-b border-gray-200;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-gray-600 mt-1;
+  }
+
+  /* Table Layouts */
+  .table-container {
+    @apply overflow-x-auto rounded-lg border border-gray-200;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  .table-header {
+    @apply bg-gray-50;
+  }
+
+  .table-header-cell {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+  }
+
+  .table-body {
+    @apply bg-white divide-y divide-gray-200;
+  }
+
+  .table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg
+           pointer-events-none opacity-0 transition-opacity duration-200;
+  }
+
+  .tooltip-visible {
+    @apply opacity-100;
+  }
+
+  /* Badge/Tag Spacing */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-primary-100 text-primary-800;
+  }
+
+  .badge-secondary {
+    @apply bg-secondary-100 text-secondary-800;
+  }
+
+  .badge-accent {
+    @apply bg-accent-100 text-accent-800;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-gray {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  /* Alert/Message Box */
+  .alert {
+    @apply p-4 rounded-lg border;
+  }
+
+  .alert-info {
+    @apply bg-primary-50 border-primary-200 text-primary-800;
+  }
+
+  .alert-success {
+    @apply bg-green-50 border-green-200 text-green-800;
+  }
+
+  .alert-warning {
+    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
+  }
+
+  .alert-error {
+    @apply bg-red-50 border-red-200 text-red-800;
+  }
+}
+
+/* Accessibility Utilities */
+@layer utilities {
+  /* Screen Reader Only - hides element visually but keeps it accessible */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Show element when focused (for skip links) */
+  .sr-only:focus,
+  .sr-only:active {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* Not screen reader only - reverses sr-only */
+  .not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

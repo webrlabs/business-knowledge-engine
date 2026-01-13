@@ -1,0 +1,31 @@
+{
+  "name": "knowledge-platform-functions",
+  "version": "1.0.0",
+  "description": "Azure Functions for Intelligent Business Process Knowledge Platform",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "func start",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "durable-functions": "^3.0.0",
+    "@azure/identity": "^4.0.0",
+    "@azure/keyvault-secrets": "^4.7.0",
+    "@azure/cosmos": "^4.0.0",
+    "@azure/storage-blob": "^12.17.0",
+    "@azure/ai-form-recognizer": "^5.0.0",
+    "@azure/openai": "^1.0.0-beta.8",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.0.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

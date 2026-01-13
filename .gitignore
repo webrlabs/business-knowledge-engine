@@ -1,0 +1,145 @@
+# Arcadia Forge Agent Data (database and metadata)
+.arcadia/
+
+# Claude Code
+.claude/
+
+# Screenshots and verification artifacts
+screenshots/
+verification/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+# Python lib/ but not frontend/lib
+/**/lib/
+!frontend/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+*.cover
+.hypothesis/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Azure Functions
+__blobstorage__/
+__queues__/
+__azurite_db*__.json
+.python_packages/
+local.settings.json
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Build outputs
+*.dll
+*.exe
+*.pdb
+bin/
+obj/
+out/
+.next/
+next-env.d.ts
+.processes.json
+nul
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Azure and cloud credentials (CRITICAL - never commit these)
+*.publishsettings
+*.azurePubxml
+*.pubxml
+credentials.json
+serviceAccountKey.json
+*.pfx
+*.p12
+*.key
+*.pem
+
+# Database files (local development only)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# Uploaded documents (backend storage)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Test files
+test-*.pdf
+test-*.txt
+test-*.docx

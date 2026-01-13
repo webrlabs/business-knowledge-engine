@@ -1,0 +1,26 @@
+project      = "bke"
+environment  = "dev"
+location     = "East US"
+openai_model_name = "gpt-4"
+openai_embedding_deployment = "text-embedding-ada-002"
+openai_api_version = "2024-02-15-preview"
+search_index_name = "documents"
+frontend_redirect_uri = "http://localhost:3001/auth/callback"
+# create_foundry_hub = false
+# storage_public_network_access_enabled = true
+# appservice_sku_name = "B1"
+# function_sku_name = "Y1"
+# function_vnet_integration_enabled = false
+# appservice_vnet_integration_enabled = false
+# enable_private_endpoints = false
+# cosmos_public_network_access_enabled = true
+# search_public_network_access_enabled = true
+# aiservices_public_network_access_enabled = true
+# docint_public_network_access_enabled = true
+# keyvault_public_network_access_enabled = true
+# cosmos_data_contributor_role_definition_id = "00000000-0000-0000-0000-000000000002"
+
+tags = {
+  owner = "devops"
+  cost_center = "dev"
+}

@@ -1,0 +1,317 @@
+const { getDocumentIntelligenceService } = require('../services/docint-service');
+const { getOpenAIService } = require('../services/openai-service');
+const { getSearchService } = require('../services/search-service');
+const { getGraphService } = require('../services/graph-service');
+const { getEntityExtractorService } = require('../services/entity-extractor');
+const { v4: uuidv4 } = require('uuid');
+const { log } = require('../utils/logger');
+
+const CHUNK_SIZE = 500; // tokens (approximate)
+const CHUNK_OVERLAP = 50; // tokens
+
+class DocumentProcessor {
+  constructor(cosmosService) {
+    this.cosmos = cosmosService;
+    this.docIntelligence = getDocumentIntelligenceService();
+    this.openai = getOpenAIService();
+    this.search = getSearchService();
+    this.graph = getGraphService();
+    this.entityExtractor = getEntityExtractorService();
+  }
+
+  async processDocument(documentId, blobUrl, options = {}) {
+    const startTime = Date.now();
+
+    try {
+      // Stage 1: Extract content with Document Intelligence
+      await this._updateStatus(documentId, 'extracting_content');
+      const extractedContent = await this.docIntelligence.analyzeDocument(blobUrl, {
+        mimeType: options.mimeType,
+      });
+
+      // Stage 2: Chunk content
+      await this._updateStatus(documentId, 'chunking');
+      const chunks = this._createChunks(extractedContent, documentId, options);
+
+      // Stage 3: Extract entities
+      await this._updateStatus(documentId, 'extracting_entities');
+      const { entities, relationships } = await this.entityExtractor.processDocument(
+        chunks,
+        documentId,
+        options.title || options.filename
+      );
+
+      // Stage 4: Generate embeddings
+      await this._updateStatus(documentId, 'generating_embeddings');
+      const embeddedChunks = await this._generateEmbeddings(chunks, entities);
+
+      // Stage 5: Index to search
+      await this._updateStatus(documentId, 'indexing_search');
+      await this.search.ensureIndexExists();
+      const indexResult = await this.search.indexDocuments(embeddedChunks);
+
+      // Stage 6: Update graph
+      await this._updateStatus(documentId, 'updating_graph');
+      await this._updateGraph(entities, relationships, documentId);
+
+      // Complete
+      const processingTime = Date.now() - startTime;
+      await this._updateStatus(documentId, 'completed', {
+        processingResults: {
+          extractedText: extractedContent.content.substring(0, 5000), // First 5000 chars
+          tables: extractedContent.tables,
+          hierarchy: extractedContent.sections,
+          metadata: {
+            pageCount: extractedContent.metadata.pageCount,
+            chunksCreated: chunks.length,
+            chunksIndexed: indexResult.indexed,
+            entitiesExtracted: entities.length,
+            relationshipsExtracted: relationships.length,
+            processingTimeMs: processingTime,
+            modelId: extractedContent.metadata.modelId,
+          },
+        },
+      });
+
+      return {
+        success: true,
+        documentId,
+        stats: {
+          pageCount: extractedContent.metadata.pageCount,
+          chunksCreated: chunks.length,
+          chunksIndexed: indexResult.indexed,
+          entitiesExtracted: entities.length,
+          relationshipsExtracted: relationships.length,
+          processingTimeMs: processingTime,
+        },
+      };
+    } catch (error) {
+      await this._updateStatus(documentId, 'failed', {
+        processingError: error.message,
+      });
+
+      throw error;
+    }
+  }
+
+  _createChunks(extractedContent, documentId, options) {
+    const chunks = [];
+    const docIntelService = this.docIntelligence;
+
+    // Get structured chunks from Document Intelligence
+    const textChunks = docIntelService.extractTextWithMetadata(extractedContent);
+
+    // Process full content into smaller chunks with overlap
+    const fullContent = extractedContent.content;
+    if (fullContent) {
+      const contentChunks = this._splitIntoChunks(fullContent, CHUNK_SIZE, CHUNK_OVERLAP);
+
+      contentChunks.forEach((chunkText, index) => {
+        chunks.push({
+          id: `${documentId}_chunk_${index}`,
+          documentId,
+          chunkIndex: index,
+          content: chunkText,
+          chunkType: 'content',
+          title: options.title || options.filename,
+          sourceFile: options.filename,
+          uploadedAt: new Date().toISOString(),
+          metadata: {
+            totalChunks: contentChunks.length,
+          },
+        });
+      });
+    }
+
+    // Add section-based chunks
+    for (const section of extractedContent.sections) {
+      if (section.content && section.content.length > 0) {
+        const sectionText = section.content.join('\n\n');
+        if (sectionText.length > 50) { // Skip very short sections
+          chunks.push({
+            id: `${documentId}_section_${section.title.replace(/\s+/g, '_').toLowerCase()}`,
+            documentId,
+            chunkIndex: chunks.length,
+            content: sectionText,
+            chunkType: 'section',
+            title: options.title || options.filename,
+            sourceFile: options.filename,
+            sectionTitle: section.title,
+            pageNumber: section.pageNumber,
+            uploadedAt: new Date().toISOString(),
+            metadata: {
+              sectionLevel: section.level,
+            },
+          });
+        }
+      }
+    }
+
+    // Add table chunks
+    for (const table of extractedContent.tables) {
+      const tableText = docIntelService._formatTableAsText(table);
+      if (tableText) {
+        chunks.push({
+          id: `${documentId}_table_${table.tableIndex}`,
+          documentId,
+          chunkIndex: chunks.length,
+          content: tableText,
+          chunkType: 'table',
+          title: options.title || options.filename,
+          sourceFile: options.filename,
+          pageNumber: table.boundingRegions?.[0]?.pageNumber || 1,
+          uploadedAt: new Date().toISOString(),
+          metadata: {
+            rowCount: table.rowCount,
+            columnCount: table.columnCount,
+          },
+        });
+      }
+    }
+
+    return chunks;
+  }
+
+  _splitIntoChunks(text, chunkSize, overlap) {
+    const chunks = [];
+    const words = text.split(/\s+/);
+
+    // Approximate tokens as words (rough estimate)
+    const wordsPerChunk = chunkSize;
+    const overlapWords = overlap;
+
+    let start = 0;
+    while (start < words.length) {
+      const end = Math.min(start + wordsPerChunk, words.length);
+      const chunk = words.slice(start, end).join(' ');
+
+      if (chunk.trim().length > 0) {
+        chunks.push(chunk);
+      }
+
+      // Move start position with overlap
+      start = end - overlapWords;
+
+      // Ensure we make progress
+      if (start <= chunks.length * (wordsPerChunk - overlapWords) - wordsPerChunk) {
+        start = end;
+      }
+    }
+
+    return chunks;
+  }
+
+  async _generateEmbeddings(chunks, entities) {
+    const embeddedChunks = [];
+
+    // Process in batches for efficiency
+    const BATCH_SIZE = 16;
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batch = chunks.slice(i, i + BATCH_SIZE);
+      const texts = batch.map((c) => c.content);
+
+      const embeddings = await this.openai.getEmbeddings(texts);
+
+      for (let j = 0; j < batch.length; j++) {
+        const chunk = batch[j];
+        const embedding = embeddings[j];
+
+        // Find entities mentioned in this chunk
+        const chunkEntities = entities
+          .filter((e) => chunk.content.toLowerCase().includes(e.name.toLowerCase()))
+          .map((e) => e.name);
+
+        embeddedChunks.push({
+          ...chunk,
+          contentVector: embedding,
+          entities: chunkEntities,
+          processedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    return embeddedChunks;
+  }
+
+  async _updateGraph(entities, relationships, documentId) {
+    // Add entities as vertices
+    for (const entity of entities) {
+      try {
+        // Check if entity already exists
+        const existing = await this.graph.findVertexByName(entity.name);
+
+        if (!existing) {
+          await this.graph.addVertex({
+            ...entity,
+            sourceDocumentId: documentId,
+          });
+        } else {
+          // Update confidence if new is higher
+          // For now, we just skip duplicates
+        }
+      } catch (error) {
+        log.warn('Failed to add entity to graph', {
+          entityName: entity.name,
+          documentId,
+          error: error.message,
+        });
+      }
+    }
+
+    // Add relationships as edges
+    for (const relationship of relationships) {
+      try {
+        await this.graph.addEdge({
+          ...relationship,
+          sourceDocumentId: documentId,
+        });
+      } catch (error) {
+        log.warn('Failed to add relationship to graph', {
+          from: relationship.from,
+          to: relationship.to,
+          documentId,
+          error: error.message,
+        });
+      }
+    }
+  }
+
+  async _updateStatus(documentId, status, additionalFields = {}) {
+    const updateData = {
+      status,
+      processingStage: status,
+      [`${status}At`]: new Date().toISOString(),
+      ...additionalFields,
+    };
+
+    if (status === 'completed') {
+      updateData.processingCompletedAt = new Date().toISOString();
+    }
+
+    await this.cosmos.updateDocument(documentId, updateData);
+  }
+
+  async reprocessDocument(documentId) {
+    // Clean up existing data for this document
+    await this.search.deleteDocumentsByDocumentId(documentId);
+    await this.graph.deleteEdgesByDocumentId(documentId);
+    await this.graph.deleteVertexByDocumentId(documentId);
+
+    // Get document info and reprocess
+    const document = await this.cosmos.getDocument(documentId);
+    if (!document) {
+      throw new Error('Document not found');
+    }
+
+    return this.processDocument(documentId, document.blobUrl, {
+      mimeType: document.mimeType,
+      filename: document.filename,
+      title: document.title,
+    });
+  }
+}
+
+module.exports = {
+  DocumentProcessor,
+};
