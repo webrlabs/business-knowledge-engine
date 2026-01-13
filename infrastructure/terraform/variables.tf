@@ -73,7 +73,7 @@ variable "subnets" {
 variable "openai_model_name" {
   description = "OpenAI model deployment name."
   type        = string
-  default     = "gpt-4"
+  default     = "gpt-5.2"
 }
 
 variable "cosmos_database_name" {
@@ -224,6 +224,12 @@ variable "function_sku_name" {
   description = "Function App plan SKU."
   type        = string
   default     = "Y1"
+}
+
+variable "function_os_type" {
+  description = "Function App plan OS type (Windows or Linux)."
+  type        = string
+  default     = "Windows"
 }
 
 variable "function_vnet_integration_enabled" {

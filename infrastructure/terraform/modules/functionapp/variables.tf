@@ -15,6 +15,11 @@ variable "app_insights_connection" {
   default = ""
 }
 
+variable "os_type" {
+  type    = string
+  default = "Windows"
+}
+
 variable "subnet_id" {
   type = string
 }

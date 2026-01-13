@@ -26,9 +26,15 @@ module "monitoring" {
   tags                = local.tags
 }
 
+resource "random_string" "keyvault_suffix" {
+  length  = 6
+  upper   = false
+  special = false
+}
+
 module "keyvault" {
   source              = "./modules/keyvault"
-  name                = "${local.name_prefix}-kv"
+  name                = "${local.name_prefix}-kv-${random_string.keyvault_suffix.result}"
   location            = var.location
   resource_group_name = module.resource_group.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
@@ -146,6 +152,7 @@ module "functionapp" {
   azure_ad_client_id       = module.identity.backend_app_id
   azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_uri : var.azure_ad_audience
   sku_name                 = var.function_sku_name
+  os_type                  = var.function_os_type
   enable_vnet_integration  = var.function_vnet_integration_enabled
   tags                     = local.tags
 }

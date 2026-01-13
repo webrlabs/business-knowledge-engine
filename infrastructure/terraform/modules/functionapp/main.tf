@@ -17,29 +17,13 @@ resource "azurerm_service_plan" "this" {
   name                = "${var.name_prefix}-func-plan"
   location            = var.location
   resource_group_name = var.resource_group_name
-  os_type             = "Linux"
+  os_type             = var.os_type
   sku_name            = var.sku_name
   tags                = var.tags
 }
 
-resource "azurerm_linux_function_app" "this" {
-  name                = "${var.name_prefix}-functions"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  service_plan_id     = azurerm_service_plan.this.id
-  storage_account_name       = azurerm_storage_account.this.name
-  storage_account_access_key = azurerm_storage_account.this.primary_access_key
-
-  site_config {
-    application_stack {
-      node_version = "18"
-    }
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
+locals {
+  is_linux = lower(var.os_type) == "linux"
   app_settings = {
     WEBSITE_RUN_FROM_PACKAGE             = "1"
     APPLICATIONINSIGHTS_CONNECTION_STRING = var.app_insights_connection
@@ -61,12 +45,58 @@ resource "azurerm_linux_function_app" "this" {
     AZURE_AD_CLIENT_ID                    = var.azure_ad_client_id
     AZURE_AD_AUDIENCE                     = var.azure_ad_audience
   }
+}
+
+resource "azurerm_linux_function_app" "this" {
+  count               = local.is_linux ? 1 : 0
+  name                = "${var.name_prefix}-functions"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  service_plan_id     = azurerm_service_plan.this.id
+  storage_account_name       = azurerm_storage_account.this.name
+  storage_account_access_key = azurerm_storage_account.this.primary_access_key
+
+  site_config {
+    application_stack {
+      node_version = "~18"
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  app_settings = local.app_settings
+
+  tags = var.tags
+}
+
+resource "azurerm_windows_function_app" "this" {
+  count               = local.is_linux ? 0 : 1
+  name                = "${var.name_prefix}-functions"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  service_plan_id     = azurerm_service_plan.this.id
+  storage_account_name       = azurerm_storage_account.this.name
+  storage_account_access_key = azurerm_storage_account.this.primary_access_key
+
+  site_config {
+    application_stack {
+      node_version = "~18"
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  app_settings = local.app_settings
 
   tags = var.tags
 }
 
 resource "azurerm_app_service_virtual_network_swift_connection" "this" {
   count          = var.enable_vnet_integration ? 1 : 0
-  app_service_id = azurerm_linux_function_app.this.id
+  app_service_id = local.is_linux ? azurerm_linux_function_app.this[0].id : azurerm_windows_function_app.this[0].id
   subnet_id      = var.subnet_id
 }

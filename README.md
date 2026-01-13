@@ -21,7 +21,7 @@ This platform is designed for **enterprise environments** with:
 | **Backend API** | Node.js 18+, Express 5 |
 | **Authentication** | Microsoft Entra ID, MSAL, JWT |
 | **Document Processing** | Azure AI Document Intelligence |
-| **AI/LLM** | Azure OpenAI (GPT-4, text-embedding-ada-002) |
+| **AI/LLM** | Azure AI Foundry (GPT-5.2, text-embedding-ada-002) |
 | **Vector Search** | Azure AI Search (hybrid + semantic ranking) |
 | **Document Store** | Azure Cosmos DB (SQL API) |
 | **Knowledge Graph** | Azure Cosmos DB (Gremlin API) |
@@ -46,8 +46,8 @@ This platform is designed for **enterprise environments** with:
           +----------------------------------+----------------------------------+
           |                    |                    |                           |
 +---------v--------+  +--------v--------+  +-------v--------+  +---------------v-+
-| Azure AI Search  |  | Azure OpenAI    |  | Cosmos DB      |  | Blob Storage    |
-| (Vector + Hybrid)|  | (GPT-4/Embed)   |  | (Docs + Graph) |  | (Files)         |
+| Azure AI Search  |  | Azure AI Foundry|  | Cosmos DB      |  | Blob Storage    |
+| (Vector + Hybrid)|  | (GPT-5.2/Embed) |  | (Docs + Graph) |  | (Files)         |
 +------------------+  +-----------------+  +----------------+  +-----------------+
 ```
 
