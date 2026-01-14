@@ -255,7 +255,20 @@ az webapp deploy --resource-group <rg> --name <app-name> --src-path .
 
 ### CI/CD
 
-See `.github/workflows/` for GitHub Actions pipelines (if configured).
+GitHub Actions deploy workflows are included:
+- `.github/workflows/deploy-frontend.yml`
+- `.github/workflows/deploy-backend.yml`
+- `.github/workflows/deploy-functions.yml`
+
+To use OIDC, create a federated identity in Entra ID and add these repo secrets:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Federated credential settings:
+- Issuer: `https://token.actions.githubusercontent.com`
+- Subject: `repo:webrlabs/business-knowledge-engine:ref:refs/heads/main`
+- Audience: `api://AzureADTokenExchange`
 
 ## Security Considerations
 

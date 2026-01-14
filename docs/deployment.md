@@ -141,7 +141,6 @@ az keyvault secret list --vault-name bke-dev-kv
 ```
 
 Required secrets:
-- `redis-password` (if using Redis)
 - Any API keys for external services
 
 ### 3. Configure CORS
@@ -185,7 +184,6 @@ curl https://bke-dev-frontend.azurewebsites.net
 - Enable VNet integration for all services
 - Configure auto-scaling
 - Enable backup for Cosmos DB and Storage
-- Use Premium SKU for Redis Cache
 - Enable diagnostic logging to Log Analytics
 
 ## Monitoring

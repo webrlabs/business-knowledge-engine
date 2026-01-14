@@ -102,7 +102,6 @@ All Azure PaaS services use private endpoints:
 | Cosmos DB | Microsoft-managed keys (default) |
 | Azure Storage | Microsoft-managed keys (default) |
 | Key Vault | HSM-backed keys |
-| Redis Cache | TLS encrypted storage |
 
 ### Encryption in Transit
 
@@ -115,7 +114,6 @@ All Azure PaaS services use private endpoints:
 Sensitive configuration values are stored in Azure Key Vault:
 - Database connection strings
 - API keys
-- Redis passwords
 - Certificate secrets
 
 **Access Control:**

@@ -46,11 +46,11 @@
                     │
      ┌──────────────┼──────────────┬──────────────┬──────────────┐
      ▼              ▼              ▼              ▼              ▼
-┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ Cosmos  │  │Azure AI  │  │  Blob    │  │  Redis   │  │ Key Vault│
-│ DB      │  │ Search   │  │ Storage  │  │  Cache   │  │          │
-│(Gremlin)│  │          │  │(ADLS G2) │  │          │  │          │
-└─────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Cosmos  │  │Azure AI  │  │  Blob    │  │ Key Vault│
+│ DB      │  │ Search   │  │ Storage  │  │          │
+│(Gremlin)│  │          │  │(ADLS G2) │  │          │
+└─────────┘  └──────────┘  └──────────┘  └──────────┘
 ```
 
 ### Network Architecture (Zero-Trust)
@@ -61,7 +61,7 @@
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                      Private Endpoints                          │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │  │
-│  │  │ Cosmos DB│  │AI Search │  │  Blob    │  │  Redis   │      │  │
+│  │  │ Cosmos DB│  │AI Search │  │  Blob    │  │ Key Vault│      │  │
 │  │  │ Private  │  │ Private  │  │ Private  │  │ Private  │      │  │
 │  │  │ Endpoint │  │ Endpoint │  │ Endpoint │  │ Endpoint │      │  │
 │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │  │
@@ -278,7 +278,6 @@ Response to User
 
 ### Performance Optimization
 
-- **Caching:** Redis for frequently accessed data (leaderboards, user prefs)
 - **CDN:** Static assets served from Azure CDN
 - **Query Optimization:** Indexed properties in Cosmos DB
 - **Connection Pooling:** Reuse connections to Azure services

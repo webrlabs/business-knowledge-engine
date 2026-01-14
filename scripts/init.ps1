@@ -130,12 +130,11 @@ Write-Host " NEXT STEPS:" -ForegroundColor Cyan
 Write-Host "====================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " 1. Configure Azure services (see README.md for details):" -ForegroundColor White
-Write-Host "    - Azure OpenAI Service" -ForegroundColor Gray
+Write-Host "    - Azure AI Foundry (OpenAI)" -ForegroundColor Gray
 Write-Host "    - Cosmos DB (Gremlin API)" -ForegroundColor Gray
 Write-Host "    - Azure AI Search" -ForegroundColor Gray
 Write-Host "    - Azure Blob Storage (ADLS Gen2)" -ForegroundColor Gray
 Write-Host "    - Azure Key Vault" -ForegroundColor Gray
-Write-Host "    - Azure Cache for Redis" -ForegroundColor Gray
 Write-Host ""
 Write-Host " 2. Update .env.local with your Azure service endpoints" -ForegroundColor White
 Write-Host ""

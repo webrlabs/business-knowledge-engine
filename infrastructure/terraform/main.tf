@@ -264,6 +264,7 @@ resource "azurerm_role_assignment" "function_docint" {
 
 
 module "apim" {
+  count               = var.enable_apim ? 1 : 0
   source              = "./modules/apim"
   name_prefix         = local.name_prefix
   location            = var.location

@@ -4,6 +4,9 @@
 # Claude Code
 .claude/
 
+# Deployment artifacts
+.deploy/
+
 # Screenshots and verification artifacts
 screenshots/
 verification/

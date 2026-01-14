@@ -58,7 +58,7 @@
       <object_storage>Azure Blob Storage (ADLS Gen2)</object_storage>
       <graph_database>Azure Cosmos DB (Gremlin API)</graph_database>
       <vector_search>Azure AI Search</vector_search>
-      <cache>Azure Cache for Redis</cache>
+      
     </data_stores>
 
     <security_infrastructure>
@@ -206,7 +206,7 @@
 
     <gamification>
       <activity_tracking>Cosmos DB Change Feed</activity_tracking>
-      <leaderboards>Redis cached</leaderboards>
+      <leaderboards>Cosmos DB</leaderboards>
       <security_override>false</security_override>
     </gamification>
 

@@ -214,6 +214,12 @@ variable "apim_sku" {
   default     = "Developer_1"
 }
 
+variable "enable_apim" {
+  description = "Create API Management resources."
+  type        = bool
+  default     = false
+}
+
 variable "appservice_sku_name" {
   description = "App Service plan SKU for frontend/backend."
   type        = string
