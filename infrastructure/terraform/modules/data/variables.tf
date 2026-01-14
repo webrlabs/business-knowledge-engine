@@ -55,3 +55,14 @@ variable "search_public_network_access_enabled" {
   default = true
 }
 
+# Gremlin (Knowledge Graph)
+variable "cosmos_gremlin_database_name" {
+  type    = string
+  default = "knowledge-graph"
+}
+
+variable "cosmos_gremlin_graph_name" {
+  type    = string
+  default = "entities"
+}
+

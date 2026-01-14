@@ -226,6 +226,12 @@ variable "appservice_sku_name" {
   default     = "B1"
 }
 
+variable "appservice_node_version" {
+  description = "App Service Node.js runtime version."
+  type        = string
+  default     = "24-lts"
+}
+
 variable "function_sku_name" {
   description = "Function App plan SKU."
   type        = string
@@ -238,6 +244,18 @@ variable "function_os_type" {
   default     = "Linux"
 }
 
+variable "function_node_version_linux" {
+  description = "Node.js runtime version for Linux Functions."
+  type        = string
+  default     = "24"
+}
+
+variable "function_node_version_windows" {
+  description = "Node.js runtime version for Windows Functions."
+  type        = string
+  default     = "~24"
+}
+
 variable "function_vnet_integration_enabled" {
   description = "Enable VNet integration for Function App (requires premium/dedicated plan)."
   type        = bool
@@ -248,4 +266,70 @@ variable "appservice_vnet_integration_enabled" {
   description = "Enable VNet integration for App Service (requires supported SKU)."
   type        = bool
   default     = false
+}
+
+# -----------------------------------------------------------------------------
+# Cosmos DB Gremlin (Knowledge Graph)
+# -----------------------------------------------------------------------------
+variable "cosmos_gremlin_database_name" {
+  description = "Cosmos DB Gremlin database name for knowledge graph."
+  type        = string
+  default     = "knowledge-graph"
+}
+
+variable "cosmos_gremlin_graph_name" {
+  description = "Cosmos DB Gremlin graph container name."
+  type        = string
+  default     = "entities"
+}
+
+# -----------------------------------------------------------------------------
+# Backend Application Settings
+# -----------------------------------------------------------------------------
+variable "backend_port" {
+  description = "Port the backend API listens on."
+  type        = number
+  default     = 8080
+}
+
+variable "backend_log_level" {
+  description = "Log level for backend application (debug, info, warn, error)."
+  type        = string
+  default     = "info"
+}
+
+# -----------------------------------------------------------------------------
+# Feature Flags
+# -----------------------------------------------------------------------------
+variable "enable_pii_redaction" {
+  description = "Enable automatic PII redaction in responses."
+  type        = bool
+  default     = true
+}
+
+# -----------------------------------------------------------------------------
+# Rate Limiting
+# -----------------------------------------------------------------------------
+variable "rate_limit_window_ms" {
+  description = "Rate limit window in milliseconds."
+  type        = number
+  default     = 900000
+}
+
+variable "rate_limit_max_requests" {
+  description = "Maximum requests per rate limit window."
+  type        = number
+  default     = 100
+}
+
+variable "openai_rpm_limit" {
+  description = "OpenAI requests per minute limit."
+  type        = number
+  default     = 60
+}
+
+variable "openai_tpm_limit" {
+  description = "OpenAI tokens per minute limit."
+  type        = number
+  default     = 90000
 }

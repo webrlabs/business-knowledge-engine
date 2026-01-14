@@ -5,7 +5,7 @@
 - Azure subscription with appropriate permissions
 - Azure CLI installed and authenticated
 - Terraform >= 1.5.0 installed
-- Node.js >= 18.x installed
+- Node.js >= 24.x installed
 - Git
 
 ## Infrastructure Deployment

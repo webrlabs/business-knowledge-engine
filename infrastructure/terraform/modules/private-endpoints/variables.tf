@@ -42,6 +42,9 @@ variable "docint_account_id" {
   type = string
 }
 
+variable "gremlin_account_id" {
+  type = string
+}
 
 variable "tags" {
   type    = map(string)

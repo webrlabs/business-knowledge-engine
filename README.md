@@ -18,7 +18,7 @@ This platform is designed for **enterprise environments** with:
 | Layer | Technology |
 |-------|------------|
 | **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS |
-| **Backend API** | Node.js 18+, Express 5 |
+| **Backend API** | Node.js 24+, Express 5 |
 | **Authentication** | Microsoft Entra ID, MSAL, JWT |
 | **Document Processing** | Azure AI Document Intelligence |
 | **AI/LLM** | Azure AI Foundry (GPT-5.2, text-embedding-ada-002) |
@@ -53,7 +53,7 @@ This platform is designed for **enterprise environments** with:
 
 ## Prerequisites
 
-- **Node.js 18+** - [Download](https://nodejs.org/)
+- **Node.js 24+** - [Download](https://nodejs.org/)
 - **Azure CLI** - [Download](https://aka.ms/installazurecliwindows)
 - **Terraform** (for infrastructure) - [Download](https://www.terraform.io/downloads)
 - **Git** - [Download](https://git-scm.com/download/win)

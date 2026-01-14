@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '24.x'
   TERRAFORM_VERSION: '1.5.0'
 
 jobs:

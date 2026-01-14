@@ -54,6 +54,11 @@ variable "enable_vnet_integration" {
   default = false
 }
 
+variable "node_version" {
+  type    = string
+  default = "24-lts"
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

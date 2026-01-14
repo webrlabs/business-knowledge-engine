@@ -31,6 +31,17 @@ New-Item -ItemType Directory -Path $deployDir | Out-Null
 $excludeDirs = @("node_modules", ".next", ".git", ".deploy", "tests", "scripts")
 $excludeFiles = @(".env", ".env.local", ".env.*.local")
 
+Write-Host "Installing dependencies and building frontend..." -ForegroundColor Cyan
+Push-Location (Join-Path $repo "frontend")
+npm ci
+npm run build
+Pop-Location
+
+Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
+Push-Location (Join-Path $repo "backend")
+npm ci
+Pop-Location
+
 New-Item -ItemType Directory -Path $frontendStage | Out-Null
 New-Item -ItemType Directory -Path $backendStage | Out-Null
 
@@ -53,10 +64,12 @@ $backendUrl = "https://$BackendApp.azurewebsites.net"
 az webapp config appsettings set --resource-group $ResourceGroup --name $FrontendApp --settings `
   NEXT_PUBLIC_API_URL=$backendUrl `
   NEXT_PUBLIC_AZURE_AD_REDIRECT_URI=https://$FrontendApp.azurewebsites.net/auth/callback `
-  SCM_DO_BUILD_DURING_DEPLOYMENT=true | Out-Null
+  SCM_DO_BUILD_DURING_DEPLOYMENT=false `
+  WEBSITE_RUN_FROM_PACKAGE=1 | Out-Null
 
 az webapp config appsettings set --resource-group $ResourceGroup --name $BackendApp --settings `
-  SCM_DO_BUILD_DURING_DEPLOYMENT=true | Out-Null
+  SCM_DO_BUILD_DURING_DEPLOYMENT=false `
+  WEBSITE_RUN_FROM_PACKAGE=1 | Out-Null
 
 Write-Host "Deploying frontend..." -ForegroundColor Cyan
 az webapp deploy --resource-group $ResourceGroup --name $FrontendApp --src-path $frontendZip --type zip | Out-Null
@@ -65,9 +78,20 @@ Write-Host "Deploying backend..." -ForegroundColor Cyan
 az webapp deploy --resource-group $ResourceGroup --name $BackendApp --src-path $backendZip --type zip | Out-Null
 
 Write-Host "Deploying functions..." -ForegroundColor Cyan
-Push-Location (Join-Path $repo "functions")
-func azure functionapp publish $FunctionApp
-Pop-Location
+$funcCmd = Get-Command func -ErrorAction SilentlyContinue
+if ($funcCmd) {
+  Push-Location (Join-Path $repo "functions")
+  func azure functionapp publish $FunctionApp
+  Pop-Location
+} else {
+  $functionsStage = Join-Path $deployDir "functions"
+  $functionsZip = Join-Path $deployDir "functions.zip"
+  New-Item -ItemType Directory -Path $functionsStage | Out-Null
+  robocopy (Join-Path $repo "functions") $functionsStage /E /XD $excludeDirs /XF $excludeFiles | Out-Null
+  if (Test-Path $functionsZip) { Remove-Item $functionsZip -Force }
+  Compress-Archive -Path (Join-Path $functionsStage "*") -DestinationPath $functionsZip
+  az functionapp deployment source config-zip --resource-group $ResourceGroup --name $FunctionApp --src $functionsZip | Out-Null
+}
 
 Write-Host "Deploy complete." -ForegroundColor Green
 Write-Host "Frontend: https://$FrontendApp.azurewebsites.net" -ForegroundColor Green

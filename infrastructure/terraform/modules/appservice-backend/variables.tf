@@ -118,3 +118,62 @@ variable "enable_vnet_integration" {
   type    = bool
   default = false
 }
+
+variable "node_version" {
+  type    = string
+  default = "24-lts"
+}
+
+# Gremlin Knowledge Graph
+variable "gremlin_endpoint" {
+  type    = string
+  default = ""
+}
+
+variable "gremlin_database_name" {
+  type    = string
+  default = ""
+}
+
+variable "gremlin_graph_name" {
+  type    = string
+  default = ""
+}
+
+# Application settings
+variable "port" {
+  type    = number
+  default = 8080
+}
+
+variable "log_level" {
+  type    = string
+  default = "info"
+}
+
+# Feature flags
+variable "enable_pii_redaction" {
+  type    = bool
+  default = true
+}
+
+# Rate limiting
+variable "rate_limit_window_ms" {
+  type    = number
+  default = 900000
+}
+
+variable "rate_limit_max_requests" {
+  type    = number
+  default = 100
+}
+
+variable "openai_rpm_limit" {
+  type    = number
+  default = 60
+}
+
+variable "openai_tpm_limit" {
+  type    = number
+  default = 90000
+}

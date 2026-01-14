@@ -78,3 +78,48 @@ resource "azurerm_search_service" "this" {
   tags                = var.tags
 }
 
+# Cosmos DB Gremlin Account for Knowledge Graph
+resource "azurerm_cosmosdb_account" "gremlin" {
+  name                = "${var.name_prefix}-gremlin"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  offer_type          = "Standard"
+  kind                = "GlobalDocumentDB"
+  public_network_access_enabled = var.cosmos_public_network_access_enabled
+
+  capabilities {
+    name = "EnableGremlin"
+  }
+
+  consistency_policy {
+    consistency_level = "Session"
+  }
+
+  geo_location {
+    location          = var.location
+    failover_priority = 0
+  }
+
+  tags = var.tags
+}
+
+resource "azurerm_cosmosdb_gremlin_database" "graph" {
+  name                = var.cosmos_gremlin_database_name
+  resource_group_name = var.resource_group_name
+  account_name        = azurerm_cosmosdb_account.gremlin.name
+}
+
+resource "azurerm_cosmosdb_gremlin_graph" "entities" {
+  name                = var.cosmos_gremlin_graph_name
+  resource_group_name = var.resource_group_name
+  account_name        = azurerm_cosmosdb_account.gremlin.name
+  database_name       = azurerm_cosmosdb_gremlin_database.graph.name
+  partition_key_path  = "/ontologyType"
+
+  index_policy {
+    automatic      = true
+    indexing_mode  = "consistent"
+    included_paths = ["/*"]
+  }
+}
+

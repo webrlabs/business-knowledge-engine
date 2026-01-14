@@ -59,6 +59,8 @@ module "data" {
   cosmos_database_name          = var.cosmos_database_name
   cosmos_documents_container_name = var.cosmos_documents_container_name
   cosmos_audit_container_name     = var.cosmos_audit_container_name
+  cosmos_gremlin_database_name    = var.cosmos_gremlin_database_name
+  cosmos_gremlin_graph_name       = var.cosmos_gremlin_graph_name
   storage_documents_container_name = var.storage_documents_container_name
   storage_processed_container_name = var.storage_processed_container_name
   storage_public_network_access_enabled = var.storage_public_network_access_enabled
@@ -95,6 +97,7 @@ module "appservice_frontend" {
   api_scope                = var.frontend_api_scope == "" ? "${module.identity.backend_app_uri}/access_as_user" : var.frontend_api_scope
   sku_name                 = var.appservice_sku_name
   enable_vnet_integration  = var.appservice_vnet_integration_enabled
+  node_version             = var.appservice_node_version
   tags                     = local.tags
 }
 
@@ -106,24 +109,56 @@ module "appservice_backend" {
   app_insights_connection  = module.monitoring.app_insights_connection_string
   key_vault_uri            = module.keyvault.vault_uri
   subnet_id                = module.network.subnet_ids["app"]
+
+  # Cosmos DB SQL API
   cosmos_endpoint          = module.data.cosmos_endpoint
   cosmos_database_name     = module.data.cosmos_database_name
   cosmos_documents_container_name = module.data.cosmos_documents_container_name
   cosmos_audit_container_name     = module.data.cosmos_audit_container_name
+
+  # Cosmos DB Gremlin API (Knowledge Graph)
+  gremlin_endpoint         = module.data.gremlin_endpoint
+  gremlin_database_name    = module.data.gremlin_database_name
+  gremlin_graph_name       = module.data.gremlin_graph_name
+
+  # Azure Storage
   storage_account_name     = module.data.storage_account_name
   storage_documents_container_name = module.data.storage_documents_container_name
+
+  # Azure AI Search
   search_endpoint          = module.data.search_endpoint
   search_index_name        = var.search_index_name
+
+  # Azure OpenAI
   openai_endpoint          = module.ai_foundry.openai_endpoint
   openai_deployment_name   = var.openai_model_name
   openai_embedding_deployment = var.openai_embedding_deployment
   openai_api_version       = var.openai_api_version
+
+  # Azure Document Intelligence
   form_recognizer_endpoint = module.ai_foundry.docint_endpoint
+
+  # Azure AD / Entra ID
   azure_ad_tenant_id       = data.azuread_client_config.current.tenant_id
   azure_ad_client_id       = module.identity.backend_app_id
   azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_uri : var.azure_ad_audience
+
+  # Application settings
+  port                     = var.backend_port
+  log_level                = var.backend_log_level
+
+  # Feature flags
+  enable_pii_redaction     = var.enable_pii_redaction
+
+  # Rate limiting
+  rate_limit_window_ms     = var.rate_limit_window_ms
+  rate_limit_max_requests  = var.rate_limit_max_requests
+  openai_rpm_limit         = var.openai_rpm_limit
+  openai_tpm_limit         = var.openai_tpm_limit
+
   sku_name                 = var.appservice_sku_name
   enable_vnet_integration  = var.appservice_vnet_integration_enabled
+  node_version             = var.appservice_node_version
   tags                     = local.tags
 }
 
@@ -135,24 +170,51 @@ module "functionapp" {
   app_insights_connection  = module.monitoring.app_insights_connection_string
   key_vault_uri            = module.keyvault.vault_uri
   subnet_id                = module.network.subnet_ids["functions"]
+
+  # Cosmos DB SQL API
   cosmos_endpoint          = module.data.cosmos_endpoint
   cosmos_database_name     = module.data.cosmos_database_name
   cosmos_documents_container_name = module.data.cosmos_documents_container_name
   cosmos_audit_container_name     = module.data.cosmos_audit_container_name
+
+  # Cosmos DB Gremlin API (Knowledge Graph)
+  gremlin_endpoint         = module.data.gremlin_endpoint
+  gremlin_database_name    = module.data.gremlin_database_name
+  gremlin_graph_name       = module.data.gremlin_graph_name
+
+  # Azure Storage
   storage_account_name     = module.data.storage_account_name
   storage_documents_container_name = module.data.storage_documents_container_name
+
+  # Azure AI Search
   search_endpoint          = module.data.search_endpoint
   search_index_name        = var.search_index_name
+
+  # Azure OpenAI
   openai_endpoint          = module.ai_foundry.openai_endpoint
   openai_deployment_name   = var.openai_model_name
   openai_embedding_deployment = var.openai_embedding_deployment
   openai_api_version       = var.openai_api_version
+
+  # Azure Document Intelligence
   form_recognizer_endpoint = module.ai_foundry.docint_endpoint
+
+  # Azure AD / Entra ID
   azure_ad_tenant_id       = data.azuread_client_config.current.tenant_id
   azure_ad_client_id       = module.identity.backend_app_id
   azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_uri : var.azure_ad_audience
+
+  # Feature flags
+  enable_pii_redaction     = var.enable_pii_redaction
+
+  # Rate limiting
+  openai_rpm_limit         = var.openai_rpm_limit
+  openai_tpm_limit         = var.openai_tpm_limit
+
   sku_name                 = var.function_sku_name
   os_type                  = var.function_os_type
+  node_version_linux       = var.function_node_version_linux
+  node_version_windows     = var.function_node_version_windows
   enable_vnet_integration  = var.function_vnet_integration_enabled
   tags                     = local.tags
 }
@@ -167,6 +229,7 @@ module "private_endpoints" {
   vnet_id             = module.network.vnet_id
   storage_account_id  = module.data.storage_account_id
   cosmos_account_id   = module.data.cosmos_account_id
+  gremlin_account_id  = module.data.gremlin_account_id
   search_service_id   = module.data.search_id
   key_vault_id        = module.keyvault.id
   openai_account_id   = module.ai_foundry.openai_account_id
@@ -262,6 +325,28 @@ resource "azurerm_role_assignment" "function_docint" {
   principal_id         = module.functionapp.principal_id
 }
 
+# Gremlin (Knowledge Graph) role assignments
+resource "random_uuid" "backend_gremlin_role" {}
+
+resource "random_uuid" "function_gremlin_role" {}
+
+resource "azurerm_cosmosdb_sql_role_assignment" "backend_gremlin" {
+  name                = random_uuid.backend_gremlin_role.result
+  resource_group_name = module.resource_group.name
+  account_name        = module.data.gremlin_account_name
+  role_definition_id  = "${module.data.gremlin_account_id}/sqlRoleDefinitions/${var.cosmos_data_contributor_role_definition_id}"
+  principal_id        = module.appservice_backend.principal_id
+  scope               = module.data.gremlin_account_id
+}
+
+resource "azurerm_cosmosdb_sql_role_assignment" "function_gremlin" {
+  name                = random_uuid.function_gremlin_role.result
+  resource_group_name = module.resource_group.name
+  account_name        = module.data.gremlin_account_name
+  role_definition_id  = "${module.data.gremlin_account_id}/sqlRoleDefinitions/${var.cosmos_data_contributor_role_definition_id}"
+  principal_id        = module.functionapp.principal_id
+  scope               = module.data.gremlin_account_id
+}
 
 module "apim" {
   count               = var.enable_apim ? 1 : 0

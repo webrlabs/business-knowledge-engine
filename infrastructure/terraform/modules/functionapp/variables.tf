@@ -20,6 +20,16 @@ variable "os_type" {
   default = "Windows"
 }
 
+variable "node_version_linux" {
+  type    = string
+  default = "24"
+}
+
+variable "node_version_windows" {
+  type    = string
+  default = "~24"
+}
+
 variable "subnet_id" {
   type = string
 }
@@ -123,4 +133,37 @@ variable "enable_vnet_integration" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+# Gremlin Knowledge Graph
+variable "gremlin_endpoint" {
+  type    = string
+  default = ""
+}
+
+variable "gremlin_database_name" {
+  type    = string
+  default = ""
+}
+
+variable "gremlin_graph_name" {
+  type    = string
+  default = ""
+}
+
+# Feature flags
+variable "enable_pii_redaction" {
+  type    = bool
+  default = true
+}
+
+# Rate limiting
+variable "openai_rpm_limit" {
+  type    = number
+  default = 60
+}
+
+variable "openai_tpm_limit" {
+  type    = number
+  default = 90000
 }

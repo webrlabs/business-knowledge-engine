@@ -46,3 +46,24 @@ output "search_endpoint" {
   value = "https://${azurerm_search_service.this.name}.search.windows.net"
 }
 
+# Gremlin outputs
+output "gremlin_account_name" {
+  value = azurerm_cosmosdb_account.gremlin.name
+}
+
+output "gremlin_account_id" {
+  value = azurerm_cosmosdb_account.gremlin.id
+}
+
+output "gremlin_endpoint" {
+  value = "wss://${azurerm_cosmosdb_account.gremlin.name}.gremlin.cosmos.azure.com:443/"
+}
+
+output "gremlin_database_name" {
+  value = azurerm_cosmosdb_gremlin_database.graph.name
+}
+
+output "gremlin_graph_name" {
+  value = azurerm_cosmosdb_gremlin_graph.entities.name
+}
+
