@@ -52,23 +52,25 @@ class OpenAIService {
 
   async getChatCompletion(messages, options = {}) {
     const client = await this._getClient();
-    const deploymentName = options.deploymentName || this.config.deploymentName;
+    const model = options.deploymentName || this.config.deploymentName;
 
-    if (!deploymentName) {
+    if (!model) {
       throw new Error('AZURE_OPENAI_DEPLOYMENT_NAME is required');
     }
 
     return this._retryWithBackoff(async () => {
-      const response = await client.getChatCompletions(deploymentName, messages, {
+      const response = await client.chat.completions.create({
+        model,
+        messages,
         temperature: options.temperature ?? 0.0,
-        maxTokens: options.maxTokens ?? 4096,
-        responseFormat: options.responseFormat,
+        max_tokens: options.maxTokens ?? 4096,
+        response_format: options.responseFormat,
       });
 
       return {
         content: response.choices[0]?.message?.content || '',
         usage: response.usage,
-        finishReason: response.choices[0]?.finishReason,
+        finishReason: response.choices[0]?.finish_reason,
       };
     });
   }
@@ -91,14 +93,17 @@ class OpenAIService {
 
   async getEmbedding(text) {
     const client = await this._getClient();
-    const deploymentName = this.config.embeddingDeployment;
+    const model = this.config.embeddingDeployment;
 
-    if (!deploymentName) {
+    if (!model) {
       throw new Error('AZURE_OPENAI_EMBEDDING_DEPLOYMENT is required');
     }
 
     return this._retryWithBackoff(async () => {
-      const response = await client.getEmbeddings(deploymentName, [text]);
+      const response = await client.embeddings.create({
+        model,
+        input: text,
+      });
       return {
         embedding: response.data[0].embedding,
         usage: response.usage,
@@ -108,9 +113,9 @@ class OpenAIService {
 
   async getEmbeddings(texts) {
     const client = await this._getClient();
-    const deploymentName = this.config.embeddingDeployment;
+    const model = this.config.embeddingDeployment;
 
-    if (!deploymentName) {
+    if (!model) {
       throw new Error('AZURE_OPENAI_EMBEDDING_DEPLOYMENT is required');
     }
 
@@ -122,7 +127,10 @@ class OpenAIService {
       const batch = texts.slice(i, i + BATCH_SIZE);
 
       const response = await this._retryWithBackoff(async () => {
-        return await client.getEmbeddings(deploymentName, batch);
+        return await client.embeddings.create({
+          model,
+          input: batch,
+        });
       });
 
       results.push(...response.data.map((d) => d.embedding));

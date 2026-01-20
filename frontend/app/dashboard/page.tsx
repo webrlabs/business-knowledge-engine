@@ -24,7 +24,7 @@ interface DashboardStats {
     timestamp: string;
     status: string;
   }>;
-}
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function Dashboard() {
   const authFetch = useAuthFetch();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [showAuthBanner, setShowAuthBanner] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -82,57 +83,62 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6" role="list">
               {/* Total Documents */}
               <Tooltip content="Total number of documents uploaded and processed">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow" role="listitem" aria-label="Total Documents: {stats.totalDocuments} uploaded to platform">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400" id="stat-total-docs-label">Total Documents</p>
-                    <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                <div className="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl shadow-sm border border-blue-100 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200" role="listitem" aria-label="Total Documents: {stats.totalDocuments} uploaded to platform">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider" id="stat-total-docs-label">Total Documents</p>
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
                   </div>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white" aria-labelledby="stat-total-docs-label">{stats.totalDocuments}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Uploaded to platform</p>
                 </div>
               </Tooltip>
 
               {/* Total Entities */}
               <Tooltip content="Entities extracted from documents (processes, tasks, roles, etc.)">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Entities</p>
-                    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                    </svg>
+                <div className="bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl shadow-sm border border-green-100 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Total Entities</p>
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                    </div>
                   </div>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalEntities}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Extracted from documents</p>
                 </div>
               </Tooltip>
 
               {/* Pending Reviews */}
               <Tooltip content="Documents and entities awaiting manual review and approval">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Reviews</p>
-                    <svg className="w-8 h-8 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                <div className="bg-gradient-to-br from-white to-yellow-50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl shadow-sm border border-yellow-100 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Pending Reviews</p>
+                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
                   </div>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingReviews}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Awaiting approval</p>
                 </div>
               </Tooltip>
 
               {/* Graph Size */}
               <Tooltip content="Current size of the knowledge graph showing connected entities">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Graph Size</p>
-                    <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
+                <div className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl shadow-sm border border-purple-100 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Graph Size</p>
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                    </div>
                   </div>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.graphSize.nodes}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nodes, {stats.graphSize.edges} edges</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Nodes / {stats.graphSize.edges} Edges</p>
                 </div>
               </Tooltip>
             </div>
@@ -163,11 +169,10 @@ export default function Dashboard() {
                           <time dateTime={activity.timestamp}>{new Date(activity.timestamp).toLocaleString()}</time>
                         </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        activity.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${activity.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                         activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
+                          'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
                         {activity.status}
                       </span>
                     </div>
@@ -253,21 +258,32 @@ export default function Dashboard() {
         </div>
 
         {/* Success Message */}
-        <div className="mt-8 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <div className="flex items-center">
-            <svg className="w-6 h-6 text-green-600 dark:text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                Authentication Successful
-              </p>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                You have successfully authenticated via Microsoft Entra ID
-              </p>
+        {showAuthBanner && (
+          <div className="mt-8 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start justify-between">
+            <div className="flex items-center">
+              <svg className="w-6 h-6 text-green-600 dark:text-green-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  Authentication Successful
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  You have successfully authenticated via Microsoft Entra ID
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setShowAuthBanner(false)}
+              className="text-green-500 hover:text-green-700 dark:hover:text-green-300"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

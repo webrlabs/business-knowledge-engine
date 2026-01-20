@@ -166,85 +166,85 @@ export default function Navigation({ user, isOpen, onClose }: NavigationProps) {
           </button>
         </div>
 
-      {/* Navigation Menu */}
-      <nav className="px-3 py-4 flex-1 overflow-y-auto" aria-label="Primary">
-        <ul className="space-y-1" role="list">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.name}>
-                <Tooltip content={item.tooltip} position="right">
-                  <a
-                    href={item.href}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleNavClick(item.href);
-                    }}
-                    className={`btn-nav ${isActive ? 'btn-nav-active' : ''}`}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <div className="flex items-center">
-                      <span className={isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'} aria-hidden="true">
-                        {item.icon}
-                      </span>
-                      <span className="ml-3">{item.name}</span>
-                    </div>
-                    {item.badge && (
-                      <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-semibold rounded-full" aria-label={`${item.badge} pending`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </a>
-                </Tooltip>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+        {/* Navigation Menu */}
+        <nav className="px-3 py-4 flex-1 overflow-y-auto" aria-label="Primary">
+          <ul className="space-y-1" role="list">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <li key={item.name}>
+                  <Tooltip content={item.tooltip} position="right">
+                    <a
+                      href={item.href}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavClick(item.href);
+                      }}
+                      className={`btn-nav ${isActive ? 'btn-nav-active' : ''}`}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      <div className="flex items-center">
+                        <span className={isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'} aria-hidden="true">
+                          {item.icon}
+                        </span>
+                        <span className="ml-3">{item.name}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-semibold rounded-full" aria-label={`${item.badge} pending`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </a>
+                  </Tooltip>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      {/* User Profile Section (Bottom) */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800" role="region" aria-label="User profile">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user.name}
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                {user.email}
-              </p>
+        {/* User Profile Section (Bottom) */}
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" role="region" aria-label="User profile">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                  {user.name}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate font-mono">
+                  {user.email}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1" role="list" aria-label="User roles">
-            {user.roles.slice(0, 2).map((role) => (
-              <span
-                key={role}
-                className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded text-xs font-medium"
-                role="listitem"
+            <div className="flex flex-wrap gap-1.5 mb-4" role="list" aria-label="User roles">
+              {user.roles.slice(0, 2).map((role) => (
+                <span
+                  key={role}
+                  className="px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-medium shadow-sm"
+                  role="listitem"
+                >
+                  {role}
+                </span>
+              ))}
+              {user.roles.length > 2 && (
+                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded text-xs font-medium" role="listitem">
+                  +{user.roles.length - 2}
+                </span>
+              )}
+            </div>
+            <Tooltip content="Sign out of your account" position="top">
+              <button
+                onClick={handleLogout}
+                className="btn-white btn-sm w-full flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700"
+                aria-label="Sign out of your account"
               >
-                {role}
-              </span>
-            ))}
-            {user.roles.length > 2 && (
-              <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-medium" role="listitem">
-                +{user.roles.length - 2} more roles
-              </span>
-            )}
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign Out
+              </button>
+            </Tooltip>
           </div>
-          <Tooltip content="Sign out of your account" position="top">
-            <button
-              onClick={handleLogout}
-              className="btn-danger btn-sm mt-3 w-full flex items-center justify-center"
-              aria-label="Sign out of your account"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Sign Out
-            </button>
-          </Tooltip>
         </div>
-      </div>
       </aside>
     </>
   );

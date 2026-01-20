@@ -145,7 +145,7 @@ module "appservice_backend" {
   # Azure AD / Entra ID
   azure_ad_tenant_id       = data.azuread_client_config.current.tenant_id
   azure_ad_client_id       = module.identity.backend_app_id
-  azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_uri : var.azure_ad_audience
+  azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_id : var.azure_ad_audience
 
   # Application settings
   port                     = var.backend_port
@@ -206,7 +206,7 @@ module "functionapp" {
   # Azure AD / Entra ID
   azure_ad_tenant_id       = data.azuread_client_config.current.tenant_id
   azure_ad_client_id       = module.identity.backend_app_id
-  azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_uri : var.azure_ad_audience
+  azure_ad_audience        = var.azure_ad_audience == "" ? module.identity.backend_app_id : var.azure_ad_audience
 
   # Feature flags
   enable_pii_redaction     = var.enable_pii_redaction

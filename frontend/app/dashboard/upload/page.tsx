@@ -43,9 +43,7 @@ export default function UploadPage() {
     // Admin, Reviewer, or Contributor can upload, but Viewer cannot
     const canUpload = roles.some((role) => ['Admin', 'Reviewer', 'Contributor'].includes(role));
 
-    if (!canUpload) {
-      setAccessDenied(true);
-    }
+    setAccessDenied(!canUpload);
   }, [isAuthenticated, roles, router]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
