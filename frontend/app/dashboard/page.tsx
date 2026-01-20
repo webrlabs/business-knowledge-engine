@@ -24,7 +24,7 @@ interface DashboardStats {
     timestamp: string;
     status: string;
   }>;
-
+}
 
 export default function Dashboard() {
   const router = useRouter();
