@@ -7,7 +7,8 @@ output "openai_account_id" {
 }
 
 output "openai_endpoint" {
-  value = try(azapi_resource.aiservices.output.properties.endpoint, null)
+  # Construct endpoint from custom subdomain - more reliable than azapi output
+  value = "https://${var.name_prefix}-aiservices-${random_string.aiservices_suffix.result}.cognitiveservices.azure.com/"
 }
 
 output "docint_account_name" {

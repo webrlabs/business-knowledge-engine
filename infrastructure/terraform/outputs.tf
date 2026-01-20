@@ -182,6 +182,6 @@ output "openai_tpm_limit" {
   value = var.openai_tpm_limit
 }
 
-output "frontend_redirect_uri" {
-  value = var.frontend_redirect_uri
+output "frontend_localhost_redirect_uri" {
+  value = var.frontend_localhost_redirect_uri
 }

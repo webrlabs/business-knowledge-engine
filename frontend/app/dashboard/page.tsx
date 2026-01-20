@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
@@ -39,24 +39,24 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, router]);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/stats/dashboard`);
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [authFetch]);
+
   useEffect(() => {
     // Fetch dashboard stats
-    const fetchStats = async () => {
-      try {
-        const response = await authFetch(`${API_BASE_URL}/api/stats/dashboard`);
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   if (!user) {
     return null; // DashboardLayout will handle loading state

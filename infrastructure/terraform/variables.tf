@@ -166,10 +166,10 @@ variable "search_index_name" {
   default     = "documents"
 }
 
-variable "frontend_redirect_uri" {
-  description = "Frontend redirect URI for Entra ID auth."
+variable "frontend_localhost_redirect_uri" {
+  description = "Localhost redirect URI for local development."
   type        = string
-  default     = "http://localhost:3001/auth/callback"
+  default     = "http://localhost:3000/auth/callback"
 }
 
 variable "frontend_api_scope" {
@@ -229,7 +229,7 @@ variable "appservice_sku_name" {
 variable "appservice_node_version" {
   description = "App Service Node.js runtime version."
   type        = string
-  default     = "24-lts"
+  default     = "20-lts"
 }
 
 variable "function_sku_name" {
@@ -247,13 +247,13 @@ variable "function_os_type" {
 variable "function_node_version_linux" {
   description = "Node.js runtime version for Linux Functions."
   type        = string
-  default     = "24"
+  default     = "20"
 }
 
 variable "function_node_version_windows" {
   description = "Node.js runtime version for Windows Functions."
   type        = string
-  default     = "~24"
+  default     = "~20"
 }
 
 variable "function_vnet_integration_enabled" {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 
 /**
  * Toast Notification Component
@@ -32,6 +32,13 @@ interface ToastProps {
 function Toast({ toast, onDismiss }: ToastProps) {
   const [isExiting, setIsExiting] = useState(false);
 
+  const handleDismiss = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onDismiss(toast.id);
+    }, 300);
+  }, [onDismiss, toast.id]);
+
   useEffect(() => {
     const duration = toast.duration || 5000;
     const timer = setTimeout(() => {
@@ -39,14 +46,7 @@ function Toast({ toast, onDismiss }: ToastProps) {
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [toast]);
-
-  const handleDismiss = () => {
-    setIsExiting(true);
-    setTimeout(() => {
-      onDismiss(toast.id);
-    }, 300);
-  };
+  }, [handleDismiss, toast.duration]);
 
   const typeStyles = {
     success: {
@@ -158,7 +158,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const showToast = (
+  const showToast = useCallback((
     type: ToastType,
     title: string,
     message: string,
@@ -176,34 +176,34 @@ export function useToast() {
     };
 
     setToasts((prev) => [...prev, newToast]);
-  };
+  }, []);
 
-  const dismissToast = (id: string) => {
+  const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
 
-  const success = (title: string, message: string, duration?: number) => {
+  const success = useCallback((title: string, message: string, duration?: number) => {
     showToast('success', title, message, duration);
-  };
+  }, [showToast]);
 
-  const error = (title: string, message: string, duration?: number, action?: { label: string; onClick: () => void }) => {
+  const error = useCallback((title: string, message: string, duration?: number, action?: { label: string; onClick: () => void }) => {
     showToast('error', title, message, duration, action);
-  };
+  }, [showToast]);
 
-  const warning = (title: string, message: string, duration?: number) => {
+  const warning = useCallback((title: string, message: string, duration?: number) => {
     showToast('warning', title, message, duration);
-  };
+  }, [showToast]);
 
-  const info = (title: string, message: string, duration?: number) => {
+  const info = useCallback((title: string, message: string, duration?: number) => {
     showToast('info', title, message, duration);
-  };
+  }, [showToast]);
 
-  return {
+  return useMemo(() => ({
     toasts,
     dismissToast,
     success,
     error,
     warning,
     info,
-  };
+  }), [toasts, dismissToast, success, error, warning, info]);
 }

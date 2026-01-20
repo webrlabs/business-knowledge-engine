@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
@@ -56,7 +56,7 @@ interface Document {
 
 export default function DocumentsPage() {
   const router = useRouter();
-  const toast = useToast();
+  const { toasts, dismissToast, error: showError, success: showSuccess } = useToast();
   const { user, isAuthenticated } = useAuth();
   const authFetch = useAuthFetch();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -64,26 +64,26 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
-    fetchDocuments();
-  }, [isAuthenticated, router]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/api/documents`);
       const data = await response.json();
       setDocuments(data.documents || []);
     } catch (error) {
       console.error('Error fetching documents:', error);
-      toast.error('Error', 'Failed to load documents');
+      showError('Error', 'Failed to load documents');
     } finally {
       setLoading(false);
     }
-  };
+  }, [authFetch, showError]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/');
+      return;
+    }
+    fetchDocuments();
+  }, [fetchDocuments, isAuthenticated, router]);
 
   const processDocument = async (documentId: string) => {
     setProcessing(documentId);
@@ -96,7 +96,7 @@ export default function DocumentsPage() {
         throw new Error('Processing failed');
       }
 
-      toast.success('Processing Started', 'Document is being processed with Azure AI Document Intelligence');
+      showSuccess('Processing Started', 'Document is being processed with Azure AI Document Intelligence');
 
       // Poll for completion
       const pollInterval = setInterval(async () => {
@@ -106,12 +106,12 @@ export default function DocumentsPage() {
         if (docData.status === 'completed') {
           clearInterval(pollInterval);
           setProcessing(null);
-          toast.success('Processing Complete', 'Document has been successfully processed');
+          showSuccess('Processing Complete', 'Document has been successfully processed');
           fetchDocuments();
         } else if (docData.status === 'failed') {
           clearInterval(pollInterval);
           setProcessing(null);
-          toast.error('Processing Failed', 'Document processing encountered an error');
+          showError('Processing Failed', 'Document processing encountered an error');
         }
       }, 1000);
 
@@ -119,7 +119,7 @@ export default function DocumentsPage() {
       setTimeout(() => clearInterval(pollInterval), 30000);
     } catch (error) {
       console.error('Error processing document:', error);
-      toast.error('Error', 'Failed to start document processing');
+      showError('Error', 'Failed to start document processing');
       setProcessing(null);
     }
   };
@@ -131,7 +131,7 @@ export default function DocumentsPage() {
       setSelectedDocument(data);
     } catch (error) {
       console.error('Error viewing document:', error);
-      toast.error('Error', 'Failed to load document details');
+      showError('Error', 'Failed to load document details');
     }
   };
 
@@ -156,7 +156,7 @@ export default function DocumentsPage() {
 
   return (
     <DashboardLayout>
-      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}

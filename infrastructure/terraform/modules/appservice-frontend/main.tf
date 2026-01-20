@@ -14,7 +14,8 @@ resource "azurerm_linux_web_app" "this" {
   service_plan_id     = azurerm_service_plan.this.id
 
   site_config {
-    always_on = true
+    always_on        = true
+    app_command_line = "npx next start -p $PORT"
     application_stack {
       node_version = var.node_version
     }

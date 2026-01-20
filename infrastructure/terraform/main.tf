@@ -48,7 +48,11 @@ module "identity" {
   name_prefix         = local.name_prefix
   tenant_id           = data.azuread_client_config.current.tenant_id
   owner_object_id     = data.azuread_client_config.current.object_id
-  frontend_redirect_uris = [var.frontend_redirect_uri]
+  # Include both localhost (for dev) and Azure URL (for production)
+  frontend_redirect_uris = [
+    var.frontend_localhost_redirect_uri,
+    "https://${local.name_prefix}-frontend.azurewebsites.net/auth/callback"
+  ]
 }
 
 module "data" {
@@ -93,7 +97,7 @@ module "appservice_frontend" {
   subnet_id                = module.network.subnet_ids["app"]
   azure_ad_client_id       = module.identity.frontend_app_id
   azure_ad_tenant_id       = data.azuread_client_config.current.tenant_id
-  azure_ad_redirect_uri    = var.frontend_redirect_uri
+  azure_ad_redirect_uri    = "https://${local.name_prefix}-frontend.azurewebsites.net/auth/callback"
   api_scope                = var.frontend_api_scope == "" ? "${module.identity.backend_app_uri}/access_as_user" : var.frontend_api_scope
   sku_name                 = var.appservice_sku_name
   enable_vnet_integration  = var.appservice_vnet_integration_enabled

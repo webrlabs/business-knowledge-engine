@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
@@ -40,20 +40,7 @@ export default function AuditLogPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
-    fetchAuditLogs();
-  }, [filter, isAuthenticated, router]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter]);
-
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -71,7 +58,20 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authFetch, filter]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/');
+      return;
+    }
+    fetchAuditLogs();
+  }, [fetchAuditLogs, isAuthenticated, router]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('en-US', {
