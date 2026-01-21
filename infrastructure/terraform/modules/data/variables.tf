@@ -55,6 +55,11 @@ variable "search_public_network_access_enabled" {
   default = true
 }
 
+variable "search_index_name" {
+  type    = string
+  default = "documents"
+}
+
 # Gremlin (Knowledge Graph)
 variable "cosmos_gremlin_database_name" {
   type    = string

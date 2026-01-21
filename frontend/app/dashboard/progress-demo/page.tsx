@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import DashboardLayout from '@/components/DashboardLayout';
+
 import ProgressBar from '@/components/ProgressBar';
 
 export default function ProgressDemoPage() {
@@ -62,7 +62,7 @@ export default function ProgressDemoPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex mb-6" aria-label="Breadcrumb">
@@ -189,6 +189,6 @@ export default function ProgressDemoPage() {
           </ul>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
-import DashboardLayout from '@/components/DashboardLayout';
+
 import { InlineLoader } from '@/components/LoadingSpinner';
 import { useToast, ToastContainer } from '@/components/Toast';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -263,47 +263,44 @@ export default function UploadPage() {
 
   if (accessDenied) {
     return (
-      <DashboardLayout>
-        {/* Access Denied Message */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-8 text-center">
-            <svg
-              className="w-16 h-16 text-red-600 dark:text-red-400 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <h2 className="text-2xl font-bold text-red-900 dark:text-red-100 mb-2">Access Denied</h2>
-            <p className="text-red-800 dark:text-red-200 mb-4">
-              You do not have permission to access this page.
-            </p>
-            <p className="text-sm text-red-700 dark:text-red-300 mb-6">
-              Document upload requires one of the following roles: <strong>Admin</strong>, <strong>Reviewer</strong>, or <strong>Contributor</strong>.
-            </p>
-            <p className="text-sm text-red-700 dark:text-red-300 mb-6">
-              Your current roles: <strong>{user.roles.join(', ')}</strong>
-            </p>
-            <button
-              onClick={handleBackToDashboard}
-              className="btn-primary"
-            >
-              Return to Dashboard
-            </button>
-          </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-8 text-center">
+          <svg
+            className="w-16 h-16 text-red-600 dark:text-red-400 mx-auto mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <h2 className="text-2xl font-bold text-red-900 dark:text-red-100 mb-2">Access Denied</h2>
+          <p className="text-red-800 dark:text-red-200 mb-4">
+            You do not have permission to access this page.
+          </p>
+          <p className="text-sm text-red-700 dark:text-red-300 mb-6">
+            Document upload requires one of the following roles: <strong>Admin</strong>, <strong>Reviewer</strong>, or <strong>Contributor</strong>.
+          </p>
+          <p className="text-sm text-red-700 dark:text-red-300 mb-6">
+            Your current roles: <strong>{user.roles.join(', ')}</strong>
+          </p>
+          <button
+            onClick={handleBackToDashboard}
+            className="btn-primary"
+          >
+            Return to Dashboard
+          </button>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
@@ -588,6 +585,6 @@ export default function UploadPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -3,6 +3,7 @@ const { getOpenAIService } = require('../services/openai-service');
 const { getSearchService } = require('../services/search-service');
 const { getGraphService } = require('../services/graph-service');
 const { getEntityExtractorService } = require('../services/entity-extractor');
+const { generateSasUrl, getBlobNameFromUrl } = require('../storage/blob');
 const { v4: uuidv4 } = require('uuid');
 const { log } = require('../utils/logger');
 
@@ -25,9 +26,22 @@ class DocumentProcessor {
     try {
       // Stage 1: Extract content with Document Intelligence
       await this._updateStatus(documentId, 'extracting_content');
-      const extractedContent = await this.docIntelligence.analyzeDocument(blobUrl, {
+
+      // Generate SAS URL for Document Intelligence to access the blob
+      const blobName = getBlobNameFromUrl(blobUrl);
+      const sasUrl = await generateSasUrl(blobName);
+
+      const extractedContent = await this.docIntelligence.analyzeDocument(sasUrl, {
         mimeType: options.mimeType,
       });
+
+      // Stage 1.5: Extract visual info using GPT-4o
+      await this._updateStatus(documentId, 'extracting_visuals');
+      const { visualEntities, visualRelationships } = await this._extractVisualInfo(
+        extractedContent,
+        documentId,
+        sasUrl
+      );
 
       // Stage 2: Chunk content
       await this._updateStatus(documentId, 'chunking');
@@ -35,11 +49,15 @@ class DocumentProcessor {
 
       // Stage 3: Extract entities
       await this._updateStatus(documentId, 'extracting_entities');
-      const { entities, relationships } = await this.entityExtractor.processDocument(
+      let { entities, relationships } = await this.entityExtractor.processDocument(
         chunks,
         documentId,
         options.title || options.filename
       );
+
+      // Merge visual entities/relationships
+      entities = [...entities, ...visualEntities];
+      relationships = [...relationships, ...visualRelationships];
 
       // Stage 4: Generate embeddings
       await this._updateStatus(documentId, 'generating_embeddings');
@@ -309,6 +327,44 @@ class DocumentProcessor {
       filename: document.filename,
       title: document.title,
     });
+  }
+  async _extractVisualInfo(extractedContent, documentId, blobUrl) {
+    const visualEntities = [];
+    const visualRelationships = [];
+
+    if (!extractedContent.figures || extractedContent.figures.length === 0) {
+      return { visualEntities, visualRelationships };
+    }
+
+    for (const figure of extractedContent.figures) {
+      try {
+        // TODO: For PDF, we need to crop the image using a library like sharp or canvas
+        // For now, if the blobUrl is directly an image, we use it.
+        // If it's a PDF, we skip actual extraction unless we have an image service.
+        let imageUrl = null;
+        if (blobUrl.match(/\.(jpg|jpeg|png)$/i)) {
+          imageUrl = blobUrl;
+        }
+
+        if (imageUrl) {
+          const prompt = `Identify the process flow elements in this diagram.
+            Extract 'Roles' (swimlanes), 'Tasks' (rectangles), 'Decisions' (diamonds).
+            Return a JSON with 'entities' and 'relationships'.`;
+
+          const response = await this.openai.getVisionCompletion(prompt, imageUrl, {
+            responseFormat: { type: 'json_object' }
+          });
+
+          const result = JSON.parse(response.content);
+          if (result.entities) visualEntities.push(...result.entities.map(e => ({ ...e, source: 'visual_extraction' })));
+          if (result.relationships) visualRelationships.push(...result.relationships);
+        }
+      } catch (err) {
+        log.warn('Failed to extract visual info from figure', { figureId: figure.id, error: err.message });
+      }
+    }
+
+    return { visualEntities, visualRelationships };
   }
 }
 

@@ -45,6 +45,7 @@ class DocumentIntelligenceService {
       paragraphs: [],
       sections: [],
       keyValuePairs: [],
+      figures: [],
       metadata: {
         pageCount: result.pages?.length || 0,
         modelId: result.modelId,
@@ -106,6 +107,17 @@ class DocumentIntelligenceService {
         key: kv.key?.content || '',
         value: kv.value?.content || '',
         confidence: kv.confidence,
+      }));
+    }
+
+    // Extract figures/images
+    if (result.figures) {
+      normalized.figures = result.figures.map((figure) => ({
+        id: figure.id,
+        caption: figure.caption?.content,
+        boundingBox: figure.boundingRegions?.[0]?.polygon,
+        pageNumber: figure.boundingRegions?.[0]?.pageNumber || 1,
+        elements: figure.elements || [],
       }));
     }
 

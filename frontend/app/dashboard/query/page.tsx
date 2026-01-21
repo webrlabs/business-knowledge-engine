@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
-import DashboardLayout from '@/components/DashboardLayout';
+
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast, ToastContainer } from '@/components/Toast';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -147,7 +147,7 @@ export default function GraphRAGQueryPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
       <div className="h-full flex flex-col">
         <div className="mb-6">
@@ -202,11 +202,10 @@ export default function GraphRAGQueryPage() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-3xl rounded-lg px-4 py-3 ${
-                    message.role === 'user'
+                  className={`max-w-3xl rounded-lg px-4 py-3 ${message.role === 'user'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-900'
-                  }`}
+                    }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
 
@@ -223,9 +222,8 @@ export default function GraphRAGQueryPage() {
                     </div>
                   )}
 
-                  <p className={`text-xs mt-2 ${
-                    message.role === 'user' ? 'text-blue-200' : 'text-gray-500'
-                  }`}>
+                  <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-200' : 'text-gray-500'
+                    }`}>
                     {formatTimestamp(message.timestamp)}
                   </p>
                 </div>
@@ -254,11 +252,10 @@ export default function GraphRAGQueryPage() {
                     onChange={(e) => handleInputChange(e.target.value)}
                     onBlur={handleInputBlur}
                     placeholder="Ask a question about your business processes..."
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-gray-900 placeholder-gray-400 transition-colors ${
-                      inputError && inputTouched
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent text-gray-900 placeholder-gray-400 transition-colors ${inputError && inputTouched
                         ? 'border-red-500 focus:ring-red-500'
                         : 'border-gray-300 focus:ring-blue-500'
-                    }`}
+                      }`}
                     disabled={isLoading}
                     aria-invalid={inputError && inputTouched ? 'true' : 'false'}
                     aria-describedby={inputError && inputTouched ? 'query-error' : undefined}
@@ -288,6 +285,6 @@ export default function GraphRAGQueryPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

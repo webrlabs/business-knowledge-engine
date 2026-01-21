@@ -1,12 +1,14 @@
-const { BlobServiceClient } = require('@azure/storage-blob');
+const { BlobServiceClient, BlobSASPermissions, generateBlobSASQueryParameters, StorageSharedKeyCredential } = require('@azure/storage-blob');
 const { DefaultAzureCredential } = require('@azure/identity');
 
 const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 const containerName =
   process.env.AZURE_STORAGE_CONTAINER_DOCUMENTS || 'documents';
 
 let containerClient;
+let sharedKeyCredential;
 
 function getBlobServiceClient() {
   if (connectionString) {
@@ -17,6 +19,17 @@ function getBlobServiceClient() {
   }
   const url = `https://${accountName}.blob.core.windows.net`;
   return new BlobServiceClient(url, new DefaultAzureCredential());
+}
+
+function getSharedKeyCredential() {
+  if (sharedKeyCredential) {
+    return sharedKeyCredential;
+  }
+  if (!accountName || !accountKey) {
+    return null;
+  }
+  sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+  return sharedKeyCredential;
 }
 
 async function getContainerClient() {
@@ -43,6 +56,55 @@ async function uploadBuffer(buffer, blobName, contentType) {
   };
 }
 
+/**
+ * Generate a SAS URL for a blob with read permissions
+ * @param {string} blobName - The name of the blob
+ * @param {number} expiryMinutes - How long the SAS token should be valid (default: 60 minutes)
+ * @returns {Promise<string>} - The blob URL with SAS token
+ */
+async function generateSasUrl(blobName, expiryMinutes = 60) {
+  const credential = getSharedKeyCredential();
+
+  if (!credential) {
+    // If no shared key credential, try using user delegation SAS
+    // For now, just return the plain URL and hope the container is accessible
+    const container = await getContainerClient();
+    return container.getBlockBlobClient(blobName).url;
+  }
+
+  const startsOn = new Date();
+  const expiresOn = new Date(startsOn.getTime() + expiryMinutes * 60 * 1000);
+
+  const sasOptions = {
+    containerName,
+    blobName,
+    permissions: BlobSASPermissions.parse('r'), // Read only
+    startsOn,
+    expiresOn,
+  };
+
+  const sasToken = generateBlobSASQueryParameters(sasOptions, credential).toString();
+  const container = await getContainerClient();
+  const blobClient = container.getBlockBlobClient(blobName);
+
+  return `${blobClient.url}?${sasToken}`;
+}
+
+/**
+ * Extract blob name from a blob URL
+ * @param {string} blobUrl - The full blob URL
+ * @returns {string} - The blob name
+ */
+function getBlobNameFromUrl(blobUrl) {
+  const url = new URL(blobUrl);
+  // Path is like /container/blobname
+  const pathParts = url.pathname.split('/');
+  // Remove empty first element and container name
+  return pathParts.slice(2).join('/');
+}
+
 module.exports = {
   uploadBuffer,
+  generateSasUrl,
+  getBlobNameFromUrl,
 };

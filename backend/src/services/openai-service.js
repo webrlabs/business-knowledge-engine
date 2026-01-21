@@ -62,8 +62,7 @@ class OpenAIService {
       const response = await client.chat.completions.create({
         model,
         messages,
-        temperature: options.temperature ?? 0.0,
-        max_tokens: options.maxTokens ?? 4096,
+        max_completion_tokens: options.maxTokens ?? 4096,
         response_format: options.responseFormat,
       });
 
@@ -89,6 +88,25 @@ class OpenAIService {
     } catch (parseError) {
       throw new Error(`Failed to parse JSON response: ${parseError.message}. Response: ${response.content}`);
     }
+  }
+
+  async getVisionCompletion(prompt, imageUrl, options = {}) {
+    const messages = [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageUrl,
+            },
+          },
+        ],
+      },
+    ];
+
+    return this.getChatCompletion(messages, options);
   }
 
   async getEmbedding(text) {

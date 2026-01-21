@@ -13,3 +13,6 @@ app.http('health', {
     };
   },
 });
+
+// Register triggers
+require('./triggers/cosmos-change-feed');

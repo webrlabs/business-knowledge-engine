@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
-import DashboardLayout from '@/components/DashboardLayout';
+
 import { InlineLoader } from '@/components/LoadingSpinner';
 import { useToast, ToastContainer } from '@/components/Toast';
 
@@ -155,7 +155,7 @@ export default function DocumentsPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -226,14 +226,18 @@ export default function DocumentsPage() {
                         </div>
                       </div>
                       <div className="ml-4 flex-shrink-0">
-                        {doc.status === 'pending' && (
+                        {(doc.status === 'pending' || doc.status === 'failed') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               processDocument(doc.id);
                             }}
                             disabled={processing === doc.id}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              doc.status === 'failed'
+                                ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                                : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                            }`}
                           >
                             {processing === doc.id ? (
                               <>
@@ -242,6 +246,13 @@ export default function DocumentsPage() {
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                                 Processing...
+                              </>
+                            ) : doc.status === 'failed' ? (
+                              <>
+                                <svg className="-ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Retry
                               </>
                             ) : (
                               'Process'
@@ -460,9 +471,37 @@ export default function DocumentsPage() {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-sm text-red-600 dark:text-red-400">
-                        Document processing failed. Please try again.
+                      <svg className="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <p className="mt-4 text-sm text-red-600 dark:text-red-400">
+                        Document processing failed.
                       </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        There was an error processing this document. You can try again.
+                      </p>
+                      <button
+                        onClick={() => processDocument(selectedDocument.id)}
+                        disabled={processing === selectedDocument.id}
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+                      >
+                        {processing === selectedDocument.id ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Retrying...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Retry Processing
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -480,6 +519,6 @@ export default function DocumentsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

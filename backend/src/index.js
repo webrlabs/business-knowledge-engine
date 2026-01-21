@@ -48,6 +48,7 @@ const {
 const { DocumentProcessor } = require('./pipelines/document-processor');
 const { getGraphRAGQueryPipeline } = require('./pipelines/graphrag-query');
 const { getGraphService } = require('./services/graph-service');
+const { LeaderboardService } = require('./services/leaderboard-service');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 8080; // Port configuration
@@ -1150,6 +1151,29 @@ app.post('/api/graphrag/query', queryLimiter, async (req, res) => {
       message: error.message,
     });
   }
+});
+
+/**
+ * @swagger
+ * /api/leaderboard:
+ *   get:
+ *     summary: Get user leaderboard
+ *     description: Retrieve the gamification leaderboard
+ *     tags: [Gamification]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of top users to return
+ *     responses:
+ *       200:
+ *         description: Leaderboard retrieved successfully
+ */
+app.get('/api/leaderboard', async (req, res) => {
+  const limit = parseInt(req.query.limit) || 10;
+  const scores = await LeaderboardService.getLeaderboard(limit);
+  res.json(scores);
 });
 
 // Error handling middleware

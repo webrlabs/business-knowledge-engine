@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
-import DashboardLayout from '@/components/DashboardLayout';
+
 import HelpTooltip from '@/components/HelpTooltip';
 import dynamic from 'next/dynamic';
 
@@ -102,7 +102,7 @@ export default function GraphPage() {
   const isEmpty = !graphData || graphData.nodes.length === 0;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex mb-6" aria-label="Breadcrumb">
@@ -423,6 +423,6 @@ export default function GraphPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

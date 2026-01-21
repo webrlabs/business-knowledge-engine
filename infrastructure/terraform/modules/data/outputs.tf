@@ -46,6 +46,10 @@ output "search_endpoint" {
   value = "https://${azurerm_search_service.this.name}.search.windows.net"
 }
 
+output "search_index_name" {
+  value = var.search_index_name
+}
+
 # Gremlin outputs
 output "gremlin_account_name" {
   value = azurerm_cosmosdb_account.gremlin.name

@@ -26,6 +26,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+// Auth hook using Entra ID (MSAL)
 export function useAuth() {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();

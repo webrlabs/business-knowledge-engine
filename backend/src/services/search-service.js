@@ -1,4 +1,5 @@
 const { SearchClient, SearchIndexClient, SearchIndexerClient } = require('@azure/search-documents');
+const { AzureKeyCredential } = require('@azure/core-auth');
 const { DefaultAzureCredential } = require('@azure/identity');
 
 /**
@@ -41,6 +42,7 @@ const INDEX_SCHEMA = {
     { name: 'entities', type: 'Collection(Edm.String)', searchable: true, filterable: true },
     { name: 'uploadedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
     { name: 'processedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
+    { name: 'metadata', type: 'Edm.String', searchable: false, filterable: false },
   ],
   vectorSearch: {
     algorithms: [
@@ -82,9 +84,14 @@ class SearchService {
     this.indexClient = null;
     this.endpoint = process.env.AZURE_SEARCH_ENDPOINT;
     this.indexName = process.env.AZURE_SEARCH_INDEX_NAME || 'documents';
+    this.apiKey = process.env.AZURE_SEARCH_API_KEY;
   }
 
   _getCredential() {
+    // Use API key if provided (local dev), otherwise use Azure AD (deployed)
+    if (this.apiKey) {
+      return new AzureKeyCredential(this.apiKey);
+    }
     return new DefaultAzureCredential();
   }
 
@@ -141,13 +148,22 @@ class SearchService {
 
     const client = await this._getSearchClient();
 
+    // Prepare documents - serialize metadata object to JSON string
+    const preparedDocuments = documents.map(doc => {
+      const prepared = { ...doc };
+      if (prepared.metadata && typeof prepared.metadata === 'object') {
+        prepared.metadata = JSON.stringify(prepared.metadata);
+      }
+      return prepared;
+    });
+
     // Process in batches of 100
     const BATCH_SIZE = 100;
     let totalIndexed = 0;
     const errors = [];
 
-    for (let i = 0; i < documents.length; i += BATCH_SIZE) {
-      const batch = documents.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < preparedDocuments.length; i += BATCH_SIZE) {
+      const batch = preparedDocuments.slice(i, i + BATCH_SIZE);
 
       const result = await client.uploadDocuments(batch);
 

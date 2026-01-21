@@ -7,6 +7,19 @@ function createOpenAIClient() {
     throw new Error('AZURE_OPENAI_ENDPOINT is required');
   }
 
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-10-21';
+
+  // Use API key if provided (local dev), otherwise use Azure AD (deployed)
+  if (apiKey) {
+    return new AzureOpenAI({
+      endpoint,
+      apiKey,
+      apiVersion,
+    });
+  }
+
+  // Use managed identity for Azure deployment
   const credential = new DefaultAzureCredential();
   const scope = 'https://cognitiveservices.azure.com/.default';
   const azureADTokenProvider = getBearerTokenProvider(credential, scope);
@@ -14,7 +27,7 @@ function createOpenAIClient() {
   return new AzureOpenAI({
     endpoint,
     azureADTokenProvider,
-    apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
+    apiVersion,
   });
 }
 
