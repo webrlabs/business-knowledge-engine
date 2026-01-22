@@ -63,6 +63,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -132,6 +133,40 @@ export default function DocumentsPage() {
     } catch (error) {
       console.error('Error viewing document:', error);
       showError('Error', 'Failed to load document details');
+    }
+  };
+
+  const deleteDocumentHandler = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(documentId);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Delete failed (${response.status})`);
+      }
+
+      showSuccess('Document Deleted', 'Document has been successfully deleted');
+
+      // Clear selected document if it was the one being deleted
+      if (selectedDocument?.id === documentId) {
+        setSelectedDocument(null);
+      }
+
+      // Refresh the document list
+      fetchDocuments();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      const message = error instanceof Error ? error.message : 'Failed to delete document';
+      showError('Delete Failed', message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -225,14 +260,14 @@ export default function DocumentsPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4 flex-shrink-0">
+                      <div className="ml-4 flex-shrink-0 flex items-center gap-2">
                         {(doc.status === 'pending' || doc.status === 'failed') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               processDocument(doc.id);
                             }}
-                            disabled={processing === doc.id}
+                            disabled={processing === doc.id || deleting === doc.id}
                             className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                               doc.status === 'failed'
                                 ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
@@ -259,6 +294,26 @@ export default function DocumentsPage() {
                             )}
                           </button>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDocumentHandler(doc.id);
+                          }}
+                          disabled={deleting === doc.id || processing === doc.id}
+                          className="inline-flex items-center px-2 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-200 dark:bg-red-900 dark:hover:bg-red-800"
+                          title="Delete document"
+                        >
+                          {deleting === doc.id ? (
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -270,9 +325,33 @@ export default function DocumentsPage() {
             <div className="lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)]">
               {selectedDocument ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-auto max-h-[calc(100vh-6rem)]">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Document Details
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Document Details
+                    </h3>
+                    <button
+                      onClick={() => deleteDocumentHandler(selectedDocument.id)}
+                      disabled={deleting === selectedDocument.id}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-200 dark:bg-red-900 dark:hover:bg-red-800"
+                    >
+                      {deleting === selectedDocument.id ? (
+                        <>
+                          <svg className="animate-spin -ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="-ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                   {/* Document Info */}
                   <div className="mb-6 space-y-2">
@@ -302,29 +381,29 @@ export default function DocumentsPage() {
                         </h4>
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-1 text-sm">
                           <p className="text-gray-700 dark:text-gray-300">
-                            <span className="font-medium">Pages:</span> {selectedDocument.processingResults.metadata.pageCount}
+                            <span className="font-medium">Pages:</span> {selectedDocument.processingResults.metadata?.pageCount ?? 'N/A'}
                           </p>
                           <p className="text-gray-700 dark:text-gray-300">
-                            <span className="font-medium">Language:</span> {selectedDocument.processingResults.metadata.language}
+                            <span className="font-medium">Language:</span> {selectedDocument.processingResults.metadata?.language ?? 'N/A'}
                           </p>
                           <p className="text-gray-700 dark:text-gray-300">
-                            <span className="font-medium">Confidence:</span> {(selectedDocument.processingResults.metadata.confidence * 100).toFixed(1)}%
+                            <span className="font-medium">Confidence:</span> {selectedDocument.processingResults.metadata?.confidence != null ? (selectedDocument.processingResults.metadata.confidence * 100).toFixed(1) + '%' : 'N/A'}
                           </p>
                           <p className="text-gray-700 dark:text-gray-300">
-                            <span className="font-medium">Model:</span> {selectedDocument.processingResults.metadata.modelVersion}
+                            <span className="font-medium">Model:</span> {selectedDocument.processingResults.metadata?.modelVersion ?? 'N/A'}
                           </p>
                         </div>
                       </div>
 
                       {/* Document Hierarchy */}
-                      {selectedDocument.processingResults.hierarchy.sections.length > 0 && (
+                      {selectedDocument.processingResults.hierarchy?.sections?.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                             Document Structure
                           </h4>
                           <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
                             <ul className="space-y-1">
-                              {selectedDocument.processingResults.hierarchy.sections.map((section, idx) => (
+                              {selectedDocument.processingResults.hierarchy?.sections?.map((section, idx) => (
                                 <li
                                   key={idx}
                                   className="text-sm text-gray-700 dark:text-gray-300"
@@ -354,7 +433,7 @@ export default function DocumentsPage() {
                       </div>
 
                       {/* Tables */}
-                      {selectedDocument.processingResults.tables.length > 0 && (
+                      {selectedDocument.processingResults.tables?.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                             Extracted Tables ({selectedDocument.processingResults.tables.length})
@@ -400,7 +479,7 @@ export default function DocumentsPage() {
                       )}
 
                       {/* Checkboxes */}
-                      {selectedDocument.processingResults.checkboxes.length > 0 && (
+                      {selectedDocument.processingResults.checkboxes?.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                             Detected Checkboxes
@@ -434,10 +513,10 @@ export default function DocumentsPage() {
                           </h4>
                           <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2 text-sm">
                             <p className="text-gray-700 dark:text-gray-300">
-                              <span className="font-medium">Styles:</span> {selectedDocument.processingResults.formattingMetadata.styles.join(', ')}
+                              <span className="font-medium">Styles:</span> {selectedDocument.processingResults.formattingMetadata.styles?.join(', ') || 'None'}
                             </p>
                             <p className="text-gray-700 dark:text-gray-300">
-                              <span className="font-medium">Fonts:</span> {selectedDocument.processingResults.formattingMetadata.fonts.join(', ')}
+                              <span className="font-medium">Fonts:</span> {selectedDocument.processingResults.formattingMetadata.fonts?.join(', ') || 'None'}
                             </p>
                             <p className="text-gray-700 dark:text-gray-300">
                               <span className="font-medium">Contains Images:</span> {selectedDocument.processingResults.formattingMetadata.hasImages ? 'Yes' : 'No'}

@@ -701,6 +701,16 @@ export default function StagingPage() {
               </div>
             )}
             <button
+              className="px-4 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg hover:bg-blue-200 transition-colors font-medium flex items-center"
+              onClick={() => router.push(`/dashboard/review/${document.id}/split`)}
+              title="Open Split View with PDF viewer and interactive graph editor"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              Split View
+            </button>
+            <button
               className="px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               onClick={() => router.push('/dashboard/review')}
             >

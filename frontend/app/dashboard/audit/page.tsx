@@ -134,19 +134,6 @@ export default function AuditLogPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-gray-600">
-        <ol className="flex items-center space-x-2">
-          <li><a href="/dashboard" className="hover:text-blue-600">Home</a></li>
-          <li className="flex items-center">
-            <svg className="w-4 h-4 mx-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="font-medium text-gray-900">Audit Log</span>
-          </li>
-        </ol>
-      </nav>
-
       {/* Header */}
       <div className="bg-white border-b border-gray-200 mb-6 p-6 rounded-lg shadow-sm">
         <div className="flex justify-between items-start">

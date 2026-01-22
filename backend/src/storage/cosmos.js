@@ -79,7 +79,13 @@ async function getDocumentById(id) {
     return resource;
   } catch (error) {
     if (error.code === 404) {
-      return null;
+      // Fallback: try querying by id in case partition key is different
+      const query = {
+        query: 'SELECT * FROM c WHERE c.id = @id',
+        parameters: [{ name: '@id', value: id }],
+      };
+      const { resources } = await documentsContainer.items.query(query).fetchAll();
+      return resources.length > 0 ? resources[0] : null;
     }
     throw error;
   }
@@ -99,6 +105,38 @@ async function updateDocument(id, updates) {
   const updated = { ...resource, ...updates };
   const { resource: saved } = await documentsContainer.item(id, 'document').replace(updated);
   return saved;
+}
+
+async function deleteDocument(id) {
+  await initCosmos();
+  try {
+    await documentsContainer.item(id, 'document').delete();
+    return true;
+  } catch (error) {
+    if (error.code === 404) {
+      // Fallback: try to find and delete document with different partition key
+      const query = {
+        query: 'SELECT * FROM c WHERE c.id = @id',
+        parameters: [{ name: '@id', value: id }],
+      };
+      const { resources } = await documentsContainer.items.query(query).fetchAll();
+      if (resources.length > 0) {
+        const doc = resources[0];
+        // Try various partition key values (documents might have been created with different keys)
+        const partitionKeysToTry = [doc.documentType, undefined, null, ''];
+        for (const pk of partitionKeysToTry) {
+          try {
+            await documentsContainer.item(id, pk).delete();
+            return true;
+          } catch (deleteError) {
+            if (deleteError.code !== 404) continue;
+          }
+        }
+      }
+      return false;
+    }
+    throw error;
+  }
 }
 
 async function createAuditLog(entry) {
@@ -143,6 +181,7 @@ module.exports = {
   listDocuments,
   getDocumentById,
   updateDocument,
+  deleteDocument,
   createAuditLog,
   queryAuditLogs,
 };

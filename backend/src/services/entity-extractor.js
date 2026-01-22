@@ -98,35 +98,58 @@ class EntityExtractorService {
     const allEntities = [];
     const allRelationships = [];
     const entityMap = new Map();
+    const startTime = Date.now();
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const context = {
-        title: documentTitle,
-        section: chunk.metadata?.sectionTitle,
-        pageNumber: chunk.metadata?.pageNumber,
-      };
+    console.log(`[EntityExtractor] Starting entity extraction for ${chunks.length} chunks`);
 
-      const result = await this.processChunk(chunk.content, allEntities, context);
+    // Process chunks in batches to speed up processing
+    const BATCH_SIZE = 3; // Process 3 chunks in parallel
+    for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, chunks.length);
+      const batch = chunks.slice(batchStart, batchEnd);
 
-      // Add document reference to entities
-      for (const entity of result.entities) {
-        entity.sourceDocumentId = documentId;
-        if (!entityMap.has(entity.name)) {
-          entityMap.set(entity.name, entity);
-          allEntities.push(entity);
+      console.log(`[EntityExtractor] Processing chunks ${batchStart + 1}-${batchEnd} of ${chunks.length}`);
+
+      // Process batch in parallel
+      const batchPromises = batch.map((chunk, idx) => {
+        const context = {
+          title: documentTitle,
+          section: chunk.metadata?.sectionTitle,
+          pageNumber: chunk.metadata?.pageNumber,
+        };
+        return this.processChunk(chunk.content, allEntities, context)
+          .catch(err => {
+            console.error(`[EntityExtractor] Error processing chunk ${batchStart + idx + 1}:`, err.message);
+            return { entities: [], relationships: [] };
+          });
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+
+      // Collect results from batch
+      for (const result of batchResults) {
+        // Add document reference to entities
+        for (const entity of result.entities) {
+          entity.sourceDocumentId = documentId;
+          if (!entityMap.has(entity.name)) {
+            entityMap.set(entity.name, entity);
+            allEntities.push(entity);
+          }
         }
-      }
 
-      // Add document reference to relationships
-      for (const rel of result.relationships) {
-        rel.sourceDocumentId = documentId;
-        allRelationships.push(rel);
+        // Add document reference to relationships
+        for (const rel of result.relationships) {
+          rel.sourceDocumentId = documentId;
+          allRelationships.push(rel);
+        }
       }
     }
 
     // Deduplicate relationships
     const uniqueRelationships = this._deduplicateRelationships(allRelationships);
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[EntityExtractor] Completed in ${elapsed}s: ${allEntities.length} entities, ${uniqueRelationships.length} relationships`);
 
     return {
       entities: allEntities,

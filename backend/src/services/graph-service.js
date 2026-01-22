@@ -38,14 +38,19 @@ class GraphService {
 
   async addVertex(entity) {
     const id = entity.id || uuidv4();
-    const category = entity.type || 'Unknown';
+    // Ensure type/category is never null/undefined - Cosmos DB Graph requires a partition key
+    // The partition key path is /ontologyType as defined in Terraform
+    const entityType = (entity.type && entity.type !== 'null' && entity.type !== null)
+      ? entity.type
+      : 'Unknown';
 
     // Build the Gremlin query dynamically based on entity properties
-    let query = `g.addV(label).property('id', id).property('pk', category)`;
+    // Use 'ontologyType' as the partition key property (matches Terraform config)
+    let query = `g.addV(label).property('id', id).property('ontologyType', ontologyType)`;
     const bindings = {
-      label: entity.type,
+      label: entityType,
       id: id,
-      category: category,
+      ontologyType: entityType,
     };
 
     // Add standard properties
@@ -229,11 +234,49 @@ class GraphService {
       this._submit(labelCountQuery),
     ]);
 
+    const counts = labelCounts[0] || {};
+
     return {
+      totalNodes: vertexCount[0] || 0,
+      totalEdges: edgeCount[0] || 0,
       vertexCount: vertexCount[0] || 0,
       edgeCount: edgeCount[0] || 0,
-      labelCounts: labelCounts[0] || {},
+      labelCounts: counts,
+      processCount: counts['Process'] || 0,
+      taskCount: counts['Task'] || 0,
+      roleCount: counts['Role'] || 0,
+      systemCount: counts['System'] || 0,
     };
+  }
+
+  async getAllEntities(limit = 500) {
+    // Get vertices with limit
+    const vertexQuery = `g.V().limit(${limit}).valueMap(true)`;
+    const vertices = await this._submit(vertexQuery);
+
+    const nodes = vertices.map((v) => {
+      const node = this._normalizeVertex(v);
+      return {
+        id: node.id,
+        label: node.name || node.id,
+        type: node.type || 'Unknown',
+        ...node,
+      };
+    });
+
+    // Get edges - use a simpler query that works with Cosmos DB Gremlin API
+    const edgeQuery = `g.E().limit(${limit * 2}).project('id', 'label', 'outV', 'inV').by(id).by(label).by(outV().id()).by(inV().id())`;
+    const edgeResults = await this._submit(edgeQuery);
+
+    const edges = edgeResults.map((e) => ({
+      id: e.id,
+      source: e.outV,
+      target: e.inV,
+      label: e.label || 'RELATED_TO',
+      type: e.label || 'RELATED_TO',
+    }));
+
+    return { nodes, edges };
   }
 
   _normalizeVertex(rawVertex) {

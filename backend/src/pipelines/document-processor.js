@@ -10,6 +10,20 @@ const { log } = require('../utils/logger');
 const CHUNK_SIZE = 500; // tokens (approximate)
 const CHUNK_OVERLAP = 50; // tokens
 
+/**
+ * Sanitize a string to be used as an Azure Search document key.
+ * Keys can only contain letters, digits, underscore (_), dash (-), or equal sign (=).
+ */
+function sanitizeSearchKey(str) {
+  return str
+    .toLowerCase()
+    .replace(/\s+/g, '_')           // Replace whitespace with underscore
+    .replace(/[^a-z0-9_\-=]/g, '')  // Remove all invalid characters
+    .replace(/_+/g, '_')            // Collapse multiple underscores
+    .replace(/^_|_$/g, '')          // Remove leading/trailing underscores
+    .substring(0, 100);             // Limit length to prevent overly long keys
+}
+
 class DocumentProcessor {
   constructor(cosmosService) {
     this.cosmos = cosmosService;
@@ -75,6 +89,19 @@ class DocumentProcessor {
       // Complete
       const processingTime = Date.now() - startTime;
       await this._updateStatus(documentId, 'completed', {
+        // Store entities and relationships for graph rebuilding if needed
+        entities: entities.map(e => ({
+          name: e.name,
+          type: e.type,
+          description: e.description,
+          confidence: e.confidence,
+        })),
+        relationships: relationships.map(r => ({
+          from: r.from,
+          to: r.to,
+          type: r.type,
+          confidence: r.confidence,
+        })),
         processingResults: {
           extractedText: extractedContent.content.substring(0, 5000), // First 5000 chars
           tables: extractedContent.tables,
@@ -147,7 +174,7 @@ class DocumentProcessor {
         const sectionText = section.content.join('\n\n');
         if (sectionText.length > 50) { // Skip very short sections
           chunks.push({
-            id: `${documentId}_section_${section.title.replace(/\s+/g, '_').toLowerCase()}`,
+            id: `${documentId}_section_${sanitizeSearchKey(section.title)}`,
             documentId,
             chunkIndex: chunks.length,
             content: sectionText,

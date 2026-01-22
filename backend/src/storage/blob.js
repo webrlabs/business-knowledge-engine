@@ -103,8 +103,28 @@ function getBlobNameFromUrl(blobUrl) {
   return pathParts.slice(2).join('/');
 }
 
+/**
+ * Delete a blob from storage
+ * @param {string} blobName - The name of the blob to delete
+ * @returns {Promise<boolean>} - True if deleted, false if not found
+ */
+async function deleteBlob(blobName) {
+  const container = await getContainerClient();
+  const client = container.getBlockBlobClient(blobName);
+  try {
+    await client.delete();
+    return true;
+  } catch (error) {
+    if (error.statusCode === 404) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   uploadBuffer,
   generateSasUrl,
   getBlobNameFromUrl,
+  deleteBlob,
 };

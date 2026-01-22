@@ -175,15 +175,16 @@ class SecurityTrimmingService {
     }
 
     // Group membership filter
+    // Note: For collection fields, use "not field/any()" to check for empty/null instead of "eq null"
     if (userPermissions.groups && userPermissions.groups.length > 0) {
       const groupFilters = userPermissions.groups.map(
         (group) => `allowedGroups/any(g: g eq '${this._escapeOData(group)}')`
       );
       // Include documents without group restrictions or matching groups
-      filters.push(`(allowedGroups eq null or ${groupFilters.join(' or ')})`);
+      filters.push(`(not allowedGroups/any() or ${groupFilters.join(' or ')})`);
     } else {
       // User has no groups, restrict to documents with no group requirements
-      filters.push(`(allowedGroups eq null)`);
+      filters.push(`(not allowedGroups/any())`);
     }
 
     // Department filter (if user has department)

@@ -43,6 +43,10 @@ const INDEX_SCHEMA = {
     { name: 'uploadedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
     { name: 'processedAt', type: 'Edm.DateTimeOffset', filterable: true, sortable: true },
     { name: 'metadata', type: 'Edm.String', searchable: false, filterable: false },
+    // Security trimming fields
+    { name: 'allowedGroups', type: 'Collection(Edm.String)', filterable: true },
+    { name: 'classification', type: 'Edm.String', filterable: true },
+    { name: 'department', type: 'Edm.String', filterable: true },
   ],
   vectorSearch: {
     algorithms: [
@@ -119,13 +123,32 @@ class SearchService {
     const indexClient = await this._getIndexClient();
 
     try {
-      await indexClient.getIndex(this.indexName);
+      const existingIndex = await indexClient.getIndex(this.indexName);
+
+      // Check if semantic configuration exists, if not update the index
+      if (!existingIndex.semantic || !existingIndex.semantic.configurations || existingIndex.semantic.configurations.length === 0) {
+        console.log('Updating index with semantic configuration...');
+        await this.updateIndexSchema();
+      }
     } catch (error) {
       if (error.statusCode === 404) {
         await indexClient.createIndex(INDEX_SCHEMA);
       } else {
         throw error;
       }
+    }
+  }
+
+  async updateIndexSchema() {
+    const indexClient = await this._getIndexClient();
+
+    try {
+      // Use createOrUpdateIndex to update the existing index with semantic config
+      await indexClient.createOrUpdateIndex(INDEX_SCHEMA);
+      console.log('Index schema updated successfully with semantic configuration');
+    } catch (error) {
+      console.warn('Failed to update index schema:', error.message);
+      // Don't throw - semantic search will be disabled as fallback
     }
   }
 
@@ -217,44 +240,59 @@ class SearchService {
   async hybridSearch(query, queryVector, options = {}) {
     const client = await this._getSearchClient();
 
-    const searchOptions = {
-      top: options.top || 10,
-      select: options.select || ['id', 'documentId', 'content', 'title', 'sourceFile', 'pageNumber', 'sectionTitle', 'entities', 'chunkType'],
-      includeTotalCount: true,
+    const buildSearchOptions = (useSemantic) => {
+      const searchOptions = {
+        top: options.top || 10,
+        select: options.select || ['id', 'documentId', 'content', 'title', 'sourceFile', 'pageNumber', 'sectionTitle', 'entities', 'chunkType'],
+        includeTotalCount: true,
+      };
+
+      // Add vector search if vector provided
+      if (queryVector && queryVector.length > 0) {
+        searchOptions.vectorSearchOptions = {
+          queries: [
+            {
+              kind: 'vector',
+              vector: queryVector,
+              fields: ['contentVector'],
+              kNearestNeighborsCount: options.top || 10,
+            },
+          ],
+        };
+      }
+
+      // Add semantic search if enabled and available
+      if (useSemantic && options.semantic !== false) {
+        searchOptions.queryType = 'semantic';
+        searchOptions.semanticSearchOptions = {
+          configurationName: 'semantic-config',
+        };
+      }
+
+      // Add filters
+      if (options.filter) {
+        if (typeof options.filter !== 'string') {
+          throw new Error('Filter must be a string');
+        }
+        searchOptions.filter = options.filter;
+      }
+
+      return searchOptions;
     };
 
-    // Add vector search if vector provided
-    if (queryVector && queryVector.length > 0) {
-      searchOptions.vectorSearchOptions = {
-        queries: [
-          {
-            kind: 'vector',
-            vector: queryVector,
-            fields: ['contentVector'],
-            kNearestNeighborsCount: options.top || 10,
-          },
-        ],
-      };
-    }
-
-    // Add semantic search if enabled
-    if (options.semantic !== false) {
-      searchOptions.queryType = 'semantic';
-      searchOptions.semanticSearchOptions = {
-        configurationName: 'semantic-config',
-      };
-    }
-
-    // Add filters - WARNING: If filter comes from user input, it should be validated
-    // Only allow filters that have been constructed using escapeODataString
-    if (options.filter) {
-      if (typeof options.filter !== 'string') {
-        throw new Error('Filter must be a string');
+    let searchResults;
+    try {
+      // Try with semantic search first
+      searchResults = await client.search(query || '*', buildSearchOptions(true));
+    } catch (error) {
+      // If semantic search fails (e.g., not configured), fall back to non-semantic
+      if (error.message?.includes('semanticConfiguration')) {
+        console.warn('Semantic search not available, falling back to standard search');
+        searchResults = await client.search(query || '*', buildSearchOptions(false));
+      } else {
+        throw error;
       }
-      searchOptions.filter = options.filter;
     }
-
-    const searchResults = await client.search(query || '*', searchOptions);
 
     const results = [];
     for await (const result of searchResults.results) {

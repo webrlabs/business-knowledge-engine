@@ -36,19 +36,22 @@ const {
   validateEntityAction,
   validateBatchRejection,
 } = require('./middleware/validation');
-const { uploadBuffer } = require('./storage/blob');
+const { uploadBuffer, deleteBlob, getBlobNameFromUrl } = require('./storage/blob');
 const {
   createDocument,
   listDocuments,
   getDocumentById,
   updateDocument,
+  deleteDocument,
   createAuditLog,
   queryAuditLogs,
 } = require('./storage/cosmos');
+const { getSearchService } = require('./services/search-service');
 const { DocumentProcessor } = require('./pipelines/document-processor');
 const { getGraphRAGQueryPipeline } = require('./pipelines/graphrag-query');
 const { getGraphService } = require('./services/graph-service');
 const { LeaderboardService } = require('./services/leaderboard-service');
+const { getStagingService } = require('./services/staging-service');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 8080; // Port configuration
@@ -304,7 +307,7 @@ function buildAuditLogEntry(action, entityType, entityId, user, details = {}) {
  * /api/documents/upload:
  *   post:
  *     summary: Upload a document
- *     description: Upload a document file (PDF, Word, PowerPoint, Excel, Visio) for processing
+ *     description: Upload a document file (PDF, Word, PowerPoint, Excel, Visio). Processing starts automatically after upload.
  *     tags: [Documents]
  *     requestBody:
  *       required: true
@@ -333,7 +336,7 @@ function buildAuditLogEntry(action, entityType, entityId, user, details = {}) {
  *                 example: finance,quarterly
  *     responses:
  *       201:
- *         description: Document uploaded successfully
+ *         description: Document uploaded and processing started
  *         content:
  *           application/json:
  *             schema:
@@ -344,7 +347,7 @@ function buildAuditLogEntry(action, entityType, entityId, user, details = {}) {
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Document uploaded successfully
+ *                   example: Document uploaded and processing started
  *                 document:
  *                   $ref: '#/components/schemas/Document'
  *       400:
@@ -394,9 +397,16 @@ app.post('/api/documents/upload', uploadLimiter, upload.single('file'), async (r
 
     const saved = await createDocument(document);
 
+    // Automatically start processing
+    const processingStartedAt = new Date().toISOString();
+    await updateDocument(saved.id, {
+      status: 'processing',
+      processingStartedAt,
+    });
+
     res.status(201).json({
       success: true,
-      message: 'Document uploaded successfully',
+      message: 'Document uploaded and processing started',
       document: {
         id: saved.id,
         filename: saved.filename,
@@ -406,9 +416,29 @@ app.post('/api/documents/upload', uploadLimiter, upload.single('file'), async (r
         tags: saved.tags,
         size: saved.size,
         uploadedAt: saved.uploadedAt,
-        status: saved.status,
+        status: 'processing',
       },
     });
+
+    // Process document asynchronously (after response is sent)
+    const cosmosService = {
+      updateDocument,
+      getDocument: getDocumentById,
+    };
+
+    const processor = new DocumentProcessor(cosmosService);
+    processor
+      .processDocument(saved.id, saved.blobUrl, {
+        mimeType: saved.mimeType,
+        filename: saved.filename,
+        title: saved.title,
+      })
+      .then((result) => {
+        log.documentProcessing(saved.id, 'completed', { stats: result?.stats });
+      })
+      .catch((err) => {
+        log.errorWithStack(`Document ${saved.id} processing failed`, err, { documentId: saved.id });
+      });
   } catch (error) {
     log.errorWithStack('Upload error', error);
     res.status(500).json({
@@ -572,6 +602,128 @@ app.get('/api/documents/:id', validateDocumentId, async (req, res) => {
     relationships: document.relationships || [],
     processingResults: document.processingResults || null,
   });
+});
+
+/**
+ * @swagger
+ * /api/documents/{id}:
+ *   delete:
+ *     summary: Delete a document
+ *     description: Delete a document and all associated data (blob storage, search index, graph)
+ *     tags: [Documents]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Document ID
+ *     responses:
+ *       200:
+ *         description: Document deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 deletedResources:
+ *                   type: object
+ *                   properties:
+ *                     document:
+ *                       type: boolean
+ *                     blob:
+ *                       type: boolean
+ *                     searchIndex:
+ *                       type: boolean
+ *                     graph:
+ *                       type: boolean
+ *       404:
+ *         description: Document not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.delete('/api/documents/:id', validateDocumentId, async (req, res) => {
+  const id = req.params.id;
+  const deletedResources = {
+    document: false,
+    blob: false,
+    searchIndex: false,
+    graph: false,
+  };
+
+  try {
+    // Get document to find blob URL
+    const document = await getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Delete from search index
+    try {
+      const searchService = getSearchService();
+      await searchService.deleteDocumentsByDocumentId(id);
+      deletedResources.searchIndex = true;
+    } catch (error) {
+      log.warn({ documentId: id, error: error.message }, 'Failed to delete from search index');
+    }
+
+    // Delete from graph
+    try {
+      const graphService = getGraphService();
+      await graphService.deleteEdgesByDocumentId(id);
+      await graphService.deleteVertexByDocumentId(id);
+      deletedResources.graph = true;
+    } catch (error) {
+      log.warn({ documentId: id, error: error.message }, 'Failed to delete from graph');
+    }
+
+    // Delete blob from storage
+    if (document.blobUrl) {
+      try {
+        const blobName = getBlobNameFromUrl(document.blobUrl);
+        await deleteBlob(blobName);
+        deletedResources.blob = true;
+      } catch (error) {
+        log.warn({ documentId: id, error: error.message }, 'Failed to delete blob');
+      }
+    }
+
+    // Delete document from Cosmos DB
+    try {
+      const deleted = await deleteDocument(id);
+      deletedResources.document = deleted;
+    } catch (error) {
+      log.error({ documentId: id, error: error.message }, 'Failed to delete from Cosmos DB');
+      // If we can't delete from Cosmos, return an error
+      return res.status(500).json({ error: `Failed to delete document from database: ${error.message}` });
+    }
+
+    // Create audit log (don't fail if this fails)
+    try {
+      await createAuditLog({
+        entityType: 'document',
+        entityId: id,
+        action: 'delete',
+        timestamp: new Date().toISOString(),
+        details: { deletedResources },
+      });
+    } catch (error) {
+      log.warn({ documentId: id, error: error.message }, 'Failed to create audit log for deletion');
+    }
+
+    res.json({
+      message: 'Document deleted successfully',
+      deletedResources,
+    });
+  } catch (error) {
+    log.error({ documentId: id, error: error.message, stack: error.stack }, 'Error deleting document');
+    res.status(500).json({ error: `Failed to delete document: ${error.message}` });
+  }
 });
 
 /**
@@ -1080,6 +1232,64 @@ app.post('/api/audit/log', async (req, res) => {
 
 /**
  * @swagger
+ * /api/graphrag/stats:
+ *   get:
+ *     summary: Get graph statistics
+ *     description: Get counts of nodes and edges in the knowledge graph
+ *     tags: [GraphRAG]
+ *     responses:
+ *       200:
+ *         description: Graph statistics retrieved successfully
+ */
+app.get('/api/graphrag/stats', async (req, res) => {
+  try {
+    const graphService = getGraphService();
+    const stats = await graphService.getStats();
+    res.json(stats);
+  } catch (error) {
+    log.errorWithStack('Graph stats error', error);
+    res.status(500).json({
+      error: 'Failed to fetch graph statistics',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graph/entities:
+ *   get:
+ *     summary: Get graph entities and relationships
+ *     description: Get all entities and their relationships for visualization
+ *     tags: [GraphRAG]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 500
+ *         description: Maximum number of entities to return
+ *     responses:
+ *       200:
+ *         description: Graph data retrieved successfully
+ */
+app.get('/api/graph/entities', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 500;
+    const graphService = getGraphService();
+    const data = await graphService.getAllEntities(limit);
+    res.json(data);
+  } catch (error) {
+    log.errorWithStack('Graph entities error', error);
+    res.status(500).json({
+      error: 'Failed to fetch graph entities',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/graphrag/query:
  *   post:
  *     summary: Submit a GraphRAG query
@@ -1174,6 +1384,364 @@ app.get('/api/leaderboard', async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const scores = await LeaderboardService.getLeaderboard(limit);
   res.json(scores);
+});
+
+// ============================================
+// Staging API Routes
+// ============================================
+
+/**
+ * @swagger
+ * /api/staging/sessions:
+ *   post:
+ *     summary: Create a staging session
+ *     description: Create a new staging session for reviewing and editing document entities
+ *     tags: [Staging]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - documentId
+ *             properties:
+ *               documentId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       201:
+ *         description: Staging session created successfully
+ *       404:
+ *         description: Document not found
+ */
+app.post('/api/staging/sessions', async (req, res) => {
+  try {
+    const { documentId } = req.body;
+    if (!documentId) {
+      return res.status(400).json({ error: 'documentId is required' });
+    }
+
+    const user = req.user || {};
+    const stagingService = getStagingService();
+    const session = await stagingService.createSession(
+      documentId,
+      user.oid || user.sub || 'unknown',
+      user.preferred_username || user.upn || '',
+      user.name || 'Unknown User'
+    );
+
+    res.status(201).json(session);
+  } catch (error) {
+    log.errorWithStack('Create staging session error', error);
+    if (error.message === 'Document not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to create staging session', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}:
+ *   get:
+ *     summary: Get a staging session
+ *     description: Retrieve a staging session by ID with all staged entities and changes
+ *     tags: [Staging]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Staging session retrieved successfully
+ *       404:
+ *         description: Staging session not found
+ */
+app.get('/api/staging/sessions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const stagingService = getStagingService();
+    const session = await stagingService.getSession(id, documentId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Staging session not found' });
+    }
+
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Get staging session error', error);
+    res.status(500).json({ error: 'Failed to get staging session', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}:
+ *   delete:
+ *     summary: Discard a staging session
+ *     description: Discard all changes and delete the staging session
+ *     tags: [Staging]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Staging session discarded successfully
+ *       404:
+ *         description: Staging session not found
+ */
+app.delete('/api/staging/sessions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const user = req.user || {};
+    const stagingService = getStagingService();
+
+    await stagingService.discardSession(id, documentId, user);
+    res.json({ success: true, message: 'Staging session discarded' });
+  } catch (error) {
+    log.errorWithStack('Discard staging session error', error);
+    if (error.message === 'Staging session not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to discard staging session', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/entities:
+ *   post:
+ *     summary: Add a new entity to staging
+ *     description: Add a new entity to the staging session
+ *     tags: [Staging]
+ */
+app.post('/api/staging/sessions/:id/entities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const entityData = req.body;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.addEntity(id, documentId, entityData);
+    res.status(201).json(session);
+  } catch (error) {
+    log.errorWithStack('Add entity to staging error', error);
+    res.status(500).json({ error: 'Failed to add entity', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/entities/{entityId}:
+ *   patch:
+ *     summary: Modify an entity in staging
+ *     description: Update an entity's properties in the staging session
+ *     tags: [Staging]
+ */
+app.patch('/api/staging/sessions/:id/entities/:entityId', async (req, res) => {
+  try {
+    const { id, entityId } = req.params;
+    const { documentId } = req.query;
+    const updates = req.body;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.modifyEntity(id, documentId, entityId, updates);
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Modify entity in staging error', error);
+    res.status(500).json({ error: 'Failed to modify entity', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/entities/{entityId}:
+ *   delete:
+ *     summary: Delete an entity from staging
+ *     description: Mark an entity as deleted in the staging session
+ *     tags: [Staging]
+ */
+app.delete('/api/staging/sessions/:id/entities/:entityId', async (req, res) => {
+  try {
+    const { id, entityId } = req.params;
+    const { documentId } = req.query;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.deleteEntity(id, documentId, entityId);
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Delete entity from staging error', error);
+    res.status(500).json({ error: 'Failed to delete entity', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/entities/{entityId}/position:
+ *   patch:
+ *     summary: Update entity position
+ *     description: Update an entity's position in the graph layout
+ *     tags: [Staging]
+ */
+app.patch('/api/staging/sessions/:id/entities/:entityId/position', async (req, res) => {
+  try {
+    const { id, entityId } = req.params;
+    const { documentId } = req.query;
+    const { position } = req.body;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.updateEntityPosition(id, documentId, entityId, position);
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Update entity position error', error);
+    res.status(500).json({ error: 'Failed to update entity position', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/relationships:
+ *   post:
+ *     summary: Add a new relationship to staging
+ *     description: Add a new relationship between entities in the staging session
+ *     tags: [Staging]
+ */
+app.post('/api/staging/sessions/:id/relationships', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const relationshipData = req.body;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.addRelationship(id, documentId, relationshipData);
+    res.status(201).json(session);
+  } catch (error) {
+    log.errorWithStack('Add relationship to staging error', error);
+    res.status(500).json({ error: 'Failed to add relationship', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/relationships/{relId}:
+ *   patch:
+ *     summary: Modify a relationship in staging
+ *     description: Update a relationship's properties in the staging session
+ *     tags: [Staging]
+ */
+app.patch('/api/staging/sessions/:id/relationships/:relId', async (req, res) => {
+  try {
+    const { id, relId } = req.params;
+    const { documentId } = req.query;
+    const updates = req.body;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.modifyRelationship(id, documentId, relId, updates);
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Modify relationship in staging error', error);
+    res.status(500).json({ error: 'Failed to modify relationship', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/relationships/{relId}:
+ *   delete:
+ *     summary: Delete a relationship from staging
+ *     description: Mark a relationship as deleted in the staging session
+ *     tags: [Staging]
+ */
+app.delete('/api/staging/sessions/:id/relationships/:relId', async (req, res) => {
+  try {
+    const { id, relId } = req.params;
+    const { documentId } = req.query;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.deleteRelationship(id, documentId, relId);
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Delete relationship from staging error', error);
+    res.status(500).json({ error: 'Failed to delete relationship', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/preview:
+ *   get:
+ *     summary: Preview staging changes
+ *     description: Get a preview of all changes that will be applied when committing
+ *     tags: [Staging]
+ */
+app.get('/api/staging/sessions/:id/preview', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const stagingService = getStagingService();
+
+    const preview = await stagingService.getPreview(id, documentId);
+    res.json(preview);
+  } catch (error) {
+    log.errorWithStack('Get staging preview error', error);
+    res.status(500).json({ error: 'Failed to get preview', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/{id}/commit:
+ *   post:
+ *     summary: Commit staging changes
+ *     description: Commit all staged changes to the production knowledge graph
+ *     tags: [Staging]
+ */
+app.post('/api/staging/sessions/:id/commit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentId } = req.query;
+    const user = req.user || {};
+    const stagingService = getStagingService();
+
+    const result = await stagingService.commitSession(id, documentId, user);
+    res.json(result);
+  } catch (error) {
+    log.errorWithStack('Commit staging session error', error);
+    res.status(500).json({ error: 'Failed to commit changes', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/staging/sessions/document/{documentId}:
+ *   get:
+ *     summary: Get staging session by document ID
+ *     description: Retrieve the active staging session for a document
+ *     tags: [Staging]
+ */
+app.get('/api/staging/sessions/document/:documentId', async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const stagingService = getStagingService();
+
+    const session = await stagingService.getSessionByDocument(documentId);
+    if (!session) {
+      return res.status(404).json({ error: 'No staging session found for this document' });
+    }
+
+    res.json(session);
+  } catch (error) {
+    log.errorWithStack('Get staging session by document error', error);
+    res.status(500).json({ error: 'Failed to get staging session', message: error.message });
+  }
 });
 
 // Error handling middleware

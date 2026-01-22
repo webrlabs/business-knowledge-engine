@@ -104,25 +104,6 @@ export default function GraphPage() {
   return (
     <>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <nav className="flex mb-6" aria-label="Breadcrumb">
-          <ol className="inline-flex items-center space-x-1 md:space-x-3">
-            <li className="inline-flex items-center">
-              <a href="/dashboard" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                Home
-              </a>
-            </li>
-            <li>
-              <div className="flex items-center">
-                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 mx-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700 dark:text-gray-200 font-medium">Knowledge Graph</span>
-              </div>
-            </li>
-          </ol>
-        </nav>
-
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
