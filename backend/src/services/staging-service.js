@@ -8,7 +8,7 @@ const {
 } = require('../storage/staging');
 const { getDocumentById } = require('../storage/cosmos');
 const { getGraphService } = require('./graph-service');
-const { createAuditLog } = require('../storage/cosmos');
+const { getAuditPersistenceService } = require('./audit-persistence-service');
 
 /**
  * Change types for tracking modifications
@@ -44,16 +44,23 @@ class StagingService {
     const now = new Date().toISOString();
 
     // Clone document entities and relationships for staging
-    const stagedEntities = (document.entities || []).map((entity) => ({
+    const stagedEntities = (document.entities || []).map((entity, index) => ({
       ...entity,
-      stagedId: entity.id,
+      id: entity.id || `${documentId}_entity_${index}`,
+      stagedId: entity.id || `${documentId}_entity_${index}`,
       status: 'unchanged', // unchanged, modified, added, deleted
       originalData: { ...entity },
     }));
 
-    const stagedRelationships = (document.relationships || []).map((rel) => ({
+    const stagedRelationships = (document.relationships || []).map((rel, index) => ({
       ...rel,
-      stagedId: rel.id,
+      id: rel.id || `${documentId}_rel_${index}`,
+      stagedId: rel.id || `${documentId}_rel_${index}`,
+      // Normalize to use both source/target and from/to
+      source: rel.source || rel.from,
+      target: rel.target || rel.to,
+      from: rel.from || rel.source,
+      to: rel.to || rel.target,
       status: 'unchanged',
       originalData: { ...rel },
     }));
@@ -370,6 +377,14 @@ class StagingService {
       throw new Error('Staging session not found');
     }
 
+    // Count entities and relationships with validation warnings (F4.3.1)
+    const entitiesWithWarnings = session.entities.filter(
+      (e) => e.validationWarnings && e.validationWarnings.length > 0
+    );
+    const relationshipsWithWarnings = session.relationships.filter(
+      (r) => r.validationWarnings && r.validationWarnings.length > 0
+    );
+
     const preview = {
       entities: {
         added: session.entities.filter((e) => e.status === 'added'),
@@ -392,9 +407,112 @@ class StagingService {
         relationshipsModified: session.relationships.filter((r) => r.status === 'modified').length,
         relationshipsDeleted: session.relationships.filter((r) => r.status === 'deleted').length,
       },
+      // F4.3.1: Include validation warning summary for review UI
+      validationSummary: {
+        entitiesWithWarnings: entitiesWithWarnings.length,
+        relationshipsWithWarnings: relationshipsWithWarnings.length,
+        totalWarnings:
+          entitiesWithWarnings.reduce((sum, e) => sum + (e.validationWarnings?.length || 0), 0) +
+          relationshipsWithWarnings.reduce((sum, r) => sum + (r.validationWarnings?.length || 0), 0),
+      },
     };
 
     return preview;
+  }
+
+  /**
+   * Get entities and relationships with validation warnings.
+   * Feature: F4.3.1 - Relationship Validation Rules
+   *
+   * @param {string} sessionId - Staging session ID
+   * @param {string} documentId - Document ID
+   * @returns {Object} Entities and relationships with validation warnings
+   */
+  async getValidationWarnings(sessionId, documentId) {
+    const session = await getStagingSession(sessionId, documentId);
+    if (!session) {
+      throw new Error('Staging session not found');
+    }
+
+    const entitiesWithWarnings = session.entities.filter(
+      (e) => e.validationWarnings && e.validationWarnings.length > 0 && e.status !== 'deleted'
+    );
+
+    const relationshipsWithWarnings = session.relationships.filter(
+      (r) => r.validationWarnings && r.validationWarnings.length > 0 && r.status !== 'deleted'
+    );
+
+    // Categorize warnings by type
+    const warningsByType = {
+      UNKNOWN_ENTITY_TYPE: [],
+      UNKNOWN_RELATIONSHIP_TYPE: [],
+      DOMAIN_VIOLATION: [],
+      RANGE_VIOLATION: [],
+      TYPE_NORMALIZED: [],
+    };
+
+    // Collect entity warnings
+    for (const entity of entitiesWithWarnings) {
+      for (const warning of entity.validationWarnings) {
+        if (warningsByType[warning.code]) {
+          warningsByType[warning.code].push({
+            itemType: 'entity',
+            itemId: entity.id,
+            itemName: entity.name,
+            ...warning,
+          });
+        }
+      }
+    }
+
+    // Collect relationship warnings
+    for (const rel of relationshipsWithWarnings) {
+      for (const warning of rel.validationWarnings) {
+        if (warningsByType[warning.code]) {
+          warningsByType[warning.code].push({
+            itemType: 'relationship',
+            itemId: rel.id,
+            from: rel.from || rel.source,
+            to: rel.to || rel.target,
+            relationshipType: rel.type,
+            ...warning,
+          });
+        }
+      }
+    }
+
+    return {
+      entities: entitiesWithWarnings.map((e) => ({
+        id: e.id,
+        name: e.name,
+        type: e.type,
+        confidence: e.confidence,
+        originalConfidence: e.originalConfidence,
+        validationPassed: e.validationPassed,
+        warnings: e.validationWarnings,
+        suggestedType: e.suggestedType,
+      })),
+      relationships: relationshipsWithWarnings.map((r) => ({
+        id: r.id,
+        from: r.from || r.source,
+        to: r.to || r.target,
+        type: r.type,
+        confidence: r.confidence,
+        originalConfidence: r.originalConfidence,
+        validationPassed: r.validationPassed,
+        warnings: r.validationWarnings,
+      })),
+      warningsByType,
+      summary: {
+        totalEntitiesWithWarnings: entitiesWithWarnings.length,
+        totalRelationshipsWithWarnings: relationshipsWithWarnings.length,
+        unknownEntityTypes: warningsByType.UNKNOWN_ENTITY_TYPE.length,
+        unknownRelationshipTypes: warningsByType.UNKNOWN_RELATIONSHIP_TYPE.length,
+        domainViolations: warningsByType.DOMAIN_VIOLATION.length,
+        rangeViolations: warningsByType.RANGE_VIOLATION.length,
+        normalizedTypes: warningsByType.TYPE_NORMALIZED.length,
+      },
+    };
   }
 
   /**
@@ -500,8 +618,9 @@ class StagingService {
     }
 
     // Create audit log entry for the commit
+    // Create audit log entry for the commit
     try {
-      await createAuditLog({
+      await getAuditPersistenceService().createLog({
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         action: 'staging_commit',
@@ -549,8 +668,9 @@ class StagingService {
     }
 
     // Create audit log for discard
+    // Create audit log entry for the commit
     try {
-      await createAuditLog({
+      await getAuditPersistenceService().createLog({
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         action: 'staging_discard',

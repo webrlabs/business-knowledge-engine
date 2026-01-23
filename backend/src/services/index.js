@@ -1,4 +1,5 @@
 module.exports = {
+  ...require('./circuit-breaker-service'),
   ...require('./openai-service'),
   ...require('./docint-service'),
   ...require('./search-service'),
@@ -6,4 +7,14 @@ module.exports = {
   ...require('./entity-extractor'),
   ...require('./pii-redaction-service'),
   ...require('./security-trimming-service'),
+  ...require('./importance-service'),
+  ...require('./graph-rag-service'),
+  ...require('./community-summary-service'),
+  ...require('./community-storage-service'),
+  ...require('./impact-analysis-service'),
+  ...require('./ontology-service'),
+  ...require('./prompt-injection-service'),
+  ...require('./configuration-service'),
+  ...require('./temporal-service'),
+  ...require('./pagination-service'),
 };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
+import { useAuth, canReview, isLoadingRoles } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
 import { useStagingState } from '@/hooks/useStagingState';
 import { StagedEntity } from '@/lib/staging-store';
@@ -89,15 +89,18 @@ export default function SplitReviewPage() {
       return;
     }
 
-    const canReview = roles.some((role) =>
-      ['admin', 'reviewer'].includes(role.toLowerCase())
-    );
+    // Wait for roles to be loaded (they're fetched async from token)
+    if (isLoadingRoles(user, roles)) {
+      return;
+    }
 
-    if (!canReview) {
+    if (!canReview(roles)) {
       setAccessDenied(true);
       setPageLoading(false);
       return;
     }
+
+    setAccessDenied(false);
 
     // Fetch document data
     const fetchDocument = async () => {

@@ -132,3 +132,288 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
+
+  evaluation-regression:
+    name: Evaluation Regression Check
+    runs-on: ubuntu-latest
+    needs: backend
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create benchmark results directory
+        run: mkdir -p ./benchmark-results
+
+      - name: Run Evaluation Benchmark
+        id: benchmark
+        run: |
+          node src/evaluation/run-benchmark.js \
+            --suite all \
+            --dataset ./src/evaluation/datasets/ci_benchmark.json \
+            --output json \
+            --output-file ./benchmark-results/evaluation-results.json \
+            --threshold 0.6 \
+            --verbose \
+            --save-results \
+            --run-name "CI Run - ${{ github.event_name }} - ${{ github.sha }}" \
+            --git-commit "${{ github.sha }}" \
+            --git-branch "${{ github.ref_name }}" \
+            --tag "trigger=${{ github.event_name }}" \
+            --tag "pr=${{ github.event.pull_request.number || 'none' }}"
+        env:
+          NODE_ENV: test
+          EVALUATION_STORAGE_MODE: local
+        continue-on-error: true
+
+      - name: Generate Markdown Report
+        if: always()
+        run: |
+          node src/evaluation/run-benchmark.js \
+            --suite all \
+            --dataset ./src/evaluation/datasets/ci_benchmark.json \
+            --output markdown \
+            --output-file ./benchmark-results/evaluation-report.md \
+            --threshold 0.6
+        env:
+          NODE_ENV: test
+          EVALUATION_STORAGE_MODE: local
+        continue-on-error: true
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-results-${{ github.sha }}
+          path: |
+            backend/benchmark-results/evaluation-results.json
+            backend/benchmark-results/evaluation-report.md
+          retention-days: 30
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            let reportContent = '## Evaluation Benchmark Results\n\n';
+
+            try {
+              const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'backend/benchmark-results/evaluation-report.md');
+              if (fs.existsSync(reportPath)) {
+                const fullReport = fs.readFileSync(reportPath, 'utf8');
+                // Extract summary section
+                const summaryMatch = fullReport.match(/## Summary[\s\S]*?(?=## Suite Results|$)/);
+                reportContent += summaryMatch ? summaryMatch[0] : fullReport.substring(0, 2000);
+              } else {
+                reportContent += '_Report file not found. Check workflow logs for details._\n';
+              }
+            } catch (error) {
+              reportContent += `_Error reading report: ${error.message}_\n`;
+            }
+
+            reportContent += `\n\n<details><summary>Details</summary>\n\n`;
+            reportContent += `- **Commit:** \`${{ github.sha }}\`\n`;
+            reportContent += `- **Threshold:** 0.6\n`;
+            reportContent += `- **Workflow Run:** [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            reportContent += `</details>\n`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Evaluation Benchmark Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: reportContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: reportContent
+              });
+            }
+
+      - name: Check Benchmark Threshold
+        if: github.event_name == 'pull_request'
+        run: |
+          node src/evaluation/run-benchmark.js \
+            --suite retrieval \
+            --suite entity-extraction \
+            --dataset ./src/evaluation/datasets/ci_benchmark.json \
+            --threshold 0.6 \
+            --fail-on-threshold
+        env:
+          NODE_ENV: test
+          EVALUATION_STORAGE_MODE: local
+
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: backend
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create security results directory
+        run: mkdir -p ./security-results
+
+      - name: Run Adversarial Security Tests
+        id: security-tests
+        run: |
+          node src/evaluation/run-security-tests.js \
+            --output json \
+            --output-file ./security-results/security-results.json \
+            --threshold 0.85 \
+            --verbose \
+            --run-name "CI Security Check - ${{ github.event_name }} - ${{ github.sha }}" \
+            --git-commit "${{ github.sha }}" \
+            --git-branch "${{ github.ref_name }}" \
+            --tag "trigger=${{ github.event_name }}" \
+            --tag "pr=${{ github.event.pull_request.number || 'none' }}"
+        env:
+          NODE_ENV: test
+        continue-on-error: true
+
+      - name: Generate Markdown Security Report
+        if: always()
+        run: |
+          node src/evaluation/run-security-tests.js \
+            --output markdown \
+            --output-file ./security-results/security-report.md \
+            --threshold 0.85
+        env:
+          NODE_ENV: test
+        continue-on-error: true
+
+      - name: Upload Security Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-results-${{ github.sha }}
+          path: |
+            backend/security-results/security-results.json
+            backend/security-results/security-report.md
+          retention-days: 30
+
+      - name: Comment PR with Security Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            let reportContent = '## 🔒 Security Test Results\n\n';
+
+            try {
+              const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'backend/security-results/security-report.md');
+              if (fs.existsSync(reportPath)) {
+                const fullReport = fs.readFileSync(reportPath, 'utf8');
+                // Extract summary and threshold sections
+                const summaryMatch = fullReport.match(/## Summary[\s\S]*?(?=## Overall Metrics|$)/);
+                const metricsMatch = fullReport.match(/## Overall Metrics[\s\S]*?(?=### Confusion Matrix|$)/);
+                const thresholdMatch = fullReport.match(/## Threshold Checks[\s\S]*?(?=## Metrics by Attack Category|$)/);
+
+                if (summaryMatch) reportContent += summaryMatch[0];
+                if (metricsMatch) reportContent += metricsMatch[0];
+                if (thresholdMatch) reportContent += thresholdMatch[0];
+
+                // Check if tests passed
+                const passedMatch = fullReport.match(/Overall Status.*?\*\*(PASSED|FAILED)\*\*/);
+                if (passedMatch) {
+                  const status = passedMatch[1];
+                  reportContent += `\n**Security Status: ${status === 'PASSED' ? '✅ PASSED' : '❌ FAILED'}**\n`;
+                }
+              } else {
+                reportContent += '_Security report file not found. Check workflow logs for details._\n';
+              }
+            } catch (error) {
+              reportContent += `_Error reading security report: ${error.message}_\n`;
+            }
+
+            reportContent += `\n<details><summary>Details</summary>\n\n`;
+            reportContent += `- **Commit:** \`${{ github.sha }}\`\n`;
+            reportContent += `- **F1 Threshold:** 0.85\n`;
+            reportContent += `- **Workflow Run:** [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            reportContent += `</details>\n`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Security Test Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: reportContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: reportContent
+              });
+            }
+
+      - name: Check Security Threshold
+        if: github.event_name == 'pull_request'
+        run: |
+          node src/evaluation/run-security-tests.js \
+            --threshold 0.85 \
+            --fail-on-threshold
+        env:
+          NODE_ENV: test

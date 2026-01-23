@@ -1,12 +1,16 @@
 const rateLimit = require('express-rate-limit');
 
+// Check if we're in development mode
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 /**
  * General API rate limiter
- * Limits all API endpoints to 100 requests per 15 minutes per IP
+ * Development: 1000 requests per 15 minutes per IP
+ * Production: 100 requests per 15 minutes per IP
  */
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: isDevelopment ? 1000 : 100, // Higher limit for development
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: {
@@ -17,6 +21,10 @@ const generalLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use X-Forwarded-For header if behind a proxy, otherwise use IP
     return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+  },
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/health' || req.path === '/health/detailed';
   },
 });
 

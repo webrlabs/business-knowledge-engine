@@ -12,6 +12,49 @@ export interface AuthUser {
 }
 
 /**
+ * Check if a user has any of the required roles.
+ * Uses case-insensitive partial matching to handle various role naming conventions
+ * (e.g., "Admin", "admin", "App.Admin", "KnowledgePlatform.Reviewer")
+ */
+export function hasRole(userRoles: string[], requiredRoles: string[]): boolean {
+  if (!userRoles || userRoles.length === 0) return false;
+
+  return userRoles.some((userRole) => {
+    const roleLower = userRole.toLowerCase();
+    return requiredRoles.some((required) => roleLower.includes(required.toLowerCase()));
+  });
+}
+
+/**
+ * Check if user has admin role
+ */
+export function isAdmin(roles: string[]): boolean {
+  return hasRole(roles, ['admin']);
+}
+
+/**
+ * Check if user can review documents (admin or reviewer)
+ */
+export function canReview(roles: string[]): boolean {
+  return hasRole(roles, ['admin', 'reviewer']);
+}
+
+/**
+ * Check if user can upload documents (admin, reviewer, or contributor)
+ */
+export function canUpload(roles: string[]): boolean {
+  return hasRole(roles, ['admin', 'reviewer', 'contributor']);
+}
+
+/**
+ * Check if roles have been loaded from the token.
+ * Returns true if we're still waiting for roles to load.
+ */
+export function isLoadingRoles(user: AuthUser | null, roles: string[]): boolean {
+  return user !== null && roles.length === 0;
+}
+
+/**
  * Decode JWT payload without verification (for reading claims only)
  */
 function decodeJwtPayload(token: string): Record<string, unknown> | null {

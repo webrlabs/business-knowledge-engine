@@ -1,0 +1,192 @@
+{
+  "metadata": {
+    "name": "ci-benchmark",
+    "version": "1.0.0",
+    "created": "2026-01-22",
+    "description": "Lightweight benchmark dataset for CI/CD regression testing. Tests core evaluation metrics without external dependencies.",
+    "author": "GraphRAG Team",
+    "purpose": "automated-ci"
+  },
+  "retrieval": [
+    {
+      "query": "What is the purchase order approval process?",
+      "retrieved": ["doc-po-001", "doc-po-002", "doc-finance-001", "doc-proc-001", "doc-hr-001"],
+      "relevant": ["doc-po-001", "doc-po-002", "doc-finance-001"]
+    },
+    {
+      "query": "Who is responsible for invoice processing?",
+      "retrieved": ["doc-finance-001", "doc-ap-001", "doc-po-002", "doc-proc-002", "doc-hr-002"],
+      "relevant": ["doc-finance-001", "doc-ap-001"]
+    },
+    {
+      "query": "What systems are used for ERP integration?",
+      "retrieved": ["doc-erp-001", "doc-it-001", "doc-sap-001", "doc-int-001", "doc-proc-001"],
+      "relevant": ["doc-erp-001", "doc-sap-001", "doc-int-001"]
+    },
+    {
+      "query": "How does the employee onboarding workflow function?",
+      "retrieved": ["doc-hr-001", "doc-onboard-001", "doc-it-002", "doc-proc-003", "doc-policy-001"],
+      "relevant": ["doc-hr-001", "doc-onboard-001"]
+    },
+    {
+      "query": "What compliance requirements apply to data handling?",
+      "retrieved": ["doc-compliance-001", "doc-gdpr-001", "doc-security-001", "doc-policy-002", "doc-it-003"],
+      "relevant": ["doc-compliance-001", "doc-gdpr-001", "doc-security-001"]
+    },
+    {
+      "query": "Describe the vendor management lifecycle",
+      "retrieved": ["doc-vendor-001", "doc-proc-001", "doc-finance-002", "doc-contract-001", "doc-risk-001"],
+      "relevant": ["doc-vendor-001", "doc-contract-001"]
+    },
+    {
+      "query": "What are the key performance metrics for operations?",
+      "retrieved": ["doc-kpi-001", "doc-ops-001", "doc-metrics-001", "doc-report-001", "doc-dash-001"],
+      "relevant": ["doc-kpi-001", "doc-ops-001", "doc-metrics-001"]
+    },
+    {
+      "query": "How are access controls managed in the organization?",
+      "retrieved": ["doc-security-001", "doc-iam-001", "doc-policy-003", "doc-it-004", "doc-audit-001"],
+      "relevant": ["doc-security-001", "doc-iam-001", "doc-audit-001"]
+    }
+  ],
+  "qa": [
+    {
+      "question": "What is the purchase order approval process?",
+      "answer": "The purchase order approval process involves three main steps: requisition submission by the requesting department, review and approval by the budget owner, and final approval by procurement. Orders above $10,000 require additional CFO approval.",
+      "context": "The standard purchase order workflow begins with a requisition form submitted through the procurement portal. The budget owner reviews the request against available funds. Once budget approval is obtained, procurement validates the vendor and pricing before final processing. High-value purchases over $10,000 threshold require executive sign-off from the CFO.",
+      "expectedAnswer": "Purchase orders go through requisition, budget owner review, and procurement approval. High-value orders need CFO approval.",
+      "sources": [
+        {
+          "id": "doc-po-001",
+          "title": "Purchase Order Policy",
+          "content": "The standard purchase order workflow begins with a requisition form submitted through the procurement portal. The budget owner reviews the request against available funds."
+        },
+        {
+          "id": "doc-po-002",
+          "title": "Procurement Guidelines",
+          "content": "High-value purchases over $10,000 threshold require executive sign-off from the CFO. Procurement validates the vendor and pricing before final processing."
+        }
+      ]
+    },
+    {
+      "question": "Who handles invoice disputes?",
+      "answer": "Invoice disputes are handled by the Accounts Payable team in coordination with the Procurement department. The AP Specialist initiates the dispute, while Procurement liaises with vendors for resolution.",
+      "context": "When an invoice discrepancy is identified, the AP Specialist raises a dispute ticket in the financial system. The dispute is routed to Procurement for vendor communication. Resolution involves matching purchase orders, receipts, and contracts. Final approval comes from the Finance Manager for write-offs above threshold.",
+      "expectedAnswer": "The Accounts Payable team handles disputes with Procurement for vendor coordination.",
+      "sources": [
+        {
+          "id": "doc-ap-001",
+          "title": "Invoice Processing Manual",
+          "content": "When an invoice discrepancy is identified, the AP Specialist raises a dispute ticket in the financial system. The dispute is routed to Procurement for vendor communication."
+        }
+      ]
+    },
+    {
+      "question": "What ERP system does the organization use?",
+      "answer": "The organization uses SAP S/4HANA as its primary ERP system, which integrates with ServiceNow for IT service management and Workday for human capital management.",
+      "context": "Our enterprise resource planning backbone is SAP S/4HANA deployed in 2024. It connects to ServiceNow for ITSM workflows and Workday handles all HR and payroll functions. Integration is managed through Azure Integration Services with real-time data synchronization.",
+      "expectedAnswer": "SAP S/4HANA is the primary ERP, integrated with ServiceNow and Workday."
+    }
+  ],
+  "entities": [
+    {
+      "documentId": "test-doc-001",
+      "extracted": [
+        { "name": "Purchase Order Process", "type": "Process", "confidence": 0.95 },
+        { "name": "Finance Department", "type": "Department", "confidence": 0.92 },
+        { "name": "Approval Task", "type": "Task", "confidence": 0.88 },
+        { "name": "CFO", "type": "Role", "confidence": 0.90 },
+        { "name": "Procurement Portal", "type": "System", "confidence": 0.85 }
+      ],
+      "groundTruth": [
+        { "name": "Purchase Order Process", "type": "Process" },
+        { "name": "Finance Department", "type": "Department" },
+        { "name": "Approval Task", "type": "Task" },
+        { "name": "CFO", "type": "Role" },
+        { "name": "SAP ERP", "type": "System" },
+        { "name": "Budget Review", "type": "Activity" }
+      ]
+    },
+    {
+      "documentId": "test-doc-002",
+      "extracted": [
+        { "name": "Invoice Processing", "type": "Process", "confidence": 0.93 },
+        { "name": "Accounts Payable", "type": "Department", "confidence": 0.91 },
+        { "name": "AP Specialist", "type": "Role", "confidence": 0.89 },
+        { "name": "Dispute Resolution", "type": "Activity", "confidence": 0.86 },
+        { "name": "Financial System", "type": "System", "confidence": 0.84 }
+      ],
+      "groundTruth": [
+        { "name": "Invoice Processing", "type": "Process" },
+        { "name": "Accounts Payable", "type": "Department" },
+        { "name": "AP Specialist", "type": "Role" },
+        { "name": "Dispute Resolution", "type": "Activity" },
+        { "name": "Financial System", "type": "System" },
+        { "name": "Procurement", "type": "Department" }
+      ]
+    },
+    {
+      "documentId": "test-doc-003",
+      "extracted": [
+        { "name": "Employee Onboarding", "type": "Process", "confidence": 0.94 },
+        { "name": "HR Department", "type": "Department", "confidence": 0.92 },
+        { "name": "IT Setup Task", "type": "Task", "confidence": 0.87 },
+        { "name": "Workday", "type": "System", "confidence": 0.91 },
+        { "name": "New Hire", "type": "Role", "confidence": 0.83 }
+      ],
+      "groundTruth": [
+        { "name": "Employee Onboarding", "type": "Process" },
+        { "name": "HR Department", "type": "Department" },
+        { "name": "IT Setup Task", "type": "Task" },
+        { "name": "Workday", "type": "System" },
+        { "name": "ServiceNow", "type": "System" }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "documentId": "test-doc-001",
+      "extracted": [
+        { "from": "Finance Department", "to": "Purchase Order Process", "type": "OWNS" },
+        { "from": "Approval Task", "to": "Purchase Order Process", "type": "PART_OF" },
+        { "from": "CFO", "to": "Approval Task", "type": "EXECUTES" },
+        { "from": "Purchase Order Process", "to": "Procurement Portal", "type": "USES" }
+      ],
+      "groundTruth": [
+        { "from": "Finance Department", "to": "Purchase Order Process", "type": "OWNS" },
+        { "from": "Approval Task", "to": "Purchase Order Process", "type": "PART_OF" },
+        { "from": "CFO", "to": "Approval Task", "type": "APPROVES" },
+        { "from": "Purchase Order Process", "to": "SAP ERP", "type": "USES" },
+        { "from": "Budget Review", "to": "Approval Task", "type": "PRECEDES" }
+      ]
+    },
+    {
+      "documentId": "test-doc-002",
+      "extracted": [
+        { "from": "Accounts Payable", "to": "Invoice Processing", "type": "OWNS" },
+        { "from": "AP Specialist", "to": "Dispute Resolution", "type": "EXECUTES" },
+        { "from": "Invoice Processing", "to": "Financial System", "type": "USES" }
+      ],
+      "groundTruth": [
+        { "from": "Accounts Payable", "to": "Invoice Processing", "type": "OWNS" },
+        { "from": "AP Specialist", "to": "Dispute Resolution", "type": "EXECUTES" },
+        { "from": "Invoice Processing", "to": "Financial System", "type": "USES" },
+        { "from": "Procurement", "to": "Dispute Resolution", "type": "REVIEWS" }
+      ]
+    },
+    {
+      "documentId": "test-doc-003",
+      "extracted": [
+        { "from": "HR Department", "to": "Employee Onboarding", "type": "OWNS" },
+        { "from": "IT Setup Task", "to": "Employee Onboarding", "type": "PART_OF" },
+        { "from": "Employee Onboarding", "to": "Workday", "type": "USES" }
+      ],
+      "groundTruth": [
+        { "from": "HR Department", "to": "Employee Onboarding", "type": "OWNS" },
+        { "from": "IT Setup Task", "to": "Employee Onboarding", "type": "PART_OF" },
+        { "from": "Employee Onboarding", "to": "Workday", "type": "USES" },
+        { "from": "Employee Onboarding", "to": "ServiceNow", "type": "USES" }
+      ]
+    }
+  ]
+}

@@ -6,13 +6,10 @@ const key = process.env.COSMOS_DB_KEY;
 const databaseId = process.env.COSMOS_DB_DATABASE || 'knowledge-platform';
 const documentsContainerId =
   process.env.COSMOS_DB_DOCUMENTS_CONTAINER || 'documents';
-const auditContainerId =
-  process.env.COSMOS_DB_AUDIT_CONTAINER || 'audit-logs';
 
 let client;
 let database;
 let documentsContainer;
-let auditContainer;
 
 function getClient() {
   if (!endpoint) {
@@ -33,7 +30,7 @@ function getClient() {
 }
 
 async function initCosmos() {
-  if (database && documentsContainer && auditContainer) {
+  if (database && documentsContainer) {
     return;
   }
   const cosmosClient = getClient();
@@ -49,14 +46,6 @@ async function initCosmos() {
     },
   });
   documentsContainer = docs;
-
-  const { container: audit } = await database.containers.createIfNotExists({
-    id: auditContainerId,
-    partitionKey: {
-      paths: ['/entityType'],
-    },
-  });
-  auditContainer = audit;
 }
 
 async function createDocument(document) {
@@ -70,6 +59,52 @@ async function listDocuments() {
   const query = 'SELECT * FROM c ORDER BY c.uploadedAt DESC';
   const { resources } = await documentsContainer.items.query(query).fetchAll();
   return resources;
+}
+
+/**
+ * List documents with cursor-based pagination (F5.2.4)
+ * @param {Object} options - Pagination options
+ * @param {string} [options.cursor] - Pagination cursor
+ * @param {number} [options.pageSize] - Page size (default 20, max 100)
+ * @param {string} [options.status] - Filter by status
+ * @returns {Promise<Object>} Paginated response { items, pagination }
+ */
+async function listDocumentsPaginated(options = {}) {
+  await initCosmos();
+
+  const {
+    buildPaginatedCosmosQuery,
+    processPaginatedResults,
+    parsePaginationParams,
+  } = require('../services/pagination-service');
+
+  const { cursor, pageSize } = parsePaginationParams({
+    cursor: options.cursor,
+    pageSize: options.pageSize,
+  });
+
+  let baseQuery = 'SELECT * FROM c';
+  const filterParams = [];
+
+  // Add status filter if provided
+  if (options.status) {
+    baseQuery += ' WHERE c.status = @status';
+    filterParams.push({ name: '@status', value: options.status });
+  }
+
+  // Build paginated query
+  const { query, parameters: paginatedParams } = buildPaginatedCosmosQuery(
+    baseQuery,
+    { cursor, pageSize, sortField: 'uploadedAt', sortOrder: 'DESC' }
+  );
+
+  const finalParams = [...filterParams, ...paginatedParams];
+
+  const { resources } = await documentsContainer.items
+    .query({ query, parameters: finalParams })
+    .fetchAll();
+
+  return processPaginatedResults(resources, { pageSize, sortField: 'uploadedAt' });
 }
 
 async function getDocumentById(id) {
@@ -139,49 +174,18 @@ async function deleteDocument(id) {
   }
 }
 
-async function createAuditLog(entry) {
+async function queryDocuments(querySpec) {
   await initCosmos();
-  const { resource } = await auditContainer.items.create(entry);
-  return resource;
-}
-
-async function queryAuditLogs({ entityId, action, entityType, limit = 100 }) {
-  await initCosmos();
-  const conditions = [];
-  const parameters = [];
-
-  if (entityId) {
-    conditions.push('c.entityId = @entityId');
-    parameters.push({ name: '@entityId', value: entityId });
-  }
-  if (action) {
-    conditions.push('c.action = @action');
-    parameters.push({ name: '@action', value: action });
-  }
-  if (entityType) {
-    conditions.push('c.entityType = @entityType');
-    parameters.push({ name: '@entityType', value: entityType });
-  }
-
-  let query = `SELECT * FROM c`;
-  if (conditions.length > 0) {
-    query += ` WHERE ${conditions.join(' AND ')}`;
-  }
-  query += ` ORDER BY c.timestamp DESC`;
-
-  const { resources } = await auditContainer.items
-    .query({ query, parameters })
-    .fetchAll();
-
-  return resources.slice(0, Number(limit));
+  const { resources } = await documentsContainer.items.query(querySpec).fetchAll();
+  return resources;
 }
 
 module.exports = {
   createDocument,
   listDocuments,
+  listDocumentsPaginated,
+  queryDocuments,
   getDocumentById,
   updateDocument,
   deleteDocument,
-  createAuditLog,
-  queryAuditLogs,
 };

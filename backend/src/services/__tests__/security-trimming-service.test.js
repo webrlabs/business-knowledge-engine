@@ -1,3 +1,14 @@
+let logDenialMock;
+
+jest.mock('../audit-persistence-service', () => {
+  logDenialMock = jest.fn().mockResolvedValue({ id: 'audit_1' });
+  return {
+    getAuditPersistenceService: () => ({
+      logDenial: logDenialMock,
+    }),
+  };
+});
+
 const {
   SecurityTrimmingService,
   createSecurityTrimmingService,
@@ -10,6 +21,9 @@ describe('Security Trimming Service', () => {
 
   beforeEach(() => {
     service = createSecurityTrimmingService({ enabled: true });
+    if (logDenialMock) {
+      logDenialMock.mockClear();
+    }
   });
 
   describe('filterSearchResults', () => {
@@ -249,6 +263,28 @@ describe('Security Trimming Service', () => {
       expect(log[0].documentId).toBe('1');
       expect(log[0].userId).toBe('user1');
       expect(log[0].reason).toBe('classification_denied');
+    });
+
+    it('should persist denials when configured', () => {
+      const previousEndpoint = process.env.COSMOS_DB_ENDPOINT;
+      process.env.COSMOS_DB_ENDPOINT = 'https://example.test';
+
+      const results = [{ id: '1', classification: 'restricted' }];
+      const user = { id: 'user1', roles: ['Reader'], groups: [] };
+
+      service.filterSearchResults(results, user);
+
+      expect(logDenialMock).toHaveBeenCalledTimes(1);
+      expect(logDenialMock.mock.calls[0][0]).toMatchObject({
+        documentId: '1',
+        reason: 'classification_denied',
+      });
+
+      if (previousEndpoint === undefined) {
+        delete process.env.COSMOS_DB_ENDPOINT;
+      } else {
+        process.env.COSMOS_DB_ENDPOINT = previousEndpoint;
+      }
     });
 
     it('should clear denial log', () => {

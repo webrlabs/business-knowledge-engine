@@ -1,4 +1,5 @@
 const { createOpenAIClient, getOpenAIConfig } = require('../clients');
+const { getCircuitBreakerService } = require('./circuit-breaker-service');
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 1000;
@@ -7,6 +8,7 @@ class OpenAIService {
   constructor() {
     this.client = null;
     this.config = getOpenAIConfig();
+    this._circuitBreaker = null;
   }
 
   async _getClient() {
@@ -14,6 +16,13 @@ class OpenAIService {
       this.client = createOpenAIClient();
     }
     return this.client;
+  }
+
+  _getCircuitBreaker() {
+    if (!this._circuitBreaker) {
+      this._circuitBreaker = getCircuitBreakerService();
+    }
+    return this._circuitBreaker;
   }
 
   async _retryWithBackoff(operation, maxRetries = DEFAULT_MAX_RETRIES) {
@@ -58,20 +67,28 @@ class OpenAIService {
       throw new Error('AZURE_OPENAI_DEPLOYMENT_NAME is required');
     }
 
-    return this._retryWithBackoff(async () => {
-      const response = await client.chat.completions.create({
-        model,
-        messages,
-        max_completion_tokens: options.maxTokens ?? 4096,
-        response_format: options.responseFormat,
-      });
+    // Wrap the operation with circuit breaker
+    const cb = this._getCircuitBreaker();
+    const operation = async () => {
+      return this._retryWithBackoff(async () => {
+        const response = await client.chat.completions.create({
+          model,
+          messages,
+          max_completion_tokens: options.maxTokens ?? 4096,
+          response_format: options.responseFormat,
+        });
 
-      return {
-        content: response.choices[0]?.message?.content || '',
-        usage: response.usage,
-        finishReason: response.choices[0]?.finish_reason,
-      };
-    });
+        return {
+          content: response.choices[0]?.message?.content || '',
+          usage: response.usage,
+          finishReason: response.choices[0]?.finish_reason,
+        };
+      });
+    };
+
+    // Use circuit breaker with fallback support
+    const breaker = cb.getBreaker('openai', operation, { name: 'getChatCompletion' });
+    return breaker.fire();
   }
 
   async getJsonCompletion(messages, options = {}) {
@@ -117,16 +134,23 @@ class OpenAIService {
       throw new Error('AZURE_OPENAI_EMBEDDING_DEPLOYMENT is required');
     }
 
-    return this._retryWithBackoff(async () => {
-      const response = await client.embeddings.create({
-        model,
-        input: text,
+    // Wrap the operation with circuit breaker
+    const cb = this._getCircuitBreaker();
+    const operation = async () => {
+      return this._retryWithBackoff(async () => {
+        const response = await client.embeddings.create({
+          model,
+          input: text,
+        });
+        return {
+          embedding: response.data[0].embedding,
+          usage: response.usage,
+        };
       });
-      return {
-        embedding: response.data[0].embedding,
-        usage: response.usage,
-      };
-    });
+    };
+
+    const breaker = cb.getBreaker('openai', operation, { name: 'getEmbedding' });
+    return breaker.fire();
   }
 
   async getEmbeddings(texts) {
@@ -140,17 +164,22 @@ class OpenAIService {
     // Process in batches of 16 (Azure OpenAI limit)
     const BATCH_SIZE = 16;
     const results = [];
+    const cb = this._getCircuitBreaker();
 
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const batch = texts.slice(i, i + BATCH_SIZE);
 
-      const response = await this._retryWithBackoff(async () => {
-        return await client.embeddings.create({
-          model,
-          input: batch,
+      const operation = async () => {
+        return this._retryWithBackoff(async () => {
+          return await client.embeddings.create({
+            model,
+            input: batch,
+          });
         });
-      });
+      };
 
+      const breaker = cb.getBreaker('openai', operation, { name: 'getEmbeddingsBatch' });
+      const response = await breaker.fire();
       results.push(...response.data.map((d) => d.embedding));
     }
 

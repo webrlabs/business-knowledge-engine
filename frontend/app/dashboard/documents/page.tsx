@@ -99,25 +99,34 @@ export default function DocumentsPage() {
 
       showSuccess('Processing Started', 'Document is being processed with Azure AI Document Intelligence');
 
-      // Poll for completion
+      // Poll for completion (every 3 seconds to reduce load)
       const pollInterval = setInterval(async () => {
-        const docResponse = await authFetch(`${API_BASE_URL}/api/documents/${documentId}`);
-        const docData = await docResponse.json();
+        try {
+          const docResponse = await authFetch(`${API_BASE_URL}/api/documents/${documentId}`);
+          const docData = await docResponse.json();
 
-        if (docData.status === 'completed') {
-          clearInterval(pollInterval);
-          setProcessing(null);
-          showSuccess('Processing Complete', 'Document has been successfully processed');
-          fetchDocuments();
-        } else if (docData.status === 'failed') {
-          clearInterval(pollInterval);
-          setProcessing(null);
-          showError('Processing Failed', 'Document processing encountered an error');
+          if (docData.status === 'completed') {
+            clearInterval(pollInterval);
+            setProcessing(null);
+            showSuccess('Processing Complete', 'Document has been successfully processed');
+            fetchDocuments();
+          } else if (docData.status === 'failed') {
+            clearInterval(pollInterval);
+            setProcessing(null);
+            showError('Processing Failed', docData.processingError || 'Document processing encountered an error');
+            fetchDocuments();
+          }
+        } catch (pollError) {
+          console.warn('Polling error:', pollError);
         }
-      }, 1000);
+      }, 3000);
 
-      // Clear interval after 30 seconds to prevent infinite polling
-      setTimeout(() => clearInterval(pollInterval), 30000);
+      // Clear interval after 5 minutes and reset state
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        setProcessing(null);
+        fetchDocuments(); // Refresh to show current status
+      }, 300000);
     } catch (error) {
       console.error('Error processing document:', error);
       showError('Error', 'Failed to start document processing');
@@ -261,7 +270,7 @@ export default function DocumentsPage() {
                         </div>
                       </div>
                       <div className="ml-4 flex-shrink-0 flex items-center gap-2">
-                        {(doc.status === 'pending' || doc.status === 'failed') && (
+                        {(doc.status === 'pending' || doc.status === 'failed' || doc.status === 'completed') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -271,6 +280,8 @@ export default function DocumentsPage() {
                             className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                               doc.status === 'failed'
                                 ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                                : doc.status === 'completed'
+                                ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                 : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                             }`}
                           >
@@ -288,6 +299,13 @@ export default function DocumentsPage() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                                 Retry
+                              </>
+                            ) : doc.status === 'completed' ? (
+                              <>
+                                <svg className="-ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Reprocess
                               </>
                             ) : (
                               'Process'
@@ -329,11 +347,36 @@ export default function DocumentsPage() {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       Document Details
                     </h3>
-                    <button
-                      onClick={() => deleteDocumentHandler(selectedDocument.id)}
-                      disabled={deleting === selectedDocument.id}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-200 dark:bg-red-900 dark:hover:bg-red-800"
-                    >
+                    <div className="flex items-center gap-2">
+                      {selectedDocument.status === 'completed' && (
+                        <button
+                          onClick={() => processDocument(selectedDocument.id)}
+                          disabled={processing === selectedDocument.id || deleting === selectedDocument.id}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {processing === selectedDocument.id ? (
+                            <>
+                              <svg className="animate-spin -ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Reprocessing...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="-ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Reprocess
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteDocumentHandler(selectedDocument.id)}
+                        disabled={deleting === selectedDocument.id}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-200 dark:bg-red-900 dark:hover:bg-red-800"
+                      >
                       {deleting === selectedDocument.id ? (
                         <>
                           <svg className="animate-spin -ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
@@ -351,6 +394,7 @@ export default function DocumentsPage() {
                         </>
                       )}
                     </button>
+                    </div>
                   </div>
 
                   {/* Document Info */}

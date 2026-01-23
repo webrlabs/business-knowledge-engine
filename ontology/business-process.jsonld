@@ -1,0 +1,985 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@vocab": "https://business-knowledge-engine.io/ontology/",
+    "schema": "https://schema.org/",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "bke": "https://business-knowledge-engine.io/ontology/",
+    "pav": "http://purl.org/pav/",
+    "dc": "http://purl.org/dc/elements/1.1/",
+
+    "label": "rdfs:label",
+    "comment": "rdfs:comment",
+    "subClassOf": {"@id": "rdfs:subClassOf", "@type": "@id"},
+    "domain": {"@id": "rdfs:domain", "@type": "@id"},
+    "range": {"@id": "rdfs:range", "@type": "@id"},
+    "inverseOf": {"@id": "owl:inverseOf", "@type": "@id"},
+
+    "name": "schema:name",
+    "description": "schema:description",
+    "identifier": "schema:identifier",
+    "dateCreated": {"@id": "schema:dateCreated", "@type": "xsd:dateTime"},
+    "dateModified": {"@id": "schema:dateModified", "@type": "xsd:dateTime"},
+
+    "deprecated": {"@id": "owl:deprecated", "@type": "xsd:boolean"},
+    "replacedBy": {"@id": "bke:replacedBy", "@type": "@id"},
+    "deprecationReason": {"@id": "bke:deprecationReason", "@type": "xsd:string"},
+    "deprecationDate": {"@id": "bke:deprecationDate", "@type": "xsd:date"},
+    "removalVersion": {"@id": "bke:removalVersion", "@type": "xsd:string"},
+    "migrationGuide": {"@id": "bke:migrationGuide", "@type": "xsd:string"}
+  },
+
+  "@id": "https://business-knowledge-engine.io/ontology/business-process",
+  "@type": "owl:Ontology",
+  "label": "Business Knowledge Engine Ontology",
+  "comment": "Formal ontology for business process knowledge graph entities and relationships",
+
+  "owl:versionInfo": "1.3.0",
+  "owl:versionIRI": "https://business-knowledge-engine.io/ontology/business-process/1.3.0",
+  "owl:priorVersion": "https://business-knowledge-engine.io/ontology/business-process/1.2.0",
+  "owl:backwardCompatibleWith": null,
+  "owl:incompatibleWith": null,
+
+  "schema:version": "1.3.0",
+  "schema:dateCreated": "2026-01-22",
+  "schema:dateModified": "2026-01-23",
+  "schema:author": {"@type": "schema:Organization", "schema:name": "Business Knowledge Engine Team"},
+
+  "pav:version": "1.3.0",
+  "pav:previousVersion": "https://business-knowledge-engine.io/ontology/business-process/1.2.0",
+  "pav:createdOn": "2026-01-22",
+  "pav:lastUpdateOn": "2026-01-23",
+
+  "bke:versionMetadata": {
+    "@type": "bke:VersionInfo",
+    "bke:major": 1,
+    "bke:minor": 3,
+    "bke:patch": 0,
+    "bke:preRelease": null,
+    "bke:buildMetadata": null,
+    "bke:releaseNotes": "Added succession and deprecation relationships (REPLACED_BY, REPLACES, DEPRECATED_BY, DEPRECATES) for entity lifecycle tracking",
+    "bke:breakingChanges": false,
+    "bke:deprecations": []
+  },
+
+  "bke:versionHistory": [
+    {
+      "@type": "bke:VersionRecord",
+      "bke:version": "1.3.0",
+      "bke:versionIRI": "https://business-knowledge-engine.io/ontology/business-process/1.3.0",
+      "bke:releaseDate": "2026-01-23",
+      "bke:description": "Added succession and deprecation relationships for entity lifecycle tracking",
+      "bke:changes": [
+        "Added EntityLifecycleRelationship class for lifecycle relationships",
+        "Added 4 lifecycle relationship types (REPLACED_BY, REPLACES, DEPRECATED_BY, DEPRECATES)",
+        "Added relationship normalization mappings for succession and deprecation"
+      ],
+      "bke:addedTypes": ["EntityLifecycleRelationship", "REPLACED_BY", "REPLACES", "DEPRECATED_BY", "DEPRECATES"],
+      "bke:addedProperties": [],
+      "bke:removedTypes": [],
+      "bke:deprecatedTypes": [],
+      "bke:modifiedTypes": []
+    },
+    {
+      "@type": "bke:VersionRecord",
+      "bke:version": "1.0.0",
+      "bke:versionIRI": "https://business-knowledge-engine.io/ontology/business-process/1.0.0",
+      "bke:releaseDate": "2026-01-22",
+      "bke:description": "Initial release",
+      "bke:changes": [
+        "Added 6 entity category classes (BusinessFlowEntity, OrganizationalEntity, TechnicalEntity, ArtifactEntity, GovernanceEntity, MeasurementEntity)",
+        "Added 18 concrete entity types (Process, Task, Activity, Decision, Role, Department, Stakeholder, System, Application, Database, Document, Form, Template, Policy, Regulation, Standard, Metric, KPI)",
+        "Added 25 relationship types with domain/range constraints",
+        "Added relationship normalization mapping with 35+ synonyms",
+        "Added entity properties (name, description, confidence, sourceDocumentId, importance, etc.)"
+      ],
+      "bke:addedTypes": ["Entity", "BusinessFlowEntity", "OrganizationalEntity", "TechnicalEntity", "ArtifactEntity", "GovernanceEntity", "MeasurementEntity", "Process", "Task", "Activity", "Decision", "Role", "Department", "Stakeholder", "System", "Application", "Database", "Document", "Form", "Template", "Policy", "Regulation", "Standard", "Metric", "KPI"],
+      "bke:removedTypes": [],
+      "bke:deprecatedTypes": [],
+      "bke:modifiedTypes": []
+    }
+  ],
+
+  "@graph": [
+    {
+      "@id": "bke:Entity",
+      "@type": "rdfs:Class",
+      "label": "Entity",
+      "comment": "Base class for all knowledge graph entities"
+    },
+
+    {
+      "@id": "bke:BusinessFlowEntity",
+      "@type": "rdfs:Class",
+      "label": "Business Flow Entity",
+      "comment": "Entities representing business workflow components",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:Process",
+      "@type": "rdfs:Class",
+      "label": "Process",
+      "comment": "Major organizational processes or workflows that define how work is structured",
+      "subClassOf": "bke:BusinessFlowEntity",
+      "schema:sameAs": "schema:BusinessProcess"
+    },
+    {
+      "@id": "bke:Task",
+      "@type": "rdfs:Class",
+      "label": "Task",
+      "comment": "Individual tasks or work items within a process",
+      "subClassOf": "bke:BusinessFlowEntity",
+      "schema:sameAs": "schema:Action"
+    },
+    {
+      "@id": "bke:Activity",
+      "@type": "rdfs:Class",
+      "label": "Activity",
+      "comment": "Specific activities or operations performed within tasks",
+      "subClassOf": "bke:BusinessFlowEntity"
+    },
+    {
+      "@id": "bke:Decision",
+      "@type": "rdfs:Class",
+      "label": "Decision",
+      "comment": "Decision points in workflows that determine branching logic",
+      "subClassOf": "bke:BusinessFlowEntity",
+      "schema:sameAs": "schema:ChooseAction"
+    },
+
+    {
+      "@id": "bke:OrganizationalEntity",
+      "@type": "rdfs:Class",
+      "label": "Organizational Entity",
+      "comment": "Entities representing organizational structure and people",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:Role",
+      "@type": "rdfs:Class",
+      "label": "Role",
+      "comment": "Job roles or positions within the organization",
+      "subClassOf": "bke:OrganizationalEntity",
+      "schema:sameAs": "schema:Role"
+    },
+    {
+      "@id": "bke:Department",
+      "@type": "rdfs:Class",
+      "label": "Department",
+      "comment": "Organizational units or departments",
+      "subClassOf": "bke:OrganizationalEntity",
+      "schema:sameAs": "schema:Organization"
+    },
+    {
+      "@id": "bke:Stakeholder",
+      "@type": "rdfs:Class",
+      "label": "Stakeholder",
+      "comment": "Individuals or groups with interest in or influence over processes",
+      "subClassOf": "bke:OrganizationalEntity",
+      "schema:sameAs": "schema:Person"
+    },
+
+    {
+      "@id": "bke:TechnicalEntity",
+      "@type": "rdfs:Class",
+      "label": "Technical Entity",
+      "comment": "Entities representing technology and systems",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:System",
+      "@type": "rdfs:Class",
+      "label": "System",
+      "comment": "Software or business systems used in operations",
+      "subClassOf": "bke:TechnicalEntity",
+      "schema:sameAs": "schema:SoftwareApplication"
+    },
+    {
+      "@id": "bke:Application",
+      "@type": "rdfs:Class",
+      "label": "Application",
+      "comment": "Specific software applications",
+      "subClassOf": "bke:TechnicalEntity",
+      "schema:sameAs": "schema:SoftwareApplication"
+    },
+    {
+      "@id": "bke:Database",
+      "@type": "rdfs:Class",
+      "label": "Database",
+      "comment": "Data storage systems and repositories",
+      "subClassOf": "bke:TechnicalEntity",
+      "schema:sameAs": "schema:Dataset"
+    },
+
+    {
+      "@id": "bke:ArtifactEntity",
+      "@type": "rdfs:Class",
+      "label": "Artifact Entity",
+      "comment": "Entities representing documents and business artifacts",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:Document",
+      "@type": "rdfs:Class",
+      "label": "Document",
+      "comment": "Business documents of various types",
+      "subClassOf": "bke:ArtifactEntity",
+      "schema:sameAs": "schema:DigitalDocument"
+    },
+    {
+      "@id": "bke:Form",
+      "@type": "rdfs:Class",
+      "label": "Form",
+      "comment": "Forms used in business processes",
+      "subClassOf": "bke:ArtifactEntity",
+      "schema:sameAs": "schema:DigitalDocument"
+    },
+    {
+      "@id": "bke:Template",
+      "@type": "rdfs:Class",
+      "label": "Template",
+      "comment": "Document or process templates for standardization",
+      "subClassOf": "bke:ArtifactEntity"
+    },
+
+    {
+      "@id": "bke:GovernanceEntity",
+      "@type": "rdfs:Class",
+      "label": "Governance Entity",
+      "comment": "Entities representing policies, regulations, and standards",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:Policy",
+      "@type": "rdfs:Class",
+      "label": "Policy",
+      "comment": "Internal policy documents that govern behavior",
+      "subClassOf": "bke:GovernanceEntity",
+      "schema:sameAs": "schema:CreativeWork"
+    },
+    {
+      "@id": "bke:Regulation",
+      "@type": "rdfs:Class",
+      "label": "Regulation",
+      "comment": "External regulatory requirements and compliance rules",
+      "subClassOf": "bke:GovernanceEntity",
+      "schema:sameAs": "schema:Legislation"
+    },
+    {
+      "@id": "bke:Standard",
+      "@type": "rdfs:Class",
+      "label": "Standard",
+      "comment": "Industry or internal standards for processes and quality",
+      "subClassOf": "bke:GovernanceEntity"
+    },
+
+    {
+      "@id": "bke:MeasurementEntity",
+      "@type": "rdfs:Class",
+      "label": "Measurement Entity",
+      "comment": "Entities representing metrics and performance indicators",
+      "subClassOf": "bke:Entity"
+    },
+    {
+      "@id": "bke:Metric",
+      "@type": "rdfs:Class",
+      "label": "Metric",
+      "comment": "Performance metrics and measurements",
+      "subClassOf": "bke:MeasurementEntity",
+      "schema:sameAs": "schema:QuantitativeValue"
+    },
+    {
+      "@id": "bke:KPI",
+      "@type": "rdfs:Class",
+      "label": "KPI",
+      "comment": "Key Performance Indicators for strategic measurement",
+      "subClassOf": "bke:MeasurementEntity",
+      "schema:sameAs": "schema:QuantitativeValue"
+    },
+
+    {
+      "@id": "bke:Relationship",
+      "@type": "rdfs:Class",
+      "label": "Relationship",
+      "comment": "Base class for all relationship types"
+    },
+
+    {
+      "@id": "bke:TemporalRelationship",
+      "@type": "rdfs:Class",
+      "label": "Temporal Relationship",
+      "comment": "Relationships expressing temporal ordering",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:PRECEDES",
+      "@type": "rdf:Property",
+      "label": "precedes",
+      "comment": "Indicates temporal ordering - source happens before target",
+      "subClassOf": "bke:TemporalRelationship",
+      "domain": "bke:BusinessFlowEntity",
+      "range": "bke:BusinessFlowEntity",
+      "inverseOf": "bke:FOLLOWS"
+    },
+    {
+      "@id": "bke:FOLLOWS",
+      "@type": "rdf:Property",
+      "label": "follows",
+      "comment": "Indicates temporal ordering - source happens after target",
+      "subClassOf": "bke:TemporalRelationship",
+      "domain": "bke:BusinessFlowEntity",
+      "range": "bke:BusinessFlowEntity",
+      "inverseOf": "bke:PRECEDES",
+      "owl:equivalentProperty": "bke:FOLLOWED_BY"
+    },
+    {
+      "@id": "bke:FOLLOWED_BY",
+      "@type": "rdf:Property",
+      "label": "followed by",
+      "comment": "Alias for FOLLOWS - indicates temporal ordering",
+      "subClassOf": "bke:TemporalRelationship",
+      "domain": "bke:BusinessFlowEntity",
+      "range": "bke:BusinessFlowEntity",
+      "owl:equivalentProperty": "bke:FOLLOWS"
+    },
+    {
+      "@id": "bke:TRIGGERS",
+      "@type": "rdf:Property",
+      "label": "triggers",
+      "comment": "Source causes or initiates target to happen",
+      "subClassOf": "bke:TemporalRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:BusinessFlowEntity"
+    },
+
+    {
+      "@id": "bke:OrganizationalRelationship",
+      "@type": "rdfs:Class",
+      "label": "Organizational Relationship",
+      "comment": "Relationships expressing organizational structure",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:OWNS",
+      "@type": "rdf:Property",
+      "label": "owns",
+      "comment": "Indicates ownership or responsibility",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:EXECUTES",
+      "@type": "rdf:Property",
+      "label": "executes",
+      "comment": "Role or stakeholder performs a task or activity",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:BusinessFlowEntity"
+    },
+    {
+      "@id": "bke:APPROVES",
+      "@type": "rdf:Property",
+      "label": "approves",
+      "comment": "Authority to approve or authorize",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:REVIEWS",
+      "@type": "rdf:Property",
+      "label": "reviews",
+      "comment": "Oversight or review responsibility",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:REPORTS_TO",
+      "@type": "rdf:Property",
+      "label": "reports to",
+      "comment": "Hierarchical reporting relationship",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:OrganizationalEntity"
+    },
+    {
+      "@id": "bke:MANAGES",
+      "@type": "rdf:Property",
+      "label": "manages",
+      "comment": "Management or supervisory relationship",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:REPORTS_TO"
+    },
+    {
+      "@id": "bke:PERFORMS",
+      "@type": "rdf:Property",
+      "label": "performs",
+      "comment": "Executes or carries out an action",
+      "subClassOf": "bke:OrganizationalRelationship",
+      "domain": "bke:OrganizationalEntity",
+      "range": "bke:BusinessFlowEntity"
+    },
+
+    {
+      "@id": "bke:TechnicalRelationship",
+      "@type": "rdfs:Class",
+      "label": "Technical Relationship",
+      "comment": "Relationships between technical entities",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:USES",
+      "@type": "rdf:Property",
+      "label": "uses",
+      "comment": "Consumption or utilization relationship",
+      "subClassOf": "bke:TechnicalRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:TechnicalEntity"
+    },
+    {
+      "@id": "bke:INTEGRATES_WITH",
+      "@type": "rdf:Property",
+      "label": "integrates with",
+      "comment": "Technical integration between systems",
+      "subClassOf": "bke:TechnicalRelationship",
+      "domain": "bke:TechnicalEntity",
+      "range": "bke:TechnicalEntity"
+    },
+    {
+      "@id": "bke:INPUTS",
+      "@type": "rdf:Property",
+      "label": "inputs",
+      "comment": "Receives data or resources from source",
+      "subClassOf": "bke:TechnicalRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:PRODUCES"
+    },
+    {
+      "@id": "bke:PRODUCES",
+      "@type": "rdf:Property",
+      "label": "produces",
+      "comment": "Creates or generates output",
+      "subClassOf": "bke:TechnicalRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:INPUTS"
+    },
+
+    {
+      "@id": "bke:DependencyRelationship",
+      "@type": "rdfs:Class",
+      "label": "Dependency Relationship",
+      "comment": "Relationships expressing dependencies",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:DEPENDS_ON",
+      "@type": "rdf:Property",
+      "label": "depends on",
+      "comment": "Source requires target to function",
+      "subClassOf": "bke:DependencyRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:REQUIRES",
+      "@type": "rdf:Property",
+      "label": "requires",
+      "comment": "Necessity relationship for operation",
+      "subClassOf": "bke:DependencyRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:CONTAINS",
+      "@type": "rdf:Property",
+      "label": "contains",
+      "comment": "Composition - source contains target as part",
+      "subClassOf": "bke:DependencyRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:PART_OF"
+    },
+    {
+      "@id": "bke:PART_OF",
+      "@type": "rdf:Property",
+      "label": "part of",
+      "comment": "Membership or inclusion relationship",
+      "subClassOf": "bke:DependencyRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:CONTAINS"
+    },
+
+    {
+      "@id": "bke:GovernanceRelationship",
+      "@type": "rdfs:Class",
+      "label": "Governance Relationship",
+      "comment": "Relationships expressing governance and compliance",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:GOVERNS",
+      "@type": "rdf:Property",
+      "label": "governs",
+      "comment": "Policy or standard that controls behavior",
+      "subClassOf": "bke:GovernanceRelationship",
+      "domain": "bke:GovernanceEntity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:REGULATES",
+      "@type": "rdf:Property",
+      "label": "regulates",
+      "comment": "Regulation that imposes requirements",
+      "subClassOf": "bke:GovernanceRelationship",
+      "domain": "bke:Regulation",
+      "range": "bke:Entity"
+    },
+
+    {
+      "@id": "bke:MeasurementRelationship",
+      "@type": "rdfs:Class",
+      "label": "Measurement Relationship",
+      "comment": "Relationships expressing measurement and tracking",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:MEASURES",
+      "@type": "rdf:Property",
+      "label": "measures",
+      "comment": "Metric quantifies or measures target",
+      "subClassOf": "bke:MeasurementRelationship",
+      "domain": "bke:MeasurementEntity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:TRACKS",
+      "@type": "rdf:Property",
+      "label": "tracks",
+      "comment": "Monitoring or tracking relationship",
+      "subClassOf": "bke:MeasurementRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:MeasurementEntity"
+    },
+
+    {
+      "@id": "bke:EntityResolutionRelationship",
+      "@type": "rdfs:Class",
+      "label": "Entity Resolution Relationship",
+      "comment": "Relationships for entity linking and resolution",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:SAME_AS",
+      "@type": "rdf:Property",
+      "label": "same as",
+      "comment": "High-confidence entity match (>=92% similarity)",
+      "subClassOf": "bke:EntityResolutionRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "owl:equivalentProperty": "owl:sameAs"
+    },
+    {
+      "@id": "bke:SIMILAR_TO",
+      "@type": "rdf:Property",
+      "label": "similar to",
+      "comment": "Lower-confidence entity similarity (75-85% similarity)",
+      "subClassOf": "bke:EntityResolutionRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity"
+    },
+
+    {
+      "@id": "bke:name",
+      "@type": "rdf:Property",
+      "label": "name",
+      "comment": "The display name of the entity",
+      "domain": "bke:Entity",
+      "range": "xsd:string",
+      "owl:equivalentProperty": "schema:name"
+    },
+    {
+      "@id": "bke:normalizedName",
+      "@type": "rdf:Property",
+      "label": "normalized name",
+      "comment": "Case-insensitive normalized name for matching",
+      "domain": "bke:Entity",
+      "range": "xsd:string"
+    },
+    {
+      "@id": "bke:description",
+      "@type": "rdf:Property",
+      "label": "description",
+      "comment": "A textual description of the entity",
+      "domain": "bke:Entity",
+      "range": "xsd:string",
+      "owl:equivalentProperty": "schema:description"
+    },
+    {
+      "@id": "bke:confidence",
+      "@type": "rdf:Property",
+      "label": "confidence",
+      "comment": "Extraction confidence score between 0 and 1",
+      "domain": "bke:Entity",
+      "range": "xsd:decimal"
+    },
+    {
+      "@id": "bke:sourceDocumentId",
+      "@type": "rdf:Property",
+      "label": "source document ID",
+      "comment": "Identifier of the document from which entity was extracted",
+      "domain": "bke:Entity",
+      "range": "xsd:string"
+    },
+    {
+      "@id": "bke:sourceSpan",
+      "@type": "rdf:Property",
+      "label": "source span",
+      "comment": "Original text span where entity was found",
+      "domain": "bke:Entity",
+      "range": "xsd:string"
+    },
+    {
+      "@id": "bke:createdAt",
+      "@type": "rdf:Property",
+      "label": "created at",
+      "comment": "Timestamp when entity was created",
+      "domain": "bke:Entity",
+      "range": "xsd:dateTime",
+      "owl:equivalentProperty": "schema:dateCreated"
+    },
+    {
+      "@id": "bke:updatedAt",
+      "@type": "rdf:Property",
+      "label": "updated at",
+      "comment": "Timestamp when entity was last updated",
+      "domain": "bke:Entity",
+      "range": "xsd:dateTime",
+      "owl:equivalentProperty": "schema:dateModified"
+    },
+    {
+      "@id": "bke:mentionCount",
+      "@type": "rdf:Property",
+      "label": "mention count",
+      "comment": "Number of times entity is mentioned across documents",
+      "domain": "bke:Entity",
+      "range": "xsd:integer"
+    },
+    {
+      "@id": "bke:importance",
+      "@type": "rdf:Property",
+      "label": "importance",
+      "comment": "Composite importance score (0-1) based on PageRank, betweenness, and mentions",
+      "domain": "bke:Entity",
+      "range": "xsd:decimal"
+    },
+    {
+      "@id": "bke:importanceRank",
+      "@type": "rdf:Property",
+      "label": "importance rank",
+      "comment": "Ordinal rank among all entities by importance",
+      "domain": "bke:Entity",
+      "range": "xsd:integer"
+    },
+    {
+      "@id": "bke:importancePercentile",
+      "@type": "rdf:Property",
+      "label": "importance percentile",
+      "comment": "Percentile score for importance (0-100)",
+      "domain": "bke:Entity",
+      "range": "xsd:decimal"
+    },
+
+    {
+      "@id": "bke:relationshipConfidence",
+      "@type": "rdf:Property",
+      "label": "relationship confidence",
+      "comment": "Confidence score for the relationship extraction",
+      "domain": "bke:Relationship",
+      "range": "xsd:decimal"
+    },
+    {
+      "@id": "bke:evidence",
+      "@type": "rdf:Property",
+      "label": "evidence",
+      "comment": "Supporting text or similarity score for the relationship",
+      "domain": "bke:Relationship",
+      "range": "xsd:string"
+    },
+
+    {
+      "@id": "bke:replacedBy",
+      "@type": "rdf:Property",
+      "label": "replaced by",
+      "comment": "The type that should be used instead of this deprecated type. Used for type deprecation with automatic migration guidance.",
+      "domain": ["bke:Entity", "bke:Relationship"],
+      "range": ["bke:Entity", "bke:Relationship"]
+    },
+    {
+      "@id": "bke:deprecationReason",
+      "@type": "rdf:Property",
+      "label": "deprecation reason",
+      "comment": "The reason why this type was deprecated, providing context for migration decisions",
+      "domain": ["bke:Entity", "bke:Relationship"],
+      "range": "xsd:string"
+    },
+    {
+      "@id": "bke:deprecationDate",
+      "@type": "rdf:Property",
+      "label": "deprecation date",
+      "comment": "The date when this type was marked as deprecated (ISO 8601 format)",
+      "domain": ["bke:Entity", "bke:Relationship"],
+      "range": "xsd:date"
+    },
+    {
+      "@id": "bke:removalVersion",
+      "@type": "rdf:Property",
+      "label": "removal version",
+      "comment": "The planned version in which this deprecated type will be removed from the ontology",
+      "domain": ["bke:Entity", "bke:Relationship"],
+      "range": "xsd:string"
+    },
+    {
+      "@id": "bke:migrationGuide",
+      "@type": "rdf:Property",
+      "label": "migration guide",
+      "comment": "Instructions or URL for migrating from the deprecated type to the replacement",
+      "domain": ["bke:Entity", "bke:Relationship"],
+      "range": "xsd:string"
+    },
+
+    {
+      "@id": "bke:DeprecationInfo",
+      "@type": "rdfs:Class",
+      "label": "Deprecation Info",
+      "comment": "Container for deprecation metadata about a type",
+      "bke:properties": ["deprecated", "replacedBy", "deprecationReason", "deprecationDate", "removalVersion", "migrationGuide"]
+    },
+
+    {
+      "@id": "bke:deprecatedTypes",
+      "@type": "rdf:Property",
+      "label": "deprecated types",
+      "comment": "List of types that are deprecated in this version of the ontology",
+      "domain": "owl:Ontology",
+      "range": "bke:DeprecationInfo",
+      "bke:deprecations": []
+    },
+
+    {
+      "@id": "bke:validFrom",
+      "@type": "rdf:Property",
+      "label": "valid from",
+      "comment": "The date/time when this entity version becomes valid. Used for temporal versioning of entities. Defaults to createdAt if not specified.",
+      "domain": "bke:Entity",
+      "range": "xsd:dateTime",
+      "owl:equivalentProperty": "schema:validFrom"
+    },
+    {
+      "@id": "bke:validTo",
+      "@type": "rdf:Property",
+      "label": "valid to",
+      "comment": "The date/time when this entity version expires or is no longer valid. Null indicates the entity is currently valid with no expiration.",
+      "domain": "bke:Entity",
+      "range": "xsd:dateTime",
+      "owl:equivalentProperty": "schema:validThrough"
+    },
+    {
+      "@id": "bke:supersededBy",
+      "@type": "rdf:Property",
+      "label": "superseded by",
+      "comment": "Reference to the entity that replaces this version. Used when an entity is updated to track the successor version.",
+      "domain": "bke:Entity",
+      "range": "bke:Entity"
+    },
+    {
+      "@id": "bke:supersedes",
+      "@type": "rdf:Property",
+      "label": "supersedes",
+      "comment": "Reference to the previous entity version that this entity replaces. Inverse of supersededBy.",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:supersededBy"
+    },
+    {
+      "@id": "bke:temporalStatus",
+      "@type": "rdf:Property",
+      "label": "temporal status",
+      "comment": "The temporal status of the entity: 'current' (valid now), 'expired' (validTo has passed), 'pending' (validFrom is in the future), or 'superseded' (replaced by another version).",
+      "domain": "bke:Entity",
+      "range": "xsd:string",
+      "bke:allowedValues": ["current", "expired", "pending", "superseded"]
+    },
+    {
+      "@id": "bke:versionSequence",
+      "@type": "rdf:Property",
+      "label": "version sequence",
+      "comment": "Monotonically increasing version number for this entity's lineage. Used to order entity versions chronologically.",
+      "domain": "bke:Entity",
+      "range": "xsd:integer"
+    },
+
+    {
+      "@id": "bke:EntityVersionRelationship",
+      "@type": "rdfs:Class",
+      "label": "Entity Version Relationship",
+      "comment": "Relationships for entity versioning and temporal modeling",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:SUPERSEDED_BY",
+      "@type": "rdf:Property",
+      "label": "superseded by",
+      "comment": "Indicates that the source entity has been replaced by the target entity",
+      "subClassOf": "bke:EntityVersionRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:SUPERSEDES"
+    },
+    {
+      "@id": "bke:SUPERSEDES",
+      "@type": "rdf:Property",
+      "label": "supersedes",
+      "comment": "Indicates that the source entity replaces the target entity",
+      "subClassOf": "bke:EntityVersionRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:SUPERSEDED_BY"
+    },
+
+    {
+      "@id": "bke:TemporalStatusDefinition",
+      "@type": "rdfs:Class",
+      "label": "Temporal Status Definition",
+      "comment": "Definitions for valid temporal status values",
+      "bke:statusDefinitions": {
+        "current": {
+          "label": "Current",
+          "description": "Entity is currently valid (validFrom <= now AND (validTo IS NULL OR validTo > now))"
+        },
+        "expired": {
+          "label": "Expired",
+          "description": "Entity has passed its validity period (validTo < now)"
+        },
+        "pending": {
+          "label": "Pending",
+          "description": "Entity is not yet valid (validFrom > now)"
+        },
+        "superseded": {
+          "label": "Superseded",
+          "description": "Entity has been replaced by a newer version (supersededBy IS NOT NULL)"
+        }
+      }
+    },
+
+    {
+      "@id": "bke:EntityLifecycleRelationship",
+      "@type": "rdfs:Class",
+      "label": "Entity Lifecycle Relationship",
+      "comment": "Relationships for entity lifecycle, succession, and deprecation tracking",
+      "subClassOf": "bke:Relationship"
+    },
+    {
+      "@id": "bke:REPLACED_BY",
+      "@type": "rdf:Property",
+      "label": "replaced by",
+      "comment": "Indicates that the source entity has been replaced by the target entity (e.g., system replacement)",
+      "subClassOf": "bke:EntityLifecycleRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:REPLACES"
+    },
+    {
+      "@id": "bke:REPLACES",
+      "@type": "rdf:Property",
+      "label": "replaces",
+      "comment": "Indicates that the source entity replaces the target entity",
+      "subClassOf": "bke:EntityLifecycleRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:REPLACED_BY"
+    },
+    {
+      "@id": "bke:DEPRECATED_BY",
+      "@type": "rdf:Property",
+      "label": "deprecated by",
+      "comment": "Indicates that the source entity is deprecated by the target entity",
+      "subClassOf": "bke:EntityLifecycleRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:DEPRECATES"
+    },
+    {
+      "@id": "bke:DEPRECATES",
+      "@type": "rdf:Property",
+      "label": "deprecates",
+      "comment": "Indicates that the source entity deprecates the target entity",
+      "subClassOf": "bke:EntityLifecycleRelationship",
+      "domain": "bke:Entity",
+      "range": "bke:Entity",
+      "inverseOf": "bke:DEPRECATED_BY"
+    },
+
+    {
+      "@id": "bke:RelationshipNormalizationMapping",
+      "@type": "rdfs:Class",
+      "label": "Relationship Normalization Mapping",
+      "comment": "Mappings from synonym relationship types to canonical types",
+      "bke:mappings": {
+        "manages": "MANAGES",
+        "supervises": "MANAGES",
+        "oversees": "MANAGES",
+        "leads": "MANAGES",
+        "directs": "MANAGES",
+        "reports_to": "REPORTS_TO",
+        "reports": "REPORTS_TO",
+        "works_for": "REPORTS_TO",
+        "performs": "PERFORMS",
+        "executes": "EXECUTES",
+        "does": "PERFORMS",
+        "completes": "PERFORMS",
+        "uses": "USES",
+        "utilizes": "USES",
+        "employs": "USES",
+        "requires": "REQUIRES",
+        "needs": "REQUIRES",
+        "depends_on": "REQUIRES",
+        "contains": "CONTAINS",
+        "includes": "CONTAINS",
+        "has": "CONTAINS",
+        "part_of": "PART_OF",
+        "belongs_to": "PART_OF",
+        "member_of": "PART_OF",
+        "followed_by": "FOLLOWED_BY",
+        "after": "FOLLOWED_BY",
+        "precedes": "PRECEDES",
+        "before": "PRECEDES",
+        "triggers": "TRIGGERS",
+        "causes": "TRIGGERS",
+        "initiates": "TRIGGERS",
+        "produces": "PRODUCES",
+        "creates": "PRODUCES",
+        "generates": "PRODUCES",
+        "outputs": "PRODUCES",
+        "inputs": "INPUTS",
+        "receives": "INPUTS",
+        "consumes": "INPUTS",
+        "replaced_by": "REPLACED_BY",
+        "succeeded_by": "REPLACED_BY",
+        "replaces": "REPLACES",
+        "deprecated_by": "DEPRECATED_BY",
+        "obsoleted_by": "DEPRECATED_BY",
+        "deprecates": "DEPRECATES",
+        "obsoletes": "DEPRECATES"
+      }
+    }
+  ]
+}

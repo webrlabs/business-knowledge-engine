@@ -10,6 +10,9 @@
  *   const filteredResults = securityService.filterResults(results, user);
  */
 
+const { getAuditPersistenceService } = require('./audit-persistence-service');
+const { log } = require('../utils/logger');
+
 // Default role hierarchy (higher index = more permissions)
 const DEFAULT_ROLE_HIERARCHY = ['Reader', 'Contributor', 'Reviewer', 'Admin'];
 
@@ -34,7 +37,8 @@ class SecurityTrimmingService {
     this.enabled = options.enabled !== false;
     this.roleHierarchy = options.roleHierarchy || DEFAULT_ROLE_HIERARCHY;
     this.strictMode = options.strictMode || false; // If true, deny access when permissions unclear
-    this.auditDenials = options.auditDenials || true;
+    this.auditDenials = options.auditDenials !== false;
+    this.persistDenials = options.persistDenials !== false;
     this.denialLog = [];
   }
 
@@ -392,6 +396,7 @@ class SecurityTrimmingService {
     const denial = {
       timestamp: new Date().toISOString(),
       documentId: result.id || result.documentId,
+      name: result.name || result.title || result.filename,
       userId: user?.id || user?.email || 'unknown',
       reason: decision.reason,
       requiredPermission: decision.requiredPermission,
@@ -402,6 +407,13 @@ class SecurityTrimmingService {
     // Keep only last 1000 denials in memory
     if (this.denialLog.length > 1000) {
       this.denialLog = this.denialLog.slice(-1000);
+    }
+
+    if (this.persistDenials && process.env.COSMOS_DB_ENDPOINT) {
+      const auditService = getAuditPersistenceService();
+      void auditService.logDenial(denial, user).catch((error) => {
+        log.warn('Failed to persist access denial', { error: error.message });
+      });
     }
   }
 

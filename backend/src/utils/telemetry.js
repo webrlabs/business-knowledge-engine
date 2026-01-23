@@ -76,7 +76,7 @@ function initializeTelemetry() {
  * @param {Object} measurements - Custom measurements (numeric values)
  */
 function trackEvent(name, properties = {}, measurements = {}) {
-  if (!client) return;
+  if (!client || typeof client.trackEvent !== 'function') return;
 
   try {
     client.trackEvent({
@@ -95,7 +95,7 @@ function trackEvent(name, properties = {}, measurements = {}) {
  * @param {Object} properties - Additional properties
  */
 function trackException(error, properties = {}) {
-  if (!client) return;
+  if (!client || typeof client.trackException !== 'function') return;
 
   try {
     client.trackException({
@@ -114,7 +114,7 @@ function trackException(error, properties = {}) {
  * @param {Object} properties - Additional properties
  */
 function trackMetric(name, value, properties = {}) {
-  if (!client) return;
+  if (!client || typeof client.trackMetric !== 'function') return;
 
   try {
     client.trackMetric({
@@ -132,7 +132,7 @@ function trackMetric(name, value, properties = {}) {
  * @param {Object} options - Dependency options
  */
 function trackDependency(options) {
-  if (!client) return;
+  if (!client || typeof client.trackDependency !== 'function') return;
 
   try {
     client.trackDependency({
@@ -155,7 +155,7 @@ function trackDependency(options) {
  * @param {Object} options - Request options
  */
 function trackRequest(options) {
-  if (!client) return;
+  if (!client || typeof client.trackRequest !== 'function') return;
 
   try {
     client.trackRequest({
@@ -178,7 +178,7 @@ function trackRequest(options) {
  * @param {Object} properties - Additional properties
  */
 function trackPageView(name, url, properties = {}) {
-  if (!client) return;
+  if (!client || typeof client.trackPageView !== 'function') return;
 
   try {
     client.trackPageView({
@@ -196,7 +196,7 @@ function trackPageView(name, url, properties = {}) {
  * @returns {Promise<void>}
  */
 async function flushTelemetry() {
-  if (!client) return;
+  if (!client || typeof client.flush !== 'function') return;
 
   return new Promise((resolve) => {
     client.flush({
@@ -339,4 +339,6 @@ module.exports = {
   trackAzureServiceCall,
   // Check if telemetry is enabled
   isEnabled: () => isEnabled && client !== null,
+  // Re-export log from logger for convenience
+  log,
 };

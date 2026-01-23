@@ -1,6 +1,7 @@
 const { SearchClient, SearchIndexClient, SearchIndexerClient } = require('@azure/search-documents');
 const { AzureKeyCredential } = require('@azure/core-auth');
 const { DefaultAzureCredential } = require('@azure/identity');
+const { getCircuitBreakerService } = require('./circuit-breaker-service');
 
 /**
  * Escapes a string value for safe use in OData filter expressions.
@@ -89,6 +90,14 @@ class SearchService {
     this.endpoint = process.env.AZURE_SEARCH_ENDPOINT;
     this.indexName = process.env.AZURE_SEARCH_INDEX_NAME || 'documents';
     this.apiKey = process.env.AZURE_SEARCH_API_KEY;
+    this._circuitBreaker = null;
+  }
+
+  _getCircuitBreaker() {
+    if (!this._circuitBreaker) {
+      this._circuitBreaker = getCircuitBreakerService();
+    }
+    return this._circuitBreaker;
   }
 
   _getCredential() {
@@ -239,6 +248,7 @@ class SearchService {
 
   async hybridSearch(query, queryVector, options = {}) {
     const client = await this._getSearchClient();
+    const cb = this._getCircuitBreaker();
 
     const buildSearchOptions = (useSemantic) => {
       const searchOptions = {
@@ -280,38 +290,45 @@ class SearchService {
       return searchOptions;
     };
 
-    let searchResults;
-    try {
-      // Try with semantic search first
-      searchResults = await client.search(query || '*', buildSearchOptions(true));
-    } catch (error) {
-      // If semantic search fails (e.g., not configured), fall back to non-semantic
-      if (error.message?.includes('semanticConfiguration')) {
-        console.warn('Semantic search not available, falling back to standard search');
-        searchResults = await client.search(query || '*', buildSearchOptions(false));
-      } else {
-        throw error;
+    // Wrap search operation with circuit breaker
+    const searchOperation = async () => {
+      let searchResults;
+      try {
+        // Try with semantic search first
+        searchResults = await client.search(query || '*', buildSearchOptions(true));
+      } catch (error) {
+        // If semantic search fails (e.g., not configured), fall back to non-semantic
+        if (error.message?.includes('semanticConfiguration')) {
+          console.warn('Semantic search not available, falling back to standard search');
+          searchResults = await client.search(query || '*', buildSearchOptions(false));
+        } else {
+          throw error;
+        }
       }
-    }
 
-    const results = [];
-    for await (const result of searchResults.results) {
-      results.push({
-        ...result.document,
-        score: result.score,
-        rerankerScore: result.rerankerScore,
-        highlights: result.highlights,
-      });
-    }
+      const results = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          ...result.document,
+          score: result.score,
+          rerankerScore: result.rerankerScore,
+          highlights: result.highlights,
+        });
+      }
 
-    return {
-      results,
-      totalCount: searchResults.count,
+      return {
+        results,
+        totalCount: searchResults.count,
+      };
     };
+
+    const breaker = cb.getBreaker('search', searchOperation, { name: 'hybridSearch' });
+    return breaker.fire();
   }
 
   async vectorSearch(queryVector, options = {}) {
     const client = await this._getSearchClient();
+    const cb = this._getCircuitBreaker();
 
     const searchOptions = {
       top: options.top || 10,
@@ -336,17 +353,23 @@ class SearchService {
       searchOptions.filter = options.filter;
     }
 
-    const searchResults = await client.search('*', searchOptions);
+    // Wrap search operation with circuit breaker
+    const searchOperation = async () => {
+      const searchResults = await client.search('*', searchOptions);
 
-    const results = [];
-    for await (const result of searchResults.results) {
-      results.push({
-        ...result.document,
-        score: result.score,
-      });
-    }
+      const results = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          ...result.document,
+          score: result.score,
+        });
+      }
 
-    return { results };
+      return { results };
+    };
+
+    const breaker = cb.getBreaker('search', searchOperation, { name: 'vectorSearch' });
+    return breaker.fire();
   }
 
   /**

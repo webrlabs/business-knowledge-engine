@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
+import { useAuth, canUpload } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
 
 import { InlineLoader } from '@/components/LoadingSpinner';
@@ -41,9 +41,7 @@ export default function UploadPage() {
 
     // Check if user has required role for document upload
     // Admin, Reviewer, or Contributor can upload, but Viewer cannot
-    const canUpload = roles.some((role) => ['Admin', 'Reviewer', 'Contributor'].includes(role));
-
-    setAccessDenied(!canUpload);
+    setAccessDenied(!canUpload(roles));
   }, [isAuthenticated, roles, router]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

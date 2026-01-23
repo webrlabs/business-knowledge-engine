@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
+import { useAuth, canReview, isLoadingRoles } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
 import GraphVisualization from '@/components/GraphVisualization';
 
@@ -84,9 +84,12 @@ export default function StagingPage() {
       return;
     }
 
-    // Check if user has required role for review
-    const canReview = roles.some((role) => ['Admin', 'Reviewer'].includes(role));
-    if (!canReview) {
+    // Wait for roles to be loaded (they're fetched async from token)
+    if (isLoadingRoles(user, roles)) {
+      return;
+    }
+
+    if (!canReview(roles)) {
       setAccessDenied(true);
       setLoading(false);
       return;
@@ -275,7 +278,7 @@ export default function StagingPage() {
   };
 
   // Check if user can approve/reject entities
-  const canApprove = roles.some((role) => ['Admin', 'Reviewer'].includes(role));
+  const canApprove = canReview(roles);
 
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
