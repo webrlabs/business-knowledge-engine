@@ -388,10 +388,10 @@ describe('SuspiciousActivityService', () => {
 
   describe('analyzeHistoricalLogs', () => {
     it('should analyze denial patterns from audit logs', async () => {
-      const { getAuditPersistenceService } = require('../audit-persistence-service');
+      const auditModule = require('../audit-persistence-service');
 
       // Mock audit logs with suspicious pattern
-      getAuditPersistenceService().queryLogs.mockResolvedValue([
+      const mockQueryLogs = jest.fn().mockResolvedValue([
         { userId: 'user1', action: 'ACCESS_DENIED', timestamp: new Date().toISOString() },
         { userId: 'user1', action: 'ACCESS_DENIED', timestamp: new Date().toISOString() },
         { userId: 'user1', action: 'ACCESS_DENIED', timestamp: new Date().toISOString() },
@@ -404,6 +404,10 @@ describe('SuspiciousActivityService', () => {
         { userId: 'user1', action: 'ACCESS_DENIED', timestamp: new Date().toISOString() },
       ]);
 
+      auditModule.getAuditPersistenceService.mockReturnValue({
+        queryLogs: mockQueryLogs,
+      });
+
       const analysis = await service.analyzeHistoricalLogs({ hours: 24 });
 
       expect(analysis.totalDenials).toBe(10);
@@ -412,8 +416,12 @@ describe('SuspiciousActivityService', () => {
     });
 
     it('should handle audit service errors gracefully', async () => {
-      const { getAuditPersistenceService } = require('../audit-persistence-service');
-      getAuditPersistenceService().queryLogs.mockRejectedValue(new Error('DB error'));
+      const auditModule = require('../audit-persistence-service');
+
+      const mockQueryLogs = jest.fn().mockRejectedValue(new Error('DB error'));
+      auditModule.getAuditPersistenceService.mockReturnValue({
+        queryLogs: mockQueryLogs,
+      });
 
       const analysis = await service.analyzeHistoricalLogs({ hours: 24 });
 

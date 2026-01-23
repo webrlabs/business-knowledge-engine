@@ -16,6 +16,7 @@ const { getEntityResolutionService } = require('./entity-resolution-service');
 const { getImportanceWithCache, calculateImportance } = require('./importance-service');
 const { getCommunitySummaryService } = require('./community-summary-service');
 const { getOntologyService } = require('./ontology-service');
+const { getPersonaService } = require('../personas/index');
 const { log } = require('../utils/logger');
 
 // Configuration
@@ -56,6 +57,7 @@ class GraphRAGService {
     this.entityResolution = getEntityResolutionService();
     this.communitySummary = getCommunitySummaryService();
     this.ontology = getOntologyService();
+    this.personaService = getPersonaService();
     // Cached importance scores for weighted retrieval (F3.2.5)
     this.importanceScores = null;
     this.importanceScoresTimestamp = 0;
@@ -181,6 +183,7 @@ class GraphRAGService {
       processingTimeMs: processingTime,
       useImportanceWeighting,
       avgEntityImportance: avgImportance.toFixed(3),
+      persona: options.persona || 'none',
       // F3.1.5 logging
       includeCommunityContext,
       cachedCommunitySummaries: cachedSummaryCount,
@@ -300,16 +303,35 @@ Focus on business entities like:
     const maxHops = options.maxHops || CONFIG.MAX_HOPS;
     const maxEntities = options.maxEntities || CONFIG.MAX_ENTITIES;
     const useImportanceWeighting = options.useImportanceWeighting !== false;
+    const personaId = options.persona;
 
     const visitedEntities = new Map();
     const relationships = [];
 
-    // Priority queue: entities with higher importance get expanded first (F3.2.5)
-    const entitiesToProcess = seedEntities.map(e => ({
-      ...e,
-      depth: 0,
-      priority: useImportanceWeighting ? this._getEntityImportance(e.id, e.name) : 1,
-    }));
+    // Priority queue: entities with higher importance/persona-relevance get expanded first (F3.2.5 + F6.3.2)
+    const entitiesToProcess = seedEntities.map(e => {
+      let priority = 1;
+      const importance = this._getEntityImportance(e.id, e.name);
+
+      if (personaId) {
+        // F6.3.2: Persona-weighted prioritization
+        priority = this.personaService.calculateEntityScore(
+          personaId,
+          e.type || e.ontologyType || 'Unknown',
+          importance,
+          e.similarity || e.score || 0.5
+        );
+      } else if (useImportanceWeighting) {
+        priority = importance;
+      }
+
+      return {
+        ...e,
+        depth: 0,
+        priority,
+        importance, // Ensure importance is attached
+      };
+    });
 
     // Sort by priority (highest first) for importance-weighted expansion
     entitiesToProcess.sort((a, b) => b.priority - a.priority);
@@ -330,16 +352,31 @@ Focus on business entities like:
       try {
         const neighbors = await this._getEntityNeighbors(current.name);
 
-        // Score and sort neighbors by importance (F3.2.5)
-        const scoredNeighbors = neighbors.map(n => ({
-          ...n,
-          importance: useImportanceWeighting
+        // Score and sort neighbors by importance/persona-relevance (F3.2.5 + F6.3.2)
+        const scoredNeighbors = neighbors.map(n => {
+          const importance = useImportanceWeighting
             ? this._getEntityImportance(n.entity.id, n.entity.name)
-            : 1,
-        }));
+            : 0.5;
+          
+          let priority = importance;
+          if (personaId) {
+            priority = this.personaService.calculateEntityScore(
+              personaId,
+              n.entity.type || 'Unknown',
+              importance,
+              n.confidence || 0.8
+            );
+          }
 
-        // Sort by importance - prioritize more important neighbors
-        scoredNeighbors.sort((a, b) => b.importance - a.importance);
+          return {
+            ...n,
+            importance,
+            priority,
+          };
+        });
+
+        // Sort by priority - prioritize more important/relevant neighbors
+        scoredNeighbors.sort((a, b) => b.priority - a.priority);
 
         for (const neighbor of scoredNeighbors) {
           const normalizedName = normalizeEntityName(neighbor.entity.name);
@@ -351,6 +388,7 @@ Focus on business entities like:
             type: neighbor.relationshipType,
             direction: neighbor.direction,
             targetImportance: neighbor.importance,
+            targetPriority: neighbor.priority, // F6.3.2
           });
 
           // Add entity if not visited
@@ -359,15 +397,21 @@ Focus on business entities like:
             const enrichedEntity = {
               ...neighbor.entity,
               importance: neighbor.importance,
+              priority: neighbor.priority, // F6.3.2
             };
             visitedEntities.set(normalizedName, enrichedEntity);
 
             // Queue for further expansion if not at max depth
-            // High-importance entities get boosted priority (F3.2.5)
+            // High-importance/relevance entities get boosted priority (F3.2.5 + F6.3.2)
             if (current.depth + 1 < maxHops) {
-              const boostedPriority = useImportanceWeighting
-                ? neighbor.importance * CONFIG.IMPORTANCE_BOOST_FACTOR
-                : 1;
+              // Calculate boost factor based on relationship weights if persona is active
+              let relationshipBoost = 1.0;
+              if (personaId) {
+                const relWeight = this.personaService.getRelationshipWeight(personaId, neighbor.relationshipType);
+                relationshipBoost = 0.5 + relWeight; // Map 0-1 to 0.5-1.5
+              }
+
+              const boostedPriority = neighbor.priority * CONFIG.IMPORTANCE_BOOST_FACTOR * relationshipBoost;
 
               entitiesToProcess.push({
                 ...enrichedEntity,
@@ -385,9 +429,11 @@ Focus on business entities like:
       }
     }
 
-    // Sort final entity list by importance (F3.2.5)
+    // Sort final entity list by priority/importance (F3.2.5 + F6.3.2)
     const sortedEntities = Array.from(visitedEntities.values());
-    if (useImportanceWeighting) {
+    if (personaId) {
+      sortedEntities.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    } else if (useImportanceWeighting) {
       sortedEntities.sort((a, b) => (b.importance || 0) - (a.importance || 0));
     }
 
@@ -461,17 +507,21 @@ Focus on business entities like:
   async _findRelevantChunks(queryText, entities, options = {}) {
     const maxChunksPerEntity = options.maxChunksPerEntity || CONFIG.MAX_CHUNKS_PER_ENTITY;
     const useImportanceWeighting = options.useImportanceWeighting !== false;
+    const personaId = options.persona;
 
     // Generate query embedding
     const queryEmbedding = await this.openai.getEmbedding(queryText);
 
-    // Build entity importance map for chunk scoring (F3.2.5)
-    const entityImportanceMap = new Map();
+    // Build entity importance/priority map for chunk scoring (F3.2.5 + F6.3.2)
+    const entityPriorityMap = new Map();
     for (const entity of entities) {
-      entityImportanceMap.set(
-        entity.name.toLowerCase(),
-        entity.importance || this._getEntityImportance(entity.id, entity.name)
-      );
+      let score = 0;
+      if (personaId && entity.priority !== undefined) {
+        score = entity.priority;
+      } else {
+        score = entity.importance || this._getEntityImportance(entity.id, entity.name);
+      }
+      entityPriorityMap.set(entity.name.toLowerCase(), score);
     }
 
     // Search for chunks mentioning any of the entities
@@ -507,15 +557,15 @@ Focus on business entities like:
     const scoredChunks = Array.from(allChunks.values()).map(chunk => {
       const similarityScore = chunk.score || 0;
 
-      // Calculate importance boost based on entities mentioned in chunk
+      // Calculate importance/priority boost based on entities mentioned in chunk
       let importanceBoost = 0;
       if (useImportanceWeighting && chunk.entities && Array.isArray(chunk.entities)) {
         const mentionedImportances = chunk.entities
-          .map(e => entityImportanceMap.get(e.toLowerCase()) || 0)
+          .map(e => entityPriorityMap.get(e.toLowerCase()) || 0)
           .filter(imp => imp > 0);
 
         if (mentionedImportances.length > 0) {
-          // Use max importance among mentioned entities
+          // Use max importance/priority among mentioned entities
           importanceBoost = Math.max(...mentionedImportances);
         }
       }
@@ -959,6 +1009,12 @@ Focus on business entities like:
     // Get GraphRAG context
     const ragResult = await this.query(queryText, options);
 
+    // Get persona-specific system prompt addition (F6.3.3)
+    let personaInstruction = '';
+    if (options.persona) {
+      personaInstruction = `\n\n${this.personaService.getPromptHint(options.persona)}`;
+    }
+
     // Generate answer using LLM
     const messages = [
       {
@@ -966,7 +1022,7 @@ Focus on business entities like:
         content: `You are a knowledgeable assistant that answers questions based on organizational knowledge.
 Use the provided context from the knowledge graph and documents to answer the user's question.
 If the context doesn't contain enough information, say so clearly.
-Always cite specific entities or sources when possible.`,
+Always cite specific entities or sources when possible.${personaInstruction}`,
       },
       {
         role: 'user',

@@ -54,8 +54,11 @@ const { getStagingService } = require('./services/staging-service');
 const { getGraphRAGService } = require('./services/graph-rag-service');
 const { getEntityResolutionService } = require('./services/entity-resolution-service');
 const { getCommunitySummaryService } = require('./services/community-summary-service');
+const { getPersonaService } = require('./personas/index');
 const { initializeOntologyService } = require('./services/ontology-service');
 const { getCircuitBreakerService } = require('./services/circuit-breaker-service');
+const { getLatencyBudgetService, OPERATION_TYPES: LATENCY_OPERATION_TYPES } = require('./services/latency-budget-service');
+const { getPerformanceDashboardService, throughputMiddleware, HEALTH_STATUS: PERF_HEALTH_STATUS } = require('./services/performance-dashboard-service');
 const { getPromptInjectionService } = require('./services/prompt-injection-service');
 const { promptInjectionGuard } = require('./middleware/prompt-injection');
 const { getFeatureFlags, isFeatureEnabled, FLAG_CATEGORIES } = require('./services/feature-flags-service');
@@ -80,6 +83,11 @@ const {
   simulateRemoval,
   getImpactAnalysisWithCache,
 } = require('./services/impact-analysis-service');
+const {
+  getHealthCheckService,
+  HealthStatus,
+  Dependencies: HealthDependencies,
+} = require('./services/health-check-service');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 8080; // Port configuration
@@ -109,6 +117,9 @@ app.use(express.json());
 
 // Application Insights telemetry
 app.use(telemetryMiddleware);
+
+// Performance dashboard throughput tracking (F5.2.7)
+app.use(throughputMiddleware());
 
 // HTTP request logging
 app.use(httpLogger);
@@ -173,6 +184,286 @@ app.get('/health/detailed', (req, res) => {
     configuration: configSummary,
     version: process.env.npm_package_version || '1.0.0',
   });
+});
+
+// ==================== Comprehensive Health Checks (FC.7) ====================
+
+/**
+ * @swagger
+ * /health/live:
+ *   get:
+ *     summary: Kubernetes liveness probe
+ *     description: Check if the process is alive (always returns 200 if the server is running)
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Process is alive
+ */
+app.get('/health/live', (req, res) => {
+  const healthService = getHealthCheckService();
+  res.json(healthService.getLiveness());
+});
+
+/**
+ * @swagger
+ * /health/ready:
+ *   get:
+ *     summary: Kubernetes readiness probe
+ *     description: Check if the application is ready to serve traffic
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Application is ready
+ *       503:
+ *         description: Application is not ready
+ */
+app.get('/health/ready', async (req, res) => {
+  try {
+    const healthService = getHealthCheckService();
+    const readiness = await healthService.getReadiness();
+
+    if (readiness.ready) {
+      res.json(readiness);
+    } else {
+      res.status(503).json(readiness);
+    }
+  } catch (error) {
+    res.status(503).json({
+      ready: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /health/dependencies:
+ *   get:
+ *     summary: Check all dependency health
+ *     description: Returns health status of all external dependencies (Cosmos DB, OpenAI, Search, Gremlin, Blob Storage)
+ *     tags: [Health]
+ *     parameters:
+ *       - in: query
+ *         name: refresh
+ *         schema:
+ *           type: boolean
+ *         description: Force refresh (bypass cache)
+ *     responses:
+ *       200:
+ *         description: Dependency health status
+ */
+app.get('/health/dependencies', async (req, res) => {
+  try {
+    const healthService = getHealthCheckService();
+    const useCache = req.query.refresh !== 'true';
+    const result = await healthService.checkAll(useCache);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /health/dependencies/{dependency}:
+ *   get:
+ *     summary: Check specific dependency health
+ *     description: Returns health status of a specific dependency
+ *     tags: [Health]
+ *     parameters:
+ *       - in: path
+ *         name: dependency
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [cosmos_db, gremlin, openai, azure_search, blob_storage, doc_intelligence]
+ *       - in: query
+ *         name: refresh
+ *         schema:
+ *           type: boolean
+ *         description: Force refresh (bypass cache)
+ *     responses:
+ *       200:
+ *         description: Dependency health status
+ *       400:
+ *         description: Invalid dependency name
+ */
+app.get('/health/dependencies/:dependency', async (req, res) => {
+  try {
+    const healthService = getHealthCheckService();
+    const useCache = req.query.refresh !== 'true';
+    const { dependency } = req.params;
+
+    let result;
+    switch (dependency) {
+      case HealthDependencies.COSMOS_DB:
+        result = await healthService.checkCosmosDb(useCache);
+        break;
+      case HealthDependencies.GREMLIN:
+        result = await healthService.checkGremlin(useCache);
+        break;
+      case HealthDependencies.OPENAI:
+        result = await healthService.checkOpenAI(useCache);
+        break;
+      case HealthDependencies.AZURE_SEARCH:
+        result = await healthService.checkAzureSearch(useCache);
+        break;
+      case HealthDependencies.BLOB_STORAGE:
+        result = await healthService.checkBlobStorage(useCache);
+        break;
+      case HealthDependencies.DOC_INTELLIGENCE:
+        result = await healthService.checkDocIntelligence(useCache);
+        break;
+      default:
+        return res.status(400).json({
+          error: 'Invalid dependency',
+          validDependencies: Object.values(HealthDependencies),
+        });
+    }
+
+    res.json({ dependency, ...result });
+  } catch (error) {
+    res.status(500).json({
+      dependency: req.params.dependency,
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /health/summary:
+ *   get:
+ *     summary: Get comprehensive health summary
+ *     description: Returns health status with circuit breaker integration, cache stats, and startup status
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Comprehensive health summary
+ */
+app.get('/health/summary', async (req, res) => {
+  try {
+    const healthService = getHealthCheckService();
+    const summary = await healthService.getHealthSummary();
+    res.json(summary);
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /health/history:
+ *   get:
+ *     summary: Get health check history
+ *     description: Returns recent health check results for trend analysis
+ *     tags: [Health]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Maximum number of entries to return
+ *     responses:
+ *       200:
+ *         description: Health check history
+ */
+app.get('/health/history', (req, res) => {
+  const healthService = getHealthCheckService();
+  const limit = parseInt(req.query.limit) || 20;
+  const history = healthService.getHistory(limit);
+  res.json({
+    count: history.length,
+    history,
+  });
+});
+
+/**
+ * @swagger
+ * /health/startup:
+ *   get:
+ *     summary: Get startup validation status
+ *     description: Returns the result of startup health validation
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Startup status
+ */
+app.get('/health/startup', (req, res) => {
+  const healthService = getHealthCheckService();
+  res.json(healthService.getStartupStatus());
+});
+
+/**
+ * @swagger
+ * /health/cache:
+ *   get:
+ *     summary: Get health check cache statistics
+ *     description: Returns cache stats for health check results
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Cache statistics
+ */
+app.get('/health/cache', (req, res) => {
+  const healthService = getHealthCheckService();
+  res.json(healthService.getCacheStats());
+});
+
+/**
+ * @swagger
+ * /health/cache:
+ *   delete:
+ *     summary: Clear health check cache
+ *     description: Clears cached health check results
+ *     tags: [Health]
+ *     parameters:
+ *       - in: query
+ *         name: dependency
+ *         schema:
+ *           type: string
+ *         description: Optional specific dependency to clear
+ *     responses:
+ *       200:
+ *         description: Cache cleared
+ */
+app.delete('/health/cache', (req, res) => {
+  const healthService = getHealthCheckService();
+  healthService.clearCache(req.query.dependency || null);
+  res.json({
+    success: true,
+    message: req.query.dependency
+      ? `Cache cleared for ${req.query.dependency}`
+      : 'All health check cache cleared',
+  });
+});
+
+/**
+ * @swagger
+ * /health/config:
+ *   get:
+ *     summary: Get health check configuration
+ *     description: Returns current health check configuration
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Health check configuration
+ */
+app.get('/health/config', (req, res) => {
+  const healthService = getHealthCheckService();
+  res.json(healthService.getConfig());
 });
 
 // ==================== Circuit Breaker Monitoring ====================
@@ -344,6 +635,514 @@ app.get('/api/circuit-breakers/open', (req, res) => {
   res.json({
     hasOpenCircuits: openCircuits.length > 0,
     openCircuits,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ============================================================================
+// Latency Budget Endpoints (F5.2.5)
+// ============================================================================
+
+/**
+ * @swagger
+ * /api/latency-budgets:
+ *   get:
+ *     summary: Get overall latency budget status
+ *     description: Returns health status and metrics for all tracked operations
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Latency budget status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 healthy:
+ *                   type: boolean
+ *                 operations:
+ *                   type: object
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     healthy:
+ *                       type: integer
+ *                     unhealthy:
+ *                       type: integer
+ */
+app.get('/api/latency-budgets', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const status = budgetService.getStatus();
+
+  res.json(status);
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/stats:
+ *   get:
+ *     summary: Get aggregated latency statistics
+ *     description: Returns detailed statistics for all operations including percentiles
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Aggregated latency statistics
+ */
+app.get('/api/latency-budgets/stats', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const stats = budgetService.getAggregatedStats();
+
+  res.json(stats);
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/health:
+ *   get:
+ *     summary: Get latency budget health summary
+ *     description: Returns a simplified health summary suitable for dashboards
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Health summary
+ */
+app.get('/api/latency-budgets/health', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const health = budgetService.getHealthSummary();
+
+  res.json(health);
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/operations:
+ *   get:
+ *     summary: Get list of tracked operation types
+ *     description: Returns list of all operation types being tracked
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: List of operation types
+ */
+app.get('/api/latency-budgets/operations', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const operations = budgetService.getOperationTypes();
+
+  res.json({
+    operations,
+    count: operations.length,
+  });
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/{operation}:
+ *   get:
+ *     summary: Get metrics for a specific operation
+ *     description: Returns detailed metrics and percentiles for a specific operation type
+ *     tags: [Performance]
+ *     parameters:
+ *       - in: path
+ *         name: operation
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [query, processing, graph_traversal, entity_resolution, search, openai]
+ *         description: Operation type
+ *     responses:
+ *       200:
+ *         description: Operation metrics
+ *       404:
+ *         description: Operation not found
+ */
+app.get('/api/latency-budgets/:operation', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const metrics = budgetService.getOperationMetrics(req.params.operation);
+
+  if (!metrics) {
+    return res.status(404).json({
+      error: 'Operation not found',
+      operation: req.params.operation,
+      availableOperations: budgetService.getOperationTypes(),
+    });
+  }
+
+  res.json(metrics);
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/{operation}/status:
+ *   get:
+ *     summary: Get health status for a specific operation
+ *     description: Returns simplified health status for an operation
+ *     tags: [Performance]
+ *     parameters:
+ *       - in: path
+ *         name: operation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Operation type
+ *     responses:
+ *       200:
+ *         description: Operation health status
+ *       404:
+ *         description: Operation not found
+ */
+app.get('/api/latency-budgets/:operation/status', (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const status = budgetService.getOperationStatus(req.params.operation);
+
+  if (!status) {
+    return res.status(404).json({
+      error: 'Operation not found',
+      operation: req.params.operation,
+    });
+  }
+
+  res.json(status);
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/{operation}/reset:
+ *   post:
+ *     summary: Reset metrics for a specific operation
+ *     description: Clears all collected metrics for an operation (requires authentication)
+ *     tags: [Performance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: operation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Operation type
+ *     responses:
+ *       200:
+ *         description: Metrics reset successfully
+ *       404:
+ *         description: Operation not found
+ */
+app.post('/api/latency-budgets/:operation/reset', authenticateJwt, (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  const success = budgetService.resetOperation(req.params.operation);
+
+  if (!success) {
+    return res.status(404).json({
+      error: 'Operation not found',
+      operation: req.params.operation,
+    });
+  }
+
+  log.info('Latency budget metrics reset for operation', {
+    operation: req.params.operation,
+    userId: req.user?.id,
+  });
+
+  res.json({
+    success: true,
+    message: `Metrics reset for operation: ${req.params.operation}`,
+  });
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/reset-all:
+ *   post:
+ *     summary: Reset all latency metrics
+ *     description: Clears all collected metrics for all operations (requires authentication)
+ *     tags: [Performance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All metrics reset successfully
+ */
+app.post('/api/latency-budgets/reset-all', authenticateJwt, (req, res) => {
+  const budgetService = getLatencyBudgetService();
+  budgetService.resetAll();
+
+  log.info('All latency budget metrics reset', {
+    userId: req.user?.id,
+  });
+
+  res.json({
+    success: true,
+    message: 'All latency budget metrics reset',
+  });
+});
+
+/**
+ * @swagger
+ * /api/latency-budgets/record:
+ *   post:
+ *     summary: Manually record a latency measurement
+ *     description: Record a latency measurement for a specific operation (for external integrations)
+ *     tags: [Performance]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - operation
+ *               - latencyMs
+ *             properties:
+ *               operation:
+ *                 type: string
+ *                 description: Operation type
+ *               latencyMs:
+ *                 type: number
+ *                 description: Latency in milliseconds
+ *               context:
+ *                 type: object
+ *                 description: Additional context for the measurement
+ *     responses:
+ *       200:
+ *         description: Measurement recorded
+ *       400:
+ *         description: Invalid request
+ */
+app.post('/api/latency-budgets/record', (req, res) => {
+  const { operation, latencyMs, context = {} } = req.body;
+
+  if (!operation || typeof latencyMs !== 'number' || latencyMs < 0) {
+    return res.status(400).json({
+      error: 'Invalid request',
+      message: 'operation (string) and latencyMs (positive number) are required',
+    });
+  }
+
+  const budgetService = getLatencyBudgetService();
+  const result = budgetService.recordLatency(operation, latencyMs, context);
+
+  res.json(result);
+});
+
+// ============================================================================
+// Performance Dashboard Endpoints (F5.2.7)
+// ============================================================================
+
+/**
+ * @swagger
+ * /api/performance:
+ *   get:
+ *     summary: Get full performance dashboard
+ *     description: Returns comprehensive performance metrics including throughput, latency, circuit breakers, cache, and health status
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Full dashboard data with sparklines and history
+ */
+app.get('/api/performance', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const dashboard = dashboardService.getDashboard();
+
+  res.json(dashboard);
+});
+
+/**
+ * @swagger
+ * /api/performance/health:
+ *   get:
+ *     summary: Get overall system health status
+ *     description: Returns a lightweight health status with score and any active issues
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Health status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [healthy, warning, critical, unknown]
+ *                 score:
+ *                   type: number
+ *                 issues:
+ *                   type: array
+ */
+app.get('/api/performance/health', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const health = dashboardService.getHealthStatus();
+
+  res.json(health);
+});
+
+/**
+ * @swagger
+ * /api/performance/throughput:
+ *   get:
+ *     summary: Get throughput metrics
+ *     description: Returns requests per second, error rates, and throughput history with sparkline
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Throughput metrics
+ */
+app.get('/api/performance/throughput', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const throughput = dashboardService.getThroughput();
+
+  res.json(throughput);
+});
+
+/**
+ * @swagger
+ * /api/performance/latency:
+ *   get:
+ *     summary: Get aggregated latency metrics
+ *     description: Returns latency metrics from all tracked operations
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Latency metrics
+ */
+app.get('/api/performance/latency', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const latency = dashboardService.getLatencyMetrics();
+
+  res.json(latency);
+});
+
+/**
+ * @swagger
+ * /api/performance/circuit-breakers:
+ *   get:
+ *     summary: Get circuit breaker metrics for dashboard
+ *     description: Returns circuit breaker status summary for the performance dashboard
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Circuit breaker metrics
+ */
+app.get('/api/performance/circuit-breakers', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const cbMetrics = dashboardService.getCircuitBreakerMetrics();
+
+  res.json(cbMetrics);
+});
+
+/**
+ * @swagger
+ * /api/performance/cache:
+ *   get:
+ *     summary: Get cache metrics for dashboard
+ *     description: Returns cache hit rates and utilization metrics
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Cache metrics
+ */
+app.get('/api/performance/cache', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const cacheMetrics = dashboardService.getCacheMetrics();
+
+  res.json(cacheMetrics);
+});
+
+/**
+ * @swagger
+ * /api/performance/rate-limits:
+ *   get:
+ *     summary: Get rate limit metrics for dashboard
+ *     description: Returns rate limit statistics for the performance dashboard
+ *     tags: [Performance]
+ *     responses:
+ *       200:
+ *         description: Rate limit metrics
+ */
+app.get('/api/performance/rate-limits', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const rateLimitMetrics = dashboardService.getRateLimitMetrics();
+
+  res.json(rateLimitMetrics);
+});
+
+/**
+ * @swagger
+ * /api/performance/history:
+ *   get:
+ *     summary: Get historical performance data
+ *     description: Returns performance snapshots for a given time range
+ *     tags: [Performance]
+ *     parameters:
+ *       - in: query
+ *         name: startTime
+ *         schema:
+ *           type: integer
+ *         description: Start timestamp in milliseconds (default: 1 hour ago)
+ *       - in: query
+ *         name: endTime
+ *         schema:
+ *           type: integer
+ *         description: End timestamp in milliseconds (default: now)
+ *     responses:
+ *       200:
+ *         description: Historical performance data
+ */
+app.get('/api/performance/history', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const startTime = parseInt(req.query.startTime) || Date.now() - 3600000; // Default: 1 hour ago
+  const endTime = parseInt(req.query.endTime) || Date.now();
+
+  const history = dashboardService.getHistory(startTime, endTime);
+
+  res.json(history);
+});
+
+/**
+ * @swagger
+ * /api/performance/report:
+ *   get:
+ *     summary: Get ASCII text report
+ *     description: Returns a formatted text report of the performance dashboard
+ *     tags: [Performance]
+ *     produces:
+ *       - text/plain
+ *     responses:
+ *       200:
+ *         description: ASCII performance report
+ */
+app.get('/api/performance/report', (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  const report = dashboardService.generateTextReport();
+
+  res.type('text/plain').send(report);
+});
+
+/**
+ * @swagger
+ * /api/performance/reset:
+ *   post:
+ *     summary: Reset performance metrics
+ *     description: Clears all collected performance metrics and history (requires authentication)
+ *     tags: [Performance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Metrics reset successfully
+ */
+app.post('/api/performance/reset', authenticateJwt, (req, res) => {
+  const dashboardService = getPerformanceDashboardService();
+  dashboardService.reset();
+
+  log.info('Performance dashboard metrics reset', { userId: req.user?.oid });
+
+  res.json({
+    success: true,
+    message: 'Performance metrics reset',
     timestamp: new Date().toISOString(),
   });
 });
@@ -1500,6 +2299,257 @@ app.get('/api/security/prompt-injection/patterns', (req, res) => {
   res.json({
     categories,
     totalPatterns: categories.reduce((sum, c) => sum + c.patternCount, 0),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ==================== Suspicious Activity Detection (F5.1.6) ====================
+
+const {
+  getSuspiciousActivityService,
+  ACTIVITY_TYPES,
+  SEVERITY: SUSPICIOUS_SEVERITY,
+} = require('./services/suspicious-activity-service');
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/stats:
+ *   get:
+ *     summary: Get suspicious activity statistics
+ *     description: Returns statistics about detected suspicious activities
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: Suspicious activity statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalAlerts:
+ *                   type: integer
+ *                 alertsByType:
+ *                   type: object
+ *                 alertsBySeverity:
+ *                   type: object
+ *                 trackedUsers:
+ *                   type: integer
+ *                 suspiciousUsers:
+ *                   type: integer
+ */
+app.get('/api/security/suspicious-activity/stats', (req, res) => {
+  const service = getSuspiciousActivityService();
+  res.json({
+    ...service.getStatistics(),
+    activityTypes: ACTIVITY_TYPES,
+    severityLevels: SUSPICIOUS_SEVERITY,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/users:
+ *   get:
+ *     summary: Get suspicious users
+ *     description: Returns list of users with suspicious activity patterns
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: List of suspicious users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userId:
+ *                         type: string
+ *                       stats:
+ *                         type: object
+ */
+app.get('/api/security/suspicious-activity/users', authenticateJwt, (req, res) => {
+  // Require admin role for viewing suspicious users
+  const userRoles = req.user?.roles || [];
+  if (!userRoles.includes('admin') && !userRoles.includes('security')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+
+  const service = getSuspiciousActivityService();
+  const suspiciousUsers = service.getSuspiciousUsers();
+
+  res.json({
+    count: suspiciousUsers.length,
+    users: suspiciousUsers,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/users/{userId}:
+ *   get:
+ *     summary: Get user activity statistics
+ *     description: Returns activity statistics for a specific user
+ *     tags: [Security]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to check
+ *     responses:
+ *       200:
+ *         description: User activity statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userId:
+ *                   type: string
+ *                 stats:
+ *                   type: object
+ */
+app.get('/api/security/suspicious-activity/users/:userId', authenticateJwt, (req, res) => {
+  const { userId } = req.params;
+  const requestingUser = req.user?.id || req.user?.oid || req.user?.sub;
+  const userRoles = req.user?.roles || [];
+
+  // Users can view their own stats, admins can view anyone's
+  if (userId !== requestingUser && !userRoles.includes('admin') && !userRoles.includes('security')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+
+  const service = getSuspiciousActivityService();
+  const stats = service.getUserStats(userId);
+
+  res.json({
+    userId,
+    stats,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/analyze:
+ *   post:
+ *     summary: Analyze historical audit logs
+ *     description: Analyze audit logs for suspicious patterns over a time period
+ *     tags: [Security]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               hours:
+ *                 type: integer
+ *                 description: Hours of history to analyze
+ *                 default: 24
+ *     responses:
+ *       200:
+ *         description: Analysis results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 periodHours:
+ *                   type: integer
+ *                 totalDenials:
+ *                   type: integer
+ *                 uniqueUsers:
+ *                   type: integer
+ *                 suspiciousUsers:
+ *                   type: array
+ */
+app.post('/api/security/suspicious-activity/analyze', authenticateJwt, async (req, res) => {
+  const userRoles = req.user?.roles || [];
+  if (!userRoles.includes('admin') && !userRoles.includes('security')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+
+  try {
+    const { hours = 24 } = req.body || {};
+    const service = getSuspiciousActivityService();
+    const analysis = await service.analyzeHistoricalLogs({ hours });
+
+    res.json(analysis);
+  } catch (error) {
+    log.error('Failed to analyze suspicious activity', { error: error.message });
+    res.status(500).json({ error: 'Failed to analyze suspicious activity' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/azure-monitor-config:
+ *   get:
+ *     summary: Get Azure Monitor alert configuration
+ *     description: Returns recommended Azure Monitor alert configuration for suspicious activity detection
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: Azure Monitor configuration
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 description:
+ *                   type: string
+ *                 metrics:
+ *                   type: array
+ *                 events:
+ *                   type: array
+ *                 recommendedActions:
+ *                   type: array
+ */
+app.get('/api/security/suspicious-activity/azure-monitor-config', authenticateJwt, (req, res) => {
+  const userRoles = req.user?.roles || [];
+  if (!userRoles.includes('admin') && !userRoles.includes('security')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+
+  const service = getSuspiciousActivityService();
+  res.json(service.getAzureMonitorAlertConfig());
+});
+
+/**
+ * @swagger
+ * /api/security/suspicious-activity/reset:
+ *   post:
+ *     summary: Reset suspicious activity tracking
+ *     description: Clear all tracked suspicious activity data (admin only)
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: Tracking data reset
+ */
+app.post('/api/security/suspicious-activity/reset', authenticateJwt, (req, res) => {
+  const userRoles = req.user?.roles || [];
+  if (!userRoles.includes('admin')) {
+    return res.status(403).json({ error: 'Admin role required' });
+  }
+
+  const service = getSuspiciousActivityService();
+  service.reset();
+
+  log.info('Suspicious activity tracking reset by admin', {
+    userId: req.user?.id || req.user?.oid,
+  });
+
+  res.json({
+    success: true,
+    message: 'Suspicious activity tracking has been reset',
     timestamp: new Date().toISOString(),
   });
 });
@@ -3646,6 +4696,31 @@ app.get('/api/graph/entities', async (req, res) => {
   }
 });
 
+// ==================== Persona Endpoints (F6.3.4) ====================
+
+/**
+ * @swagger
+ * /api/personas:
+ *   get:
+ *     summary: Get available personas
+ *     description: Returns list of available personas for GraphRAG customization
+ *     tags: [GraphRAG]
+ *     responses:
+ *       200:
+ *         description: List of personas
+ */
+app.get('/api/personas', (req, res) => {
+  const personaService = getPersonaService();
+  const personas = personaService.getAllPersonaSummaries();
+  res.json({
+    personas,
+    count: personas.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ==================== GraphRAG Endpoints ====================
+
 /**
  * @swagger
  * /api/graphrag/query:
@@ -3743,6 +4818,9 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
  *               options:
  *                 type: object
  *                 properties:
+ *                   persona:
+ *                     type: string
+ *                     description: Persona ID (ops, it, leadership, compliance)
  *                   maxHops:
  *                     type: integer
  *                     description: Maximum graph traversal depth
@@ -3766,6 +4844,7 @@ app.post('/api/graphrag/search', userQueryLimiter, async (req, res) => {
   try {
     const graphRAG = getGraphRAGService();
     const result = await graphRAG.query(query, {
+      ...options, // Pass through persona
       maxHops: options.maxHops || 3,
       maxEntities: options.maxEntities || 10,
       includeCommunities: options.includeCommunities || false,
@@ -3802,6 +4881,14 @@ app.post('/api/graphrag/search', userQueryLimiter, async (req, res) => {
  *                 type: string
  *               options:
  *                 type: object
+ *                 properties:
+ *                   persona:
+ *                     type: string
+ *                     description: Persona ID (ops, it, leadership, compliance)
+ *                   maxTokens:
+ *                     type: integer
+ *                   maxHops:
+ *                     type: integer
  *     responses:
  *       200:
  *         description: Generated answer with sources
@@ -3816,6 +4903,7 @@ app.post('/api/graphrag/answer', userQueryLimiter, async (req, res) => {
   try {
     const graphRAG = getGraphRAGService();
     const result = await graphRAG.generateAnswer(query, {
+      ...options, // Pass through persona
       maxTokens: options.maxTokens || 1000,
       maxHops: options.maxHops || 3,
       user: req.user,
@@ -9397,15 +10485,28 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   // Log configuration summary
   const configSummary = getConfigurationSummary();
   log.info('Configuration status:', configSummary);
 
   logStartup(PORT, {
     healthCheck: `http://localhost:${PORT}/health`,
+    healthDependencies: `http://localhost:${PORT}/health/dependencies`,
+    healthReady: `http://localhost:${PORT}/health/ready`,
+    healthLive: `http://localhost:${PORT}/health/live`,
     swagger: `http://localhost:${PORT}/api-docs`,
   });
+
+  // Perform startup health validation (FC.7)
+  const healthService = getHealthCheckService();
+  const startupResult = await healthService.performStartupValidation();
+  if (!startupResult.success) {
+    log.warn(
+      { errors: startupResult.errors },
+      'Startup health validation failed - some dependencies may be unavailable'
+    );
+  }
 
   // Start audit log retention scheduler (F5.1.4)
   startAuditRetentionScheduler();

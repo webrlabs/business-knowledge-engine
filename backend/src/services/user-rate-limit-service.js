@@ -16,6 +16,7 @@
 
 const rateLimit = require('express-rate-limit');
 const { log } = require('../utils/logger');
+const { getSuspiciousActivityService } = require('./suspicious-activity-service');
 
 // Check if we're in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -286,7 +287,7 @@ function generateKey(req, includeIp = false) {
 function createLimitHandler(limiterName) {
   return (req, res, next, options) => {
     const key = generateKey(req);
-    const userId = req.user?.id || 'anonymous';
+    const userId = req.user?.id || req.user?.oid || req.user?.sub || 'anonymous';
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
 
     rateLimitStats.recordHit(key, true);
@@ -300,6 +301,21 @@ function createLimitHandler(limiterName) {
       method: req.method,
       roles: req.user?.roles,
     });
+
+    // Track rate limit violation for suspicious activity detection (F5.1.6)
+    try {
+      const suspiciousActivityService = getSuspiciousActivityService();
+      void suspiciousActivityService.trackRateLimitViolation(userId !== 'anonymous' ? userId : ip, {
+        limiter: limiterName,
+        path: req.path,
+        method: req.method,
+        ip,
+      }).catch(() => {
+        // Ignore errors during suspicious activity tracking
+      });
+    } catch {
+      // Ignore errors during suspicious activity tracking
+    }
 
     res.status(429).json({
       error: 'Too Many Requests',

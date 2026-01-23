@@ -1,6 +1,7 @@
 const { createGremlinClient, closeGremlinClient } = require('../clients');
 const { v4: uuidv4 } = require('uuid');
 const { getCircuitBreakerService } = require('./circuit-breaker-service');
+const { log } = require('../utils/logger');
 
 /**
  * Normalize an entity name for consistent matching.
@@ -96,18 +97,41 @@ class GraphService {
     this.client = null;
   }
 
-  async _submit(query, bindings = {}) {
+  async _submit(query, bindings = {}, options = {}) {
     const client = await this._getClient();
     const cb = this._getCircuitBreaker();
+    const { logQuery = false } = options;
 
     // Wrap Gremlin query execution with circuit breaker
     const gremlinOperation = async () => {
+      const start = Date.now();
       try {
+        if (logQuery) {
+          log.debug(`Executing Gremlin query: ${query.substring(0, 200)}...`, { bindings });
+        }
+
         const result = await client.submit(query, bindings);
+        
+        const duration = Date.now() - start;
+        if (duration > 200) { // Log slow queries (>200ms)
+          log.warn(`Slow Gremlin query detected (${duration}ms)`, { 
+            query: query.substring(0, 500), 
+            duration,
+            bindings: JSON.stringify(bindings)
+          });
+        }
+
         return result._items || [];
       } catch (error) {
+        const duration = Date.now() - start;
+        log.error(`Gremlin query failed after ${duration}ms`, { 
+          error: error.message, 
+          query: query.substring(0, 500) 
+        });
+
         // Handle token expiration by reconnecting
         if (error.message?.includes('unauthorized') || error.message?.includes('401')) {
+          log.info('Retrying Gremlin query after auth error...');
           this.client = null;
           const newClient = await this._getClient();
           const result = await newClient.submit(query, bindings);
@@ -651,42 +675,48 @@ class GraphService {
       details: [],
     };
 
-    for (const entity of entities) {
+    // Optimization: Run in parallel using Promise.all
+    // Assumes entities array is unique by name (aggregated by caller)
+    const updatePromises = entities.map(async (entity) => {
       try {
         const result = await this.incrementMentionCount(
           entity.name,
           documentId,
           entity.mentionCount || 1
         );
-
-        if (!result.success) {
-          if (result.error === 'Entity not found') {
-            results.notFound++;
-          } else {
-            results.errors++;
-          }
-        } else if (result.skipped) {
-          results.skipped++;
-        } else {
-          results.updated++;
-        }
-
-        results.details.push(result);
+        return result;
       } catch (error) {
-        results.errors++;
-        results.details.push({
+        return {
           success: false,
           entityName: entity.name,
           error: error.message,
-        });
+        };
       }
+    });
+
+    const updateResults = await Promise.all(updatePromises);
+
+    for (const result of updateResults) {
+      if (!result.success) {
+        if (result.error === 'Entity not found') {
+          results.notFound++;
+        } else {
+          results.errors++;
+        }
+      } else if (result.skipped) {
+        results.skipped++;
+      } else {
+        results.updated++;
+      }
+      results.details.push(result);
     }
 
     return results;
   }
 
   async findVerticesByType(type, limit = 100) {
-    const query = `g.V().hasLabel(type).limit(limit).valueMap(true)`;
+    // Optimize: use partition key 'ontologyType'
+    const query = `g.V().has('ontologyType', type).limit(limit).valueMap(true)`;
     const result = await this._submit(query, { type, limit });
     return result.map((v) => this._normalizeVertex(v));
   }
@@ -1204,9 +1234,19 @@ class GraphService {
    * @param {string} id - Vertex ID
    * @returns {Promise<Object|null>} Vertex or null if not found
    */
-  async findVertexById(id) {
-    const query = `g.V().has('id', id).valueMap(true)`;
-    const result = await this._submit(query, { id });
+  async findVertexById(id, type = null) {
+    let query;
+    const bindings = { id };
+
+    if (type) {
+      // Optimize: use partition key 'ontologyType' if available
+      query = `g.V().has('ontologyType', type).has('id', id).valueMap(true)`;
+      bindings.type = type;
+    } else {
+      query = `g.V().has('id', id).valueMap(true)`;
+    }
+
+    const result = await this._submit(query, bindings);
 
     if (result.length === 0) {
       return null;

@@ -11,6 +11,7 @@
  */
 
 const { getAuditPersistenceService } = require('./audit-persistence-service');
+const { getSuspiciousActivityService } = require('./suspicious-activity-service');
 const { log } = require('../utils/logger');
 
 // Default role hierarchy (higher index = more permissions)
@@ -414,6 +415,20 @@ class SecurityTrimmingService {
       void auditService.logDenial(denial, user).catch((error) => {
         log.warn('Failed to persist access denial', { error: error.message });
       });
+    }
+
+    // Track denial for suspicious activity detection (F5.1.6)
+    try {
+      const suspiciousActivityService = getSuspiciousActivityService();
+      void suspiciousActivityService.trackAccessDenial(denial.userId, {
+        documentId: denial.documentId,
+        reason: denial.reason,
+        requiredPermission: denial.requiredPermission,
+      }).catch((error) => {
+        log.debug('Failed to track denial for suspicious activity', { error: error.message });
+      });
+    } catch {
+      // Ignore errors during suspicious activity tracking
     }
   }
 

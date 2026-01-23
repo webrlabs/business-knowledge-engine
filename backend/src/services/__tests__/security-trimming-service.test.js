@@ -1,13 +1,28 @@
-let logDenialMock;
-
 jest.mock('../audit-persistence-service', () => {
-  logDenialMock = jest.fn().mockResolvedValue({ id: 'audit_1' });
+  const mockLogDenial = jest.fn().mockResolvedValue({ id: 'audit_1' });
   return {
     getAuditPersistenceService: () => ({
-      logDenial: logDenialMock,
+      logDenial: mockLogDenial,
     }),
+    // Expose mock for testing
+    __mockLogDenial: mockLogDenial,
   };
 });
+
+jest.mock('../suspicious-activity-service', () => {
+  const mockTrackAccessDenial = jest.fn().mockResolvedValue([]);
+  return {
+    getSuspiciousActivityService: () => ({
+      trackAccessDenial: mockTrackAccessDenial,
+    }),
+    // Expose mock for testing
+    __mockTrackAccessDenial: mockTrackAccessDenial,
+  };
+});
+
+// Retrieve the mocks
+const { __mockLogDenial: mockLogDenial } = require('../audit-persistence-service');
+const { __mockTrackAccessDenial: mockTrackAccessDenial } = require('../suspicious-activity-service');
 
 const {
   SecurityTrimmingService,
@@ -21,8 +36,8 @@ describe('Security Trimming Service', () => {
 
   beforeEach(() => {
     service = createSecurityTrimmingService({ enabled: true });
-    if (logDenialMock) {
-      logDenialMock.mockClear();
+    if (mockLogDenial) {
+      mockLogDenial.mockClear();
     }
   });
 
@@ -274,8 +289,8 @@ describe('Security Trimming Service', () => {
 
       service.filterSearchResults(results, user);
 
-      expect(logDenialMock).toHaveBeenCalledTimes(1);
-      expect(logDenialMock.mock.calls[0][0]).toMatchObject({
+      expect(mockLogDenial).toHaveBeenCalledTimes(1);
+      expect(mockLogDenial.mock.calls[0][0]).toMatchObject({
         documentId: '1',
         reason: 'classification_denied',
       });

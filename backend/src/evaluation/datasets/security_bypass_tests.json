@@ -1,0 +1,727 @@
+{
+  "metadata": {
+    "name": "Security Trimming Bypass Tests",
+    "version": "1.0.0",
+    "description": "Red-team test cases for security filter bypass attempts",
+    "created": "2026-01-23",
+    "categories": [
+      "classification_bypass",
+      "group_membership_bypass",
+      "ownership_bypass",
+      "department_bypass",
+      "role_escalation",
+      "odata_injection",
+      "field_injection",
+      "graph_traversal_bypass",
+      "sensitive_field_access",
+      "negative_tests"
+    ],
+    "references": [
+      "OWASP Top 10 2024",
+      "CWE-284: Improper Access Control",
+      "CWE-863: Incorrect Authorization",
+      "CWE-639: Authorization Bypass Through User-Controlled Key"
+    ]
+  },
+  "testCases": [
+    {
+      "id": "CB-001",
+      "category": "classification_bypass",
+      "name": "Classification level enumeration via error messages",
+      "description": "Attempt to determine document existence by analyzing denial reasons",
+      "attackVector": {
+        "type": "information_disclosure",
+        "userRole": "reader",
+        "documentClassification": "restricted",
+        "expectedDenialReason": "classification_level"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium",
+      "cweId": "CWE-209"
+    },
+    {
+      "id": "CB-002",
+      "category": "classification_bypass",
+      "name": "Classification level case manipulation",
+      "description": "Attempt to bypass classification by using different case (INTERNAL vs internal)",
+      "attackVector": {
+        "type": "input_manipulation",
+        "userRole": "reader",
+        "documentClassification": "INTERNAL",
+        "userClassificationAccess": "internal"
+      },
+      "expectedOutcome": "allowed",
+      "severity": "low",
+      "notes": "System should normalize classification levels"
+    },
+    {
+      "id": "CB-003",
+      "category": "classification_bypass",
+      "name": "Null classification bypass",
+      "description": "Attempt to access document with null/undefined classification",
+      "attackVector": {
+        "type": "null_injection",
+        "userRole": "reader",
+        "documentClassification": null
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high",
+      "notes": "Null classification should default to restricted or be blocked"
+    },
+    {
+      "id": "CB-004",
+      "category": "classification_bypass",
+      "name": "Invalid classification value",
+      "description": "Attempt to access document with invalid classification value",
+      "attackVector": {
+        "type": "input_manipulation",
+        "userRole": "reader",
+        "documentClassification": "super-secret"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium",
+      "notes": "Unknown classification should be treated as restricted"
+    },
+    {
+      "id": "CB-005",
+      "category": "classification_bypass",
+      "name": "Numeric classification bypass",
+      "description": "Attempt to use numeric classification (0, 1, 2, 3) instead of string",
+      "attackVector": {
+        "type": "type_confusion",
+        "userRole": "reader",
+        "documentClassification": 0
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium",
+      "notes": "Numeric values should not be accepted as classifications"
+    },
+    {
+      "id": "GM-001",
+      "category": "group_membership_bypass",
+      "name": "Empty groups array access",
+      "description": "Attempt to access group-restricted document with empty groups array",
+      "attackVector": {
+        "type": "missing_attribute",
+        "userGroups": [],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "GM-002",
+      "category": "group_membership_bypass",
+      "name": "Null groups bypass",
+      "description": "Attempt to access document when user.groups is null",
+      "attackVector": {
+        "type": "null_injection",
+        "userGroups": null,
+        "documentAllowedGroups": ["engineering"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "GM-003",
+      "category": "group_membership_bypass",
+      "name": "Group name case manipulation",
+      "description": "Attempt to bypass group check with case variation (Finance-Team vs finance-team)",
+      "attackVector": {
+        "type": "input_manipulation",
+        "userGroups": ["Finance-Team"],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "allowed",
+      "severity": "medium",
+      "notes": "Group matching should be case-insensitive"
+    },
+    {
+      "id": "GM-004",
+      "category": "group_membership_bypass",
+      "name": "Group name whitespace injection",
+      "description": "Attempt to bypass group check with whitespace (finance-team vs finance-team )",
+      "attackVector": {
+        "type": "whitespace_injection",
+        "userGroups": ["finance-team "],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "allowed",
+      "severity": "medium",
+      "notes": "Group names should be trimmed before comparison"
+    },
+    {
+      "id": "GM-005",
+      "category": "group_membership_bypass",
+      "name": "Unicode normalization bypass",
+      "description": "Attempt to bypass using Unicode confusables (ﬁnance vs finance)",
+      "attackVector": {
+        "type": "unicode_confusion",
+        "userGroups": ["\uFB01nance-team"],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high",
+      "notes": "Unicode ligatures should not match normalized text"
+    },
+    {
+      "id": "GM-006",
+      "category": "group_membership_bypass",
+      "name": "Wildcard group injection",
+      "description": "Attempt to inject wildcard pattern in group claim (* or %)",
+      "attackVector": {
+        "type": "pattern_injection",
+        "userGroups": ["*"],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "GM-007",
+      "category": "group_membership_bypass",
+      "name": "Group array pollution",
+      "description": "Attempt to add extra groups via array prototype pollution",
+      "attackVector": {
+        "type": "prototype_pollution",
+        "userGroups": {"__proto__": {"0": "admin-group"}},
+        "documentAllowedGroups": ["admin-group"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "OW-001",
+      "category": "ownership_bypass",
+      "name": "Owner ID case manipulation",
+      "description": "Attempt to match owner via case manipulation",
+      "attackVector": {
+        "type": "input_manipulation",
+        "userId": "USER123",
+        "documentOwner": "user123"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium",
+      "notes": "Owner ID comparison should be exact match"
+    },
+    {
+      "id": "OW-002",
+      "category": "ownership_bypass",
+      "name": "Owner ID null injection",
+      "description": "Attempt to access document with null owner when user.id is null",
+      "attackVector": {
+        "type": "null_injection",
+        "userId": null,
+        "documentOwner": null
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high",
+      "notes": "Null owner with null userId should not grant access"
+    },
+    {
+      "id": "OW-003",
+      "category": "ownership_bypass",
+      "name": "Owner ID empty string",
+      "description": "Attempt to access when both owner and userId are empty strings",
+      "attackVector": {
+        "type": "empty_string",
+        "userId": "",
+        "documentOwner": ""
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "OW-004",
+      "category": "ownership_bypass",
+      "name": "AllowedViewers injection",
+      "description": "Attempt to access via allowedViewers with manipulated userId",
+      "attackVector": {
+        "type": "array_injection",
+        "userId": "attacker",
+        "documentAllowedViewers": ["legitimate-user"],
+        "injectionPayload": {"userId": ["attacker", "legitimate-user"]}
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "DP-001",
+      "category": "department_bypass",
+      "name": "Department case sensitivity bypass",
+      "description": "Attempt to access department-restricted doc via case manipulation",
+      "attackVector": {
+        "type": "input_manipulation",
+        "userDepartment": "ENGINEERING",
+        "documentRestrictedToDepartment": "Engineering"
+      },
+      "expectedOutcome": "allowed",
+      "severity": "medium",
+      "notes": "Department comparison should be case-insensitive"
+    },
+    {
+      "id": "DP-002",
+      "category": "department_bypass",
+      "name": "Department null bypass",
+      "description": "Access document when user department is null",
+      "attackVector": {
+        "type": "null_injection",
+        "userDepartment": null,
+        "documentRestrictedToDepartment": "Engineering"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "DP-003",
+      "category": "department_bypass",
+      "name": "Department wildcard injection",
+      "description": "Attempt to inject wildcard in department claim",
+      "attackVector": {
+        "type": "pattern_injection",
+        "userDepartment": "*",
+        "documentRestrictedToDepartment": "Finance"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "DP-004",
+      "category": "department_bypass",
+      "name": "Department SQL-like injection",
+      "description": "Attempt to inject SQL-like pattern in department",
+      "attackVector": {
+        "type": "sql_injection",
+        "userDepartment": "' OR '1'='1",
+        "documentRestrictedToDepartment": "Finance"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "RE-001",
+      "category": "role_escalation",
+      "name": "Role claim injection - admin",
+      "description": "Attempt to inject admin role via token claim",
+      "attackVector": {
+        "type": "claim_injection",
+        "tokenClaims": {
+          "roles": ["admin"],
+          "oid": "attacker-id"
+        },
+        "legitimateRoles": ["reader"]
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical",
+      "notes": "Role validation should verify against identity provider"
+    },
+    {
+      "id": "RE-002",
+      "category": "role_escalation",
+      "name": "Multiple role confusion",
+      "description": "Attempt to escalate via multiple conflicting roles",
+      "attackVector": {
+        "type": "role_confusion",
+        "tokenClaims": {
+          "roles": ["reader", "admin", "reviewer"]
+        }
+      },
+      "expectedOutcome": "use_highest_legitimate",
+      "severity": "medium",
+      "notes": "System should use highest role but validate all are legitimate"
+    },
+    {
+      "id": "RE-003",
+      "category": "role_escalation",
+      "name": "isAdmin flag injection",
+      "description": "Attempt to directly set isAdmin flag in request",
+      "attackVector": {
+        "type": "flag_injection",
+        "requestBody": {
+          "isAdmin": true
+        },
+        "legitimateRole": "reader"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "RE-004",
+      "category": "role_escalation",
+      "name": "Role array pollution",
+      "description": "Attempt to add roles via prototype pollution",
+      "attackVector": {
+        "type": "prototype_pollution",
+        "payload": {
+          "__proto__": {
+            "roles": ["admin"]
+          }
+        }
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "OI-001",
+      "category": "odata_injection",
+      "name": "OData filter injection via group name",
+      "description": "Attempt to inject OData filter via malicious group name",
+      "attackVector": {
+        "type": "odata_injection",
+        "userGroups": ["') or 1 eq 1 or allowedGroups/any(g: g eq '"],
+        "maliciousFilter": "allowedGroups/any(g: g eq '') or 1 eq 1 or allowedGroups/any(g: g eq '')"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical",
+      "cweId": "CWE-943"
+    },
+    {
+      "id": "OI-002",
+      "category": "odata_injection",
+      "name": "OData function injection",
+      "description": "Attempt to inject OData function (contains, startswith)",
+      "attackVector": {
+        "type": "odata_injection",
+        "userGroups": ["x') or contains(content,'secret'] or ('"],
+        "maliciousFilter": "contains(content,'secret')"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "OI-003",
+      "category": "odata_injection",
+      "name": "OData navigation property injection",
+      "description": "Attempt to navigate to unauthorized fields via OData",
+      "attackVector": {
+        "type": "odata_injection",
+        "payload": "/allowedGroups/$value",
+        "target": "expose document ACLs"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "FI-001",
+      "category": "field_injection",
+      "name": "Request body classification override",
+      "description": "Attempt to override document classification in request body",
+      "attackVector": {
+        "type": "field_override",
+        "requestBody": {
+          "documentId": "doc-123",
+          "classification": "public"
+        },
+        "actualClassification": "restricted"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "FI-002",
+      "category": "field_injection",
+      "name": "Query parameter privilege injection",
+      "description": "Attempt to inject bypass flag via query parameter",
+      "attackVector": {
+        "type": "parameter_injection",
+        "queryParams": {
+          "bypassSecurity": "true",
+          "skipAcl": "1"
+        }
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "FI-003",
+      "category": "field_injection",
+      "name": "Header injection for role override",
+      "description": "Attempt to override role via custom header",
+      "attackVector": {
+        "type": "header_injection",
+        "headers": {
+          "X-User-Role": "admin",
+          "X-Bypass-Security": "true"
+        }
+      },
+      "expectedOutcome": "blocked",
+      "severity": "critical"
+    },
+    {
+      "id": "GT-001",
+      "category": "graph_traversal_bypass",
+      "name": "Indirect relationship access",
+      "description": "Access restricted node via unrestricted intermediate node",
+      "attackVector": {
+        "type": "transitive_access",
+        "path": ["public-node", "internal-edge", "restricted-node"],
+        "userClassificationAccess": "public"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high",
+      "notes": "Each node in traversal must be independently authorized"
+    },
+    {
+      "id": "GT-002",
+      "category": "graph_traversal_bypass",
+      "name": "Relationship metadata leakage",
+      "description": "Access relationship details between restricted nodes",
+      "attackVector": {
+        "type": "metadata_leakage",
+        "relationship": {
+          "source": "restricted-doc-1",
+          "target": "restricted-doc-2",
+          "type": "REFERENCES"
+        },
+        "userAccess": "public"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium"
+    },
+    {
+      "id": "GT-003",
+      "category": "graph_traversal_bypass",
+      "name": "Depth limit bypass via pagination",
+      "description": "Attempt to bypass traversal depth limit via multiple paginated requests",
+      "attackVector": {
+        "type": "pagination_bypass",
+        "normalDepthLimit": 3,
+        "attemptedDepth": 10,
+        "method": "chain paginated requests"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "medium"
+    },
+    {
+      "id": "SF-001",
+      "category": "sensitive_field_access",
+      "name": "Access internalNotes as reader",
+      "description": "Attempt to access internalNotes field as reader role",
+      "attackVector": {
+        "type": "field_access",
+        "userRole": "reader",
+        "targetField": "internalNotes",
+        "allowedRoles": ["reviewer", "admin"]
+      },
+      "expectedOutcome": "field_trimmed",
+      "severity": "medium"
+    },
+    {
+      "id": "SF-002",
+      "category": "sensitive_field_access",
+      "name": "Access allowedViewers as contributor",
+      "description": "Attempt to access ACL fields as contributor",
+      "attackVector": {
+        "type": "field_access",
+        "userRole": "contributor",
+        "targetField": "allowedViewers",
+        "allowedRoles": ["admin"]
+      },
+      "expectedOutcome": "field_trimmed",
+      "severity": "medium"
+    },
+    {
+      "id": "SF-003",
+      "category": "sensitive_field_access",
+      "name": "Field projection bypass",
+      "description": "Attempt to request specific sensitive fields via projection",
+      "attackVector": {
+        "type": "projection_bypass",
+        "queryProjection": ["id", "name", "internalNotes", "allowedGroups"],
+        "userRole": "reader"
+      },
+      "expectedOutcome": "sensitive_fields_removed",
+      "severity": "medium"
+    },
+    {
+      "id": "SF-004",
+      "category": "sensitive_field_access",
+      "name": "JSON path traversal to sensitive field",
+      "description": "Attempt to access nested sensitive field via JSON path",
+      "attackVector": {
+        "type": "json_path_injection",
+        "jsonPath": "$.metadata.processingMetadata.rawContent",
+        "userRole": "reader"
+      },
+      "expectedOutcome": "blocked",
+      "severity": "high"
+    },
+    {
+      "id": "NT-001",
+      "category": "negative_tests",
+      "name": "Legitimate admin access to restricted",
+      "description": "Admin accessing restricted document (should succeed)",
+      "attackVector": {
+        "type": "legitimate_access",
+        "userRole": "admin",
+        "documentClassification": "restricted"
+      },
+      "expectedOutcome": "allowed",
+      "severity": "none",
+      "notes": "Negative test - should pass"
+    },
+    {
+      "id": "NT-002",
+      "category": "negative_tests",
+      "name": "Group member accessing group document",
+      "description": "User in finance-team accessing finance document",
+      "attackVector": {
+        "type": "legitimate_access",
+        "userGroups": ["finance-team"],
+        "documentAllowedGroups": ["finance-team"]
+      },
+      "expectedOutcome": "allowed",
+      "severity": "none",
+      "notes": "Negative test - should pass"
+    },
+    {
+      "id": "NT-003",
+      "category": "negative_tests",
+      "name": "Owner accessing own document",
+      "description": "Document owner accessing their own restricted document",
+      "attackVector": {
+        "type": "legitimate_access",
+        "userId": "user-123",
+        "documentOwner": "user-123",
+        "documentClassification": "restricted"
+      },
+      "expectedOutcome": "allowed",
+      "severity": "none",
+      "notes": "Negative test - owners should access own docs"
+    },
+    {
+      "id": "NT-004",
+      "category": "negative_tests",
+      "name": "Public document access by unauthenticated",
+      "description": "Public classified document accessed by any user",
+      "attackVector": {
+        "type": "legitimate_access",
+        "userRole": "reader",
+        "documentClassification": "public",
+        "documentAllowedGroups": []
+      },
+      "expectedOutcome": "allowed",
+      "severity": "none",
+      "notes": "Negative test - public docs should be accessible"
+    },
+    {
+      "id": "NT-005",
+      "category": "negative_tests",
+      "name": "Reviewer accessing confidential",
+      "description": "Reviewer role accessing confidential document",
+      "attackVector": {
+        "type": "legitimate_access",
+        "userRole": "reviewer",
+        "documentClassification": "confidential"
+      },
+      "expectedOutcome": "allowed",
+      "severity": "none",
+      "notes": "Negative test - reviewer can access up to confidential"
+    }
+  ],
+  "testSequences": [
+    {
+      "id": "SEQ-001",
+      "name": "Gradual privilege escalation",
+      "description": "Multi-step attack attempting to escalate from reader to admin",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Enumerate accessible documents",
+          "expectedResult": "Only public/internal docs visible"
+        },
+        {
+          "step": 2,
+          "action": "Attempt to modify own role claim",
+          "expectedResult": "Blocked - token validation"
+        },
+        {
+          "step": 3,
+          "action": "Try OData injection to bypass filters",
+          "expectedResult": "Blocked - input sanitization"
+        },
+        {
+          "step": 4,
+          "action": "Attempt graph traversal to restricted node",
+          "expectedResult": "Blocked - per-node authorization"
+        }
+      ],
+      "finalOutcome": "all_attempts_blocked"
+    },
+    {
+      "id": "SEQ-002",
+      "name": "Information disclosure via error analysis",
+      "description": "Extract information about document existence and classification",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Request document with known ID",
+          "expectedResult": "Access denied (reveals existence)"
+        },
+        {
+          "step": 2,
+          "action": "Request non-existent document ID",
+          "expectedResult": "Not found (should be same as denied)"
+        },
+        {
+          "step": 3,
+          "action": "Analyze denial reasons",
+          "expectedResult": "Reasons should not reveal classification level"
+        }
+      ],
+      "finalOutcome": "minimal_information_disclosure",
+      "notes": "Error messages should not differentiate between not found and access denied"
+    },
+    {
+      "id": "SEQ-003",
+      "name": "Token manipulation attack chain",
+      "description": "Attempt to forge or manipulate JWT tokens",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Capture valid JWT",
+          "expectedResult": "Token obtained"
+        },
+        {
+          "step": 2,
+          "action": "Modify claims (add admin role)",
+          "expectedResult": "Modified token created"
+        },
+        {
+          "step": 3,
+          "action": "Submit modified token",
+          "expectedResult": "Blocked - signature verification failed"
+        },
+        {
+          "step": 4,
+          "action": "Try algorithm confusion (alg:none)",
+          "expectedResult": "Blocked - algorithm whitelist"
+        }
+      ],
+      "finalOutcome": "all_attempts_blocked"
+    }
+  ],
+  "statistics": {
+    "totalTestCases": 44,
+    "byCategory": {
+      "classification_bypass": 5,
+      "group_membership_bypass": 7,
+      "ownership_bypass": 4,
+      "department_bypass": 4,
+      "role_escalation": 4,
+      "odata_injection": 3,
+      "field_injection": 3,
+      "graph_traversal_bypass": 3,
+      "sensitive_field_access": 4,
+      "negative_tests": 5
+    },
+    "bySeverity": {
+      "critical": 10,
+      "high": 11,
+      "medium": 13,
+      "low": 2,
+      "none": 5
+    },
+    "testSequences": 3
+  }
+}
