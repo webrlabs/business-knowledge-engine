@@ -60,10 +60,10 @@ async function clearSearchIndex() {
 
     for (let i = 0; i < documentIds.length; i += BATCH_SIZE) {
       const batch = documentIds.slice(i, i + BATCH_SIZE);
-      const actions = batch.map(id => ({ delete: { id } }));
+      const documents = batch.map(id => ({ id }));
 
       try {
-        await client.indexDocuments({ actions });
+        await client.deleteDocuments(documents);
         deleted += batch.length;
         console.log(`Deleted ${deleted}/${documentIds.length} documents...`);
       } catch (err) {

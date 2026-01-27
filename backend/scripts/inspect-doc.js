@@ -5,7 +5,7 @@ async function testProcessing() {
   console.log('Getting document from Cosmos...');
 
   // Get the document
-  const doc = await getDocumentById('d5caf7d3-92f1-4a74-ad8d-30b9203980a4');
+  const doc = await getDocumentById('57529749-d36e-46b7-9a0e-67376ca1e202');
 
   if (!doc) {
     console.log('Document not found');
