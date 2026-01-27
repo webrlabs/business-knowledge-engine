@@ -232,6 +232,9 @@ export default function GraphVisualization({ data, height = '600px' }: GraphVisu
     cyRef.current = cy;
 
     return () => {
+      // Stop any running layout before destroying to prevent
+      // async layout callbacks calling .notify() on a destroyed instance
+      cy.stop();
       cy.destroy();
     };
   }, [data, currentLayout]);
