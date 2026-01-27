@@ -636,12 +636,26 @@ class SensitiveFieldTester {
       processingMetadata: { raw: 'data' },
       uploadedBy: 'admin@company.com',
       allowedViewers: ['user1', 'user2'],
-      allowedGroups: ['team-a'],
+      allowedGroups: [], // No group restrictions so reader can access
     };
     const user = { roles: ['Reader'], groups: [] };
 
     const results = this.securityService.filterSearchResults([document], user);
     const trimmed = results.filteredResults[0];
+
+    // Handle case where document was denied (shouldn't happen with public + no groups)
+    if (!trimmed) {
+      return {
+        testId: 'SF-001-runtime',
+        expected: 'field_trimmed',
+        actual: 'access_denied',
+        passed: false,
+        details: {
+          error: 'Document was denied access - check classification/groups',
+          denied: results.denied,
+        },
+      };
+    }
 
     const sensitiveFieldsRemoved =
       !trimmed.internalNotes &&
@@ -679,11 +693,26 @@ class SensitiveFieldTester {
       reviewerComments: 'REVIEWER ONLY',
       uploadedBy: 'admin@company.com',
       allowedViewers: ['user1'],
+      allowedGroups: [], // No group restrictions
     };
     const user = { roles: ['Reviewer'], groups: [] };
 
     const results = this.securityService.filterSearchResults([document], user);
     const trimmed = results.filteredResults[0];
+
+    // Handle case where document was denied
+    if (!trimmed) {
+      return {
+        testId: 'SF-002-runtime',
+        expected: 'partial_trimmed',
+        actual: 'access_denied',
+        passed: false,
+        details: {
+          error: 'Document was denied access',
+          denied: results.denied,
+        },
+      };
+    }
 
     // Reviewer should see internal notes but not admin fields
     const correctTrimming =
@@ -725,6 +754,20 @@ class SensitiveFieldTester {
 
     const results = this.securityService.filterSearchResults([document], user);
     const result = results.filteredResults[0];
+
+    // Handle case where document was denied (shouldn't happen for admin)
+    if (!result) {
+      return {
+        testId: 'SF-003-runtime',
+        expected: 'all_fields_visible',
+        actual: 'access_denied',
+        passed: false,
+        details: {
+          error: 'Admin was denied access - this should not happen',
+          denied: results.denied,
+        },
+      };
+    }
 
     const allFieldsPresent =
       result.internalNotes === 'SECRET INTERNAL NOTES' &&

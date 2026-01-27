@@ -110,6 +110,25 @@ async function rebuildGraph() {
   const stats = await graphService.getStats();
   console.log(JSON.stringify(stats, null, 2));
 
+  // Feature F6.1.1: Generate Community Summaries (Map Phase)
+  console.log('\n=== Generating Community Summaries (GraphRAG Map Phase) ===');
+  try {
+    // We need to require this dynamically or ensure services are initialized
+    const { getCommunitySummaryService } = require('../src/services/community-summary-service');
+    const summaryService = getCommunitySummaryService();
+    
+    // Run full generation since we just rebuilt the graph
+    const summaryResult = await summaryService.generateAllSummaries({
+      forceRefresh: true // Force since it's a fresh graph
+    });
+    
+    console.log(`Generated summaries for ${summaryResult.metadata.summarizedCount} communities`);
+    console.log(`Execution time: ${summaryResult.metadata.executionTimeMs}ms`);
+  } catch (error) {
+    console.error('Failed to generate community summaries:', error.message);
+    // Don't fail the whole script, just log error
+  }
+
   await graphService.close();
   process.exit(0);
 }

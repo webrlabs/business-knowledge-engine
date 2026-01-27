@@ -1,0 +1,549 @@
+{
+  "metadata": {
+    "name": "relationship-ground-truth",
+    "version": "1.0.0",
+    "created": "2026-01-25",
+    "description": "Comprehensive annotated dataset for relationship extraction evaluation. Contains sample documents with ground truth relationship annotations covering all 16 relationship types.",
+    "author": "GraphRAG Team",
+    "purpose": "relationship_extraction_evaluation",
+    "featureId": "F1.1.3",
+    "relationshipTypes": [
+      "PRECEDES", "FOLLOWS", "TRIGGERS", "OWNS", "EXECUTES", "APPROVES",
+      "REVIEWS", "USES", "INTEGRATES_WITH", "DEPENDS_ON", "GOVERNS",
+      "REGULATES", "REQUIRES", "MEASURES", "TRACKS", "REPORTS_TO"
+    ],
+    "totalDocuments": 25,
+    "totalRelationships": 270,
+    "complexityLevels": ["simple", "medium", "complex"],
+    "categories": ["operational", "technical", "compliance", "leadership", "mixed"]
+  },
+  "documents": [
+    {
+      "id": "rgt-001",
+      "title": "Invoice Processing Workflow",
+      "category": "operational",
+      "complexity": "simple",
+      "content": "The Invoice Processing Workflow is managed by the Accounts Payable Department. The AP Manager oversees all operations. Invoices are received through the Invoice Portal system and validated against purchase orders in SAP ERP. The Three-Way Match Task compares invoice, PO, and receipt data. Discrepancies are escalated to the Finance Director for resolution.",
+      "groundTruth": [
+        { "from": "Accounts Payable Department", "to": "Invoice Processing Workflow", "type": "OWNS", "span": "Invoice Processing Workflow is managed by the Accounts Payable Department" },
+        { "from": "AP Manager", "to": "Invoice Processing Workflow", "type": "EXECUTES", "span": "AP Manager oversees all operations" },
+        { "from": "Invoice Portal", "to": "SAP ERP", "type": "INTEGRATES_WITH", "span": "received through the Invoice Portal system and validated against purchase orders in SAP ERP" },
+        { "from": "Three-Way Match Task", "to": "Invoice Processing Workflow", "type": "FOLLOWS", "span": "Invoices are received through the Invoice Portal system and validated...The Three-Way Match Task compares" },
+        { "from": "AP Manager", "to": "Finance Director", "type": "REPORTS_TO", "span": "Discrepancies are escalated to the Finance Director" }
+      ]
+    },
+    {
+      "id": "rgt-002",
+      "title": "Employee Onboarding Process",
+      "category": "operational",
+      "complexity": "medium",
+      "content": "The Employee Onboarding Process begins when HR receives a signed offer letter. The HR Coordinator initiates the Background Check Activity through Sterling Verification System. Once cleared, the IT Department provisions accounts using the Identity Management Application. The new hire completes the Onboarding Checklist Form within Workday HCM. Training assignments are tracked via the Learning Management System. The Onboarding Completion Metric measures time-to-productivity, targeting 90% completion within 30 days as our Primary Onboarding KPI.",
+      "groundTruth": [
+        { "from": "HR Coordinator", "to": "Background Check Activity", "type": "EXECUTES", "span": "HR Coordinator initiates the Background Check Activity" },
+        { "from": "Background Check Activity", "to": "Sterling Verification System", "type": "USES", "span": "Background Check Activity through Sterling Verification System" },
+        { "from": "IT Department", "to": "Identity Management Application", "type": "USES", "span": "IT Department provisions accounts using the Identity Management Application" },
+        { "from": "Onboarding Checklist Form", "to": "Workday HCM", "type": "INTEGRATES_WITH", "span": "Onboarding Checklist Form within Workday HCM" },
+        { "from": "Learning Management System", "to": "Employee Onboarding Process", "type": "TRACKS", "span": "Training assignments are tracked via the Learning Management System" },
+        { "from": "Onboarding Completion Metric", "to": "Employee Onboarding Process", "type": "MEASURES", "span": "Onboarding Completion Metric measures time-to-productivity" },
+        { "from": "Primary Onboarding KPI", "to": "Onboarding Completion Metric", "type": "DEPENDS_ON", "span": "targeting 90% completion within 30 days as our Primary Onboarding KPI" },
+        { "from": "Background Check Activity", "to": "Identity Management Application", "type": "PRECEDES", "span": "Once cleared, the IT Department provisions accounts" }
+      ]
+    },
+    {
+      "id": "rgt-003",
+      "title": "Cloud Migration Architecture",
+      "category": "technical",
+      "complexity": "complex",
+      "content": "The Cloud Migration Process involves transitioning workloads from the Legacy Data Center to Azure Cloud Platform. The Cloud Architect designs migration patterns while the DevOps Team executes deployment pipelines. Critical applications include the Customer Relationship Management Application (Salesforce), Enterprise Resource Planning System (SAP S/4HANA), and the Analytics Database (Azure Synapse). The Migration Runbook Document outlines step-by-step procedures. The Cloud Readiness Assessment Form must be completed for each application. Migration success is measured by the Application Availability Metric and Cost Optimization KPI. The Infrastructure as Code Template standardizes deployments.",
+      "groundTruth": [
+        { "from": "Cloud Architect", "to": "Cloud Migration Process", "type": "OWNS", "span": "Cloud Architect designs migration patterns" },
+        { "from": "DevOps Team", "to": "Cloud Migration Process", "type": "EXECUTES", "span": "DevOps Team executes deployment pipelines" },
+        { "from": "Legacy Data Center", "to": "Azure Cloud Platform", "type": "PRECEDES", "span": "transitioning workloads from the Legacy Data Center to Azure Cloud Platform" },
+        { "from": "Customer Relationship Management Application", "to": "Salesforce", "type": "USES", "span": "Customer Relationship Management Application (Salesforce)" },
+        { "from": "Enterprise Resource Planning System", "to": "SAP S/4HANA", "type": "USES", "span": "Enterprise Resource Planning System (SAP S/4HANA)" },
+        { "from": "Analytics Database", "to": "Azure Synapse", "type": "USES", "span": "Analytics Database (Azure Synapse)" },
+        { "from": "Cloud Migration Process", "to": "Migration Runbook Document", "type": "REQUIRES", "span": "Migration Runbook Document outlines step-by-step procedures" },
+        { "from": "Cloud Migration Process", "to": "Cloud Readiness Assessment Form", "type": "REQUIRES", "span": "Cloud Readiness Assessment Form must be completed for each application" },
+        { "from": "Application Availability Metric", "to": "Cloud Migration Process", "type": "MEASURES", "span": "Migration success is measured by the Application Availability Metric" },
+        { "from": "Cost Optimization KPI", "to": "Cloud Migration Process", "type": "MEASURES", "span": "Migration success is measured by...Cost Optimization KPI" },
+        { "from": "Infrastructure as Code Template", "to": "Cloud Migration Process", "type": "GOVERNS", "span": "Infrastructure as Code Template standardizes deployments" },
+        { "from": "SAP S/4HANA", "to": "Azure Synapse", "type": "INTEGRATES_WITH", "span": "Enterprise Resource Planning System...Analytics Database" }
+      ]
+    },
+    {
+      "id": "rgt-004",
+      "title": "GDPR Compliance Framework",
+      "category": "compliance",
+      "complexity": "complex",
+      "content": "The Data Protection Compliance Process ensures adherence to the General Data Protection Regulation (GDPR) and California Consumer Privacy Act (CCPA). The Data Protection Officer oversees all privacy activities supported by the Privacy Team. Key stakeholders include the Legal Department and Compliance Committee. The Data Subject Request Task handles access and deletion requests within the Privacy Management Application. The Data Processing Agreement Template governs vendor relationships. Compliance is tracked through the Privacy Compliance Metric and DSAR Response Time KPI. The Privacy Impact Assessment Form evaluates new processing activities. All procedures are documented in the Data Handling Policy.",
+      "groundTruth": [
+        { "from": "General Data Protection Regulation", "to": "Data Protection Compliance Process", "type": "REGULATES", "span": "Data Protection Compliance Process ensures adherence to the General Data Protection Regulation" },
+        { "from": "California Consumer Privacy Act", "to": "Data Protection Compliance Process", "type": "REGULATES", "span": "Data Protection Compliance Process ensures adherence to...California Consumer Privacy Act" },
+        { "from": "Data Protection Officer", "to": "Data Protection Compliance Process", "type": "OWNS", "span": "Data Protection Officer oversees all privacy activities" },
+        { "from": "Privacy Team", "to": "Data Protection Officer", "type": "REPORTS_TO", "span": "Data Protection Officer oversees all privacy activities supported by the Privacy Team" },
+        { "from": "Data Subject Request Task", "to": "Privacy Management Application", "type": "USES", "span": "Data Subject Request Task handles access and deletion requests within the Privacy Management Application" },
+        { "from": "Data Processing Agreement Template", "to": "Data Protection Compliance Process", "type": "GOVERNS", "span": "Data Processing Agreement Template governs vendor relationships" },
+        { "from": "Privacy Compliance Metric", "to": "Data Protection Compliance Process", "type": "TRACKS", "span": "Compliance is tracked through the Privacy Compliance Metric" },
+        { "from": "DSAR Response Time KPI", "to": "Data Subject Request Task", "type": "MEASURES", "span": "DSAR Response Time KPI" },
+        { "from": "Privacy Impact Assessment Form", "to": "Data Protection Compliance Process", "type": "REQUIRES", "span": "Privacy Impact Assessment Form evaluates new processing activities" },
+        { "from": "Data Handling Policy", "to": "Data Protection Compliance Process", "type": "GOVERNS", "span": "All procedures are documented in the Data Handling Policy" }
+      ]
+    },
+    {
+      "id": "rgt-005",
+      "title": "Change Advisory Board Meeting",
+      "category": "operational",
+      "complexity": "medium",
+      "content": "The Change Management Process governs all IT changes through the Change Advisory Board. The Change Manager chairs weekly meetings to review proposed changes. The CAB Voting Decision determines whether changes proceed. Standard changes follow the Pre-Approved Change Template while major changes require the Change Request Form. All changes are logged in ServiceNow ITSM with implementation tracked in the Change Calendar Application. The Change Success Rate Metric and Mean Time to Implement KPI measure process effectiveness. The ITIL Change Management Standard provides the governance framework.",
+      "groundTruth": [
+        { "from": "Change Advisory Board", "to": "Change Management Process", "type": "GOVERNS", "span": "Change Management Process governs all IT changes through the Change Advisory Board" },
+        { "from": "Change Manager", "to": "Change Advisory Board", "type": "EXECUTES", "span": "Change Manager chairs weekly meetings" },
+        { "from": "CAB Voting Decision", "to": "Change Management Process", "type": "APPROVES", "span": "CAB Voting Decision determines whether changes proceed" },
+        { "from": "Change Management Process", "to": "Pre-Approved Change Template", "type": "USES", "span": "Standard changes follow the Pre-Approved Change Template" },
+        { "from": "Change Management Process", "to": "Change Request Form", "type": "REQUIRES", "span": "major changes require the Change Request Form" },
+        { "from": "Change Management Process", "to": "ServiceNow ITSM", "type": "USES", "span": "All changes are logged in ServiceNow ITSM" },
+        { "from": "Change Calendar Application", "to": "Change Management Process", "type": "TRACKS", "span": "implementation tracked in the Change Calendar Application" },
+        { "from": "Change Success Rate Metric", "to": "Change Management Process", "type": "MEASURES", "span": "Change Success Rate Metric...measure process effectiveness" },
+        { "from": "Mean Time to Implement KPI", "to": "Change Management Process", "type": "MEASURES", "span": "Mean Time to Implement KPI measure process effectiveness" },
+        { "from": "ITIL Change Management Standard", "to": "Change Management Process", "type": "GOVERNS", "span": "ITIL Change Management Standard provides the governance framework" }
+      ]
+    },
+    {
+      "id": "rgt-006",
+      "title": "Security Incident Response",
+      "category": "technical",
+      "complexity": "complex",
+      "content": "The Security Incident Response Process is triggered when the Security Operations Center detects threats via the SIEM Platform (Splunk). The Incident Commander leads the response team including the Security Analyst and Forensics Specialist. The Triage Decision determines incident severity. Critical incidents follow the Major Incident Playbook Document. Evidence is preserved in the Forensics Database while communications use the Incident Response Application. The Mean Time to Detect Metric and Mean Time to Respond KPI track performance. All activities comply with the NIST Cybersecurity Framework Standard and the Incident Response Policy. The Incident Report Template documents findings.",
+      "groundTruth": [
+        { "from": "Security Operations Center", "to": "Security Incident Response Process", "type": "TRIGGERS", "span": "Security Incident Response Process is triggered when the Security Operations Center detects threats" },
+        { "from": "Security Operations Center", "to": "SIEM Platform", "type": "USES", "span": "Security Operations Center detects threats via the SIEM Platform" },
+        { "from": "SIEM Platform", "to": "Splunk", "type": "USES", "span": "SIEM Platform (Splunk)" },
+        { "from": "Incident Commander", "to": "Security Incident Response Process", "type": "EXECUTES", "span": "Incident Commander leads the response team" },
+        { "from": "Security Analyst", "to": "Incident Commander", "type": "REPORTS_TO", "span": "Incident Commander leads the response team including the Security Analyst" },
+        { "from": "Forensics Specialist", "to": "Incident Commander", "type": "REPORTS_TO", "span": "Incident Commander leads the response team including...Forensics Specialist" },
+        { "from": "Triage Decision", "to": "Security Incident Response Process", "type": "FOLLOWS", "span": "Triage Decision determines incident severity" },
+        { "from": "Major Incident Playbook Document", "to": "Security Incident Response Process", "type": "GOVERNS", "span": "Critical incidents follow the Major Incident Playbook Document" },
+        { "from": "Security Incident Response Process", "to": "Forensics Database", "type": "USES", "span": "Evidence is preserved in the Forensics Database" },
+        { "from": "Security Incident Response Process", "to": "Incident Response Application", "type": "USES", "span": "communications use the Incident Response Application" },
+        { "from": "Mean Time to Detect Metric", "to": "Security Incident Response Process", "type": "TRACKS", "span": "Mean Time to Detect Metric...track performance" },
+        { "from": "Mean Time to Respond KPI", "to": "Security Incident Response Process", "type": "TRACKS", "span": "Mean Time to Respond KPI track performance" },
+        { "from": "NIST Cybersecurity Framework Standard", "to": "Security Incident Response Process", "type": "GOVERNS", "span": "All activities comply with the NIST Cybersecurity Framework Standard" },
+        { "from": "Incident Response Policy", "to": "Security Incident Response Process", "type": "GOVERNS", "span": "comply with...the Incident Response Policy" },
+        { "from": "Incident Report Template", "to": "Security Incident Response Process", "type": "REQUIRES", "span": "Incident Report Template documents findings" }
+      ]
+    },
+    {
+      "id": "rgt-007",
+      "title": "Quarterly Business Review",
+      "category": "leadership",
+      "complexity": "medium",
+      "content": "The Quarterly Business Review Process is led by the Chief Operating Officer with support from the Strategy Team. The Executive Dashboard Application displays the Revenue Growth KPI, Customer Satisfaction Metric, and Operational Efficiency Metric. The Board of Directors receives the Quarterly Report Document. Strategic decisions are captured in the Strategy Alignment Decision. Performance data is sourced from the Business Intelligence Database. The QBR Presentation Template standardizes executive communications. All reviews adhere to the Corporate Governance Policy.",
+      "groundTruth": [
+        { "from": "Chief Operating Officer", "to": "Quarterly Business Review Process", "type": "OWNS", "span": "Quarterly Business Review Process is led by the Chief Operating Officer" },
+        { "from": "Strategy Team", "to": "Chief Operating Officer", "type": "REPORTS_TO", "span": "Chief Operating Officer with support from the Strategy Team" },
+        { "from": "Executive Dashboard Application", "to": "Revenue Growth KPI", "type": "TRACKS", "span": "Executive Dashboard Application displays the Revenue Growth KPI" },
+        { "from": "Executive Dashboard Application", "to": "Customer Satisfaction Metric", "type": "TRACKS", "span": "Executive Dashboard Application displays...Customer Satisfaction Metric" },
+        { "from": "Executive Dashboard Application", "to": "Operational Efficiency Metric", "type": "TRACKS", "span": "Executive Dashboard Application displays...Operational Efficiency Metric" },
+        { "from": "Board of Directors", "to": "Quarterly Report Document", "type": "REVIEWS", "span": "Board of Directors receives the Quarterly Report Document" },
+        { "from": "Strategy Alignment Decision", "to": "Quarterly Business Review Process", "type": "FOLLOWS", "span": "Strategic decisions are captured in the Strategy Alignment Decision" },
+        { "from": "Executive Dashboard Application", "to": "Business Intelligence Database", "type": "DEPENDS_ON", "span": "Performance data is sourced from the Business Intelligence Database" },
+        { "from": "QBR Presentation Template", "to": "Quarterly Business Review Process", "type": "GOVERNS", "span": "QBR Presentation Template standardizes executive communications" },
+        { "from": "Corporate Governance Policy", "to": "Quarterly Business Review Process", "type": "GOVERNS", "span": "All reviews adhere to the Corporate Governance Policy" }
+      ]
+    },
+    {
+      "id": "rgt-008",
+      "title": "Vendor Management Lifecycle",
+      "category": "operational",
+      "complexity": "medium",
+      "content": "The Vendor Management Process spans from selection to termination. The Procurement Department initiates vendor evaluations using the Vendor Scorecard Application. The Procurement Manager reviews submissions while the Vendor Selection Decision is made by the Sourcing Committee. Contracts are stored in the Contract Management Database and tracked via the CLM System. Performance is measured by the Vendor Performance Metric and Cost Savings KPI. New vendors complete the Vendor Registration Form and accept the Vendor Code of Conduct Policy. The RFP Template guides competitive bidding.",
+      "groundTruth": [
+        { "from": "Procurement Department", "to": "Vendor Management Process", "type": "OWNS", "span": "Procurement Department initiates vendor evaluations" },
+        { "from": "Procurement Department", "to": "Vendor Scorecard Application", "type": "USES", "span": "Procurement Department initiates vendor evaluations using the Vendor Scorecard Application" },
+        { "from": "Procurement Manager", "to": "Vendor Management Process", "type": "REVIEWS", "span": "Procurement Manager reviews submissions" },
+        { "from": "Sourcing Committee", "to": "Vendor Selection Decision", "type": "APPROVES", "span": "Vendor Selection Decision is made by the Sourcing Committee" },
+        { "from": "CLM System", "to": "Contract Management Database", "type": "INTEGRATES_WITH", "span": "Contracts are stored in the Contract Management Database and tracked via the CLM System" },
+        { "from": "Vendor Performance Metric", "to": "Vendor Management Process", "type": "MEASURES", "span": "Performance is measured by the Vendor Performance Metric" },
+        { "from": "Cost Savings KPI", "to": "Vendor Management Process", "type": "MEASURES", "span": "Performance is measured by...Cost Savings KPI" },
+        { "from": "Vendor Management Process", "to": "Vendor Registration Form", "type": "REQUIRES", "span": "New vendors complete the Vendor Registration Form" },
+        { "from": "Vendor Code of Conduct Policy", "to": "Vendor Management Process", "type": "GOVERNS", "span": "accept the Vendor Code of Conduct Policy" },
+        { "from": "RFP Template", "to": "Vendor Management Process", "type": "GOVERNS", "span": "RFP Template guides competitive bidding" }
+      ]
+    },
+    {
+      "id": "rgt-009",
+      "title": "Software Development Lifecycle",
+      "category": "technical",
+      "complexity": "complex",
+      "content": "The Software Development Lifecycle Process follows agile methodology managed by the Engineering Department. The Product Owner defines requirements while the Scrum Master facilitates ceremonies. Code reviews are performed as a Code Review Task before the Deployment Approval Decision. The Development Team uses GitHub for version control and Jenkins for CI/CD pipelines. Test results are stored in the Test Results Database. The Sprint Velocity Metric and Release Frequency KPI measure productivity. All development follows the Secure Coding Standard and the Code Quality Policy. User stories follow the Acceptance Criteria Template. Technical specifications are captured in the Architecture Decision Record Document.",
+      "groundTruth": [
+        { "from": "Engineering Department", "to": "Software Development Lifecycle Process", "type": "OWNS", "span": "Software Development Lifecycle Process follows agile methodology managed by the Engineering Department" },
+        { "from": "Product Owner", "to": "Software Development Lifecycle Process", "type": "EXECUTES", "span": "Product Owner defines requirements" },
+        { "from": "Scrum Master", "to": "Software Development Lifecycle Process", "type": "EXECUTES", "span": "Scrum Master facilitates ceremonies" },
+        { "from": "Code Review Task", "to": "Deployment Approval Decision", "type": "PRECEDES", "span": "Code reviews are performed as a Code Review Task before the Deployment Approval Decision" },
+        { "from": "Development Team", "to": "GitHub", "type": "USES", "span": "Development Team uses GitHub for version control" },
+        { "from": "Development Team", "to": "Jenkins", "type": "USES", "span": "Development Team uses...Jenkins for CI/CD pipelines" },
+        { "from": "Jenkins", "to": "Test Results Database", "type": "INTEGRATES_WITH", "span": "Test results are stored in the Test Results Database" },
+        { "from": "Sprint Velocity Metric", "to": "Software Development Lifecycle Process", "type": "MEASURES", "span": "Sprint Velocity Metric...measure productivity" },
+        { "from": "Release Frequency KPI", "to": "Software Development Lifecycle Process", "type": "MEASURES", "span": "Release Frequency KPI measure productivity" },
+        { "from": "Secure Coding Standard", "to": "Software Development Lifecycle Process", "type": "GOVERNS", "span": "All development follows the Secure Coding Standard" },
+        { "from": "Code Quality Policy", "to": "Software Development Lifecycle Process", "type": "GOVERNS", "span": "All development follows...Code Quality Policy" },
+        { "from": "Software Development Lifecycle Process", "to": "Acceptance Criteria Template", "type": "REQUIRES", "span": "User stories follow the Acceptance Criteria Template" },
+        { "from": "Architecture Decision Record Document", "to": "Software Development Lifecycle Process", "type": "GOVERNS", "span": "Technical specifications are captured in the Architecture Decision Record Document" }
+      ]
+    },
+    {
+      "id": "rgt-010",
+      "title": "Financial Audit Process",
+      "category": "compliance",
+      "complexity": "complex",
+      "content": "The Financial Audit Process ensures compliance with the Sarbanes-Oxley Act and Generally Accepted Accounting Principles (GAAP). The Internal Audit Department conducts reviews supported by the External Audit Firm as a key stakeholder. The Audit Manager coordinates activities using the Audit Management Application. Control testing follows the Internal Control Testing Task. The Materiality Threshold Decision determines audit scope. Findings are documented in the Audit Finding Report Document and tracked in the Audit Database. The Control Effectiveness Metric and Audit Coverage KPI measure program maturity. The Audit Checklist Form standardizes testing while the Working Paper Template documents evidence. All work follows the IIA Auditing Standard.",
+      "groundTruth": [
+        { "from": "Sarbanes-Oxley Act", "to": "Financial Audit Process", "type": "REGULATES", "span": "Financial Audit Process ensures compliance with the Sarbanes-Oxley Act" },
+        { "from": "Generally Accepted Accounting Principles", "to": "Financial Audit Process", "type": "REGULATES", "span": "Financial Audit Process ensures compliance with...Generally Accepted Accounting Principles" },
+        { "from": "Internal Audit Department", "to": "Financial Audit Process", "type": "EXECUTES", "span": "Internal Audit Department conducts reviews" },
+        { "from": "External Audit Firm", "to": "Internal Audit Department", "type": "REVIEWS", "span": "Internal Audit Department conducts reviews supported by the External Audit Firm" },
+        { "from": "Audit Manager", "to": "Financial Audit Process", "type": "OWNS", "span": "Audit Manager coordinates activities" },
+        { "from": "Audit Manager", "to": "Audit Management Application", "type": "USES", "span": "Audit Manager coordinates activities using the Audit Management Application" },
+        { "from": "Internal Control Testing Task", "to": "Financial Audit Process", "type": "FOLLOWS", "span": "Control testing follows the Internal Control Testing Task" },
+        { "from": "Materiality Threshold Decision", "to": "Financial Audit Process", "type": "GOVERNS", "span": "Materiality Threshold Decision determines audit scope" },
+        { "from": "Financial Audit Process", "to": "Audit Finding Report Document", "type": "REQUIRES", "span": "Findings are documented in the Audit Finding Report Document" },
+        { "from": "Financial Audit Process", "to": "Audit Database", "type": "USES", "span": "tracked in the Audit Database" },
+        { "from": "Control Effectiveness Metric", "to": "Financial Audit Process", "type": "MEASURES", "span": "Control Effectiveness Metric...measure program maturity" },
+        { "from": "Audit Coverage KPI", "to": "Financial Audit Process", "type": "MEASURES", "span": "Audit Coverage KPI measure program maturity" },
+        { "from": "Financial Audit Process", "to": "Audit Checklist Form", "type": "REQUIRES", "span": "Audit Checklist Form standardizes testing" },
+        { "from": "Working Paper Template", "to": "Financial Audit Process", "type": "GOVERNS", "span": "Working Paper Template documents evidence" },
+        { "from": "IIA Auditing Standard", "to": "Financial Audit Process", "type": "GOVERNS", "span": "All work follows the IIA Auditing Standard" }
+      ]
+    },
+    {
+      "id": "rgt-011",
+      "title": "Customer Support Operations",
+      "category": "operational",
+      "complexity": "simple",
+      "content": "The Customer Support Process is managed by the Customer Service Department. Support Agents handle incoming requests through the Help Desk System (Zendesk). The Ticket Escalation Task routes complex issues to the Technical Support Team. Customer feedback is collected via the Satisfaction Survey Form. The First Call Resolution Metric and Customer Satisfaction KPI track service quality.",
+      "groundTruth": [
+        { "from": "Customer Service Department", "to": "Customer Support Process", "type": "OWNS", "span": "Customer Support Process is managed by the Customer Service Department" },
+        { "from": "Support Agent", "to": "Help Desk System", "type": "USES", "span": "Support Agents handle incoming requests through the Help Desk System" },
+        { "from": "Help Desk System", "to": "Zendesk", "type": "USES", "span": "Help Desk System (Zendesk)" },
+        { "from": "Ticket Escalation Task", "to": "Technical Support Team", "type": "TRIGGERS", "span": "Ticket Escalation Task routes complex issues to the Technical Support Team" },
+        { "from": "Customer Support Process", "to": "Satisfaction Survey Form", "type": "USES", "span": "Customer feedback is collected via the Satisfaction Survey Form" },
+        { "from": "First Call Resolution Metric", "to": "Customer Support Process", "type": "TRACKS", "span": "First Call Resolution Metric...track service quality" },
+        { "from": "Customer Satisfaction KPI", "to": "Customer Support Process", "type": "TRACKS", "span": "Customer Satisfaction KPI track service quality" }
+      ]
+    },
+    {
+      "id": "rgt-012",
+      "title": "Data Warehouse Architecture",
+      "category": "technical",
+      "complexity": "medium",
+      "content": "The Data Integration Process loads data from operational systems into the Enterprise Data Warehouse. The Data Engineering Team manages ETL pipelines using the Informatica PowerCenter Application. The Data Steward ensures quality while the Data Architect designs schemas. Source data flows from the Transactional Database (Oracle) and CRM Database (Salesforce) into the Snowflake Data Warehouse. The Data Quality Metric monitors accuracy. ETL jobs follow the Data Load Template and comply with the Data Governance Policy.",
+      "groundTruth": [
+        { "from": "Data Integration Process", "to": "Enterprise Data Warehouse", "type": "USES", "span": "Data Integration Process loads data...into the Enterprise Data Warehouse" },
+        { "from": "Data Engineering Team", "to": "Data Integration Process", "type": "OWNS", "span": "Data Engineering Team manages ETL pipelines" },
+        { "from": "Data Engineering Team", "to": "Informatica PowerCenter Application", "type": "USES", "span": "Data Engineering Team manages ETL pipelines using the Informatica PowerCenter Application" },
+        { "from": "Data Steward", "to": "Data Integration Process", "type": "REVIEWS", "span": "Data Steward ensures quality" },
+        { "from": "Data Architect", "to": "Enterprise Data Warehouse", "type": "OWNS", "span": "Data Architect designs schemas" },
+        { "from": "Transactional Database", "to": "Enterprise Data Warehouse", "type": "INTEGRATES_WITH", "span": "Source data flows from the Transactional Database...into the Snowflake Data Warehouse" },
+        { "from": "CRM Database", "to": "Enterprise Data Warehouse", "type": "INTEGRATES_WITH", "span": "Source data flows from...CRM Database...into the Snowflake Data Warehouse" },
+        { "from": "Data Quality Metric", "to": "Data Integration Process", "type": "MEASURES", "span": "Data Quality Metric monitors accuracy" },
+        { "from": "Data Load Template", "to": "Data Integration Process", "type": "GOVERNS", "span": "ETL jobs follow the Data Load Template" },
+        { "from": "Data Governance Policy", "to": "Data Integration Process", "type": "GOVERNS", "span": "comply with the Data Governance Policy" }
+      ]
+    },
+    {
+      "id": "rgt-013",
+      "title": "Regulatory Reporting Workflow",
+      "category": "compliance",
+      "complexity": "medium",
+      "content": "The Regulatory Reporting Process submits required filings to regulatory bodies. The Compliance Analyst prepares reports while the Compliance Director approves submissions. Reports comply with the Securities Exchange Act and Basel III Accord requirements. The Regulatory Reporting Application automates data collection from the Financial Reporting Database. The Report Accuracy Metric and Submission Timeliness KPI ensure quality. The Regulatory Filing Form captures required disclosures. All reports follow the Regulatory Reporting Standard.",
+      "groundTruth": [
+        { "from": "Compliance Analyst", "to": "Regulatory Reporting Process", "type": "EXECUTES", "span": "Compliance Analyst prepares reports" },
+        { "from": "Compliance Director", "to": "Regulatory Reporting Process", "type": "APPROVES", "span": "Compliance Director approves submissions" },
+        { "from": "Compliance Analyst", "to": "Compliance Director", "type": "REPORTS_TO", "span": "Compliance Analyst prepares reports while the Compliance Director approves" },
+        { "from": "Securities Exchange Act", "to": "Regulatory Reporting Process", "type": "REGULATES", "span": "Reports comply with the Securities Exchange Act" },
+        { "from": "Basel III Accord", "to": "Regulatory Reporting Process", "type": "REGULATES", "span": "Reports comply with...Basel III Accord requirements" },
+        { "from": "Regulatory Reporting Application", "to": "Financial Reporting Database", "type": "DEPENDS_ON", "span": "Regulatory Reporting Application automates data collection from the Financial Reporting Database" },
+        { "from": "Report Accuracy Metric", "to": "Regulatory Reporting Process", "type": "MEASURES", "span": "Report Accuracy Metric...ensure quality" },
+        { "from": "Submission Timeliness KPI", "to": "Regulatory Reporting Process", "type": "MEASURES", "span": "Submission Timeliness KPI ensure quality" },
+        { "from": "Regulatory Reporting Process", "to": "Regulatory Filing Form", "type": "REQUIRES", "span": "Regulatory Filing Form captures required disclosures" },
+        { "from": "Regulatory Reporting Standard", "to": "Regulatory Reporting Process", "type": "GOVERNS", "span": "All reports follow the Regulatory Reporting Standard" }
+      ]
+    },
+    {
+      "id": "rgt-014",
+      "title": "Project Portfolio Management",
+      "category": "leadership",
+      "complexity": "medium",
+      "content": "The Project Portfolio Management Process prioritizes initiatives aligned with strategic goals. The PMO Director leads the Enterprise PMO while Project Managers execute individual projects. The Investment Committee serves as the key stakeholder for funding decisions. The Portfolio Prioritization Decision ranks projects by value. Projects are tracked in the PPM Application (Planview) with data stored in the Project Database. The Project Success Rate Metric and ROI KPI measure portfolio health. All projects follow the Project Charter Template and adhere to the PMI Project Management Standard and Project Governance Policy.",
+      "groundTruth": [
+        { "from": "PMO Director", "to": "Project Portfolio Management Process", "type": "OWNS", "span": "PMO Director leads the Enterprise PMO" },
+        { "from": "PMO Director", "to": "Enterprise PMO", "type": "OWNS", "span": "PMO Director leads the Enterprise PMO" },
+        { "from": "Project Manager", "to": "Project Portfolio Management Process", "type": "EXECUTES", "span": "Project Managers execute individual projects" },
+        { "from": "Project Manager", "to": "PMO Director", "type": "REPORTS_TO", "span": "PMO Director leads...while Project Managers execute" },
+        { "from": "Investment Committee", "to": "Portfolio Prioritization Decision", "type": "APPROVES", "span": "Investment Committee serves as the key stakeholder for funding decisions" },
+        { "from": "PPM Application", "to": "Project Database", "type": "INTEGRATES_WITH", "span": "Projects are tracked in the PPM Application...with data stored in the Project Database" },
+        { "from": "Project Success Rate Metric", "to": "Project Portfolio Management Process", "type": "MEASURES", "span": "Project Success Rate Metric...measure portfolio health" },
+        { "from": "ROI KPI", "to": "Project Portfolio Management Process", "type": "MEASURES", "span": "ROI KPI measure portfolio health" },
+        { "from": "Project Charter Template", "to": "Project Portfolio Management Process", "type": "GOVERNS", "span": "All projects follow the Project Charter Template" },
+        { "from": "PMI Project Management Standard", "to": "Project Portfolio Management Process", "type": "GOVERNS", "span": "adhere to the PMI Project Management Standard" },
+        { "from": "Project Governance Policy", "to": "Project Portfolio Management Process", "type": "GOVERNS", "span": "adhere to...Project Governance Policy" }
+      ]
+    },
+    {
+      "id": "rgt-015",
+      "title": "Access Control Management",
+      "category": "technical",
+      "complexity": "medium",
+      "content": "The Access Management Process controls user permissions across systems. The Identity Administrator provisions access while the Security Team reviews requests. Access requests go through the Access Approval Decision. Identities are managed in Azure Active Directory with permissions stored in the IAM Database. The Privileged Access Management Application controls admin accounts. The Access Review Task validates entitlements quarterly. Compliance is measured by the Segregation of Duties Metric and Access Certification KPI. The Access Request Form initiates provisioning following the Identity Management Standard and Access Control Policy.",
+      "groundTruth": [
+        { "from": "Identity Administrator", "to": "Access Management Process", "type": "EXECUTES", "span": "Identity Administrator provisions access" },
+        { "from": "Security Team", "to": "Access Management Process", "type": "REVIEWS", "span": "Security Team reviews requests" },
+        { "from": "Access Approval Decision", "to": "Access Management Process", "type": "FOLLOWS", "span": "Access requests go through the Access Approval Decision" },
+        { "from": "Access Management Process", "to": "Azure Active Directory", "type": "USES", "span": "Identities are managed in Azure Active Directory" },
+        { "from": "Azure Active Directory", "to": "IAM Database", "type": "INTEGRATES_WITH", "span": "Identities are managed in Azure Active Directory with permissions stored in the IAM Database" },
+        { "from": "Privileged Access Management Application", "to": "Access Management Process", "type": "GOVERNS", "span": "Privileged Access Management Application controls admin accounts" },
+        { "from": "Access Review Task", "to": "Access Management Process", "type": "FOLLOWS", "span": "Access Review Task validates entitlements quarterly" },
+        { "from": "Segregation of Duties Metric", "to": "Access Management Process", "type": "MEASURES", "span": "Compliance is measured by the Segregation of Duties Metric" },
+        { "from": "Access Certification KPI", "to": "Access Management Process", "type": "MEASURES", "span": "Compliance is measured by...Access Certification KPI" },
+        { "from": "Access Management Process", "to": "Access Request Form", "type": "REQUIRES", "span": "Access Request Form initiates provisioning" },
+        { "from": "Identity Management Standard", "to": "Access Management Process", "type": "GOVERNS", "span": "following the Identity Management Standard" },
+        { "from": "Access Control Policy", "to": "Access Management Process", "type": "GOVERNS", "span": "following...Access Control Policy" }
+      ]
+    },
+    {
+      "id": "rgt-016",
+      "title": "Production Scheduling",
+      "category": "operational",
+      "complexity": "simple",
+      "content": "The Production Planning Process determines manufacturing schedules based on demand. The Production Planner creates schedules in the MRP System while the Operations Manager approves production runs. The scheduling task is performed as a Daily Planning Activity. The Production Efficiency Metric and On-Time Delivery KPI track performance. Work orders follow the Production Order Form template.",
+      "groundTruth": [
+        { "from": "Production Planner", "to": "Production Planning Process", "type": "EXECUTES", "span": "Production Planner creates schedules" },
+        { "from": "Production Planner", "to": "MRP System", "type": "USES", "span": "Production Planner creates schedules in the MRP System" },
+        { "from": "Operations Manager", "to": "Production Planning Process", "type": "APPROVES", "span": "Operations Manager approves production runs" },
+        { "from": "Production Planner", "to": "Operations Manager", "type": "REPORTS_TO", "span": "Production Planner creates schedules...while the Operations Manager approves" },
+        { "from": "Daily Planning Activity", "to": "Production Planning Process", "type": "FOLLOWS", "span": "scheduling task is performed as a Daily Planning Activity" },
+        { "from": "Production Efficiency Metric", "to": "Production Planning Process", "type": "TRACKS", "span": "Production Efficiency Metric...track performance" },
+        { "from": "On-Time Delivery KPI", "to": "Production Planning Process", "type": "TRACKS", "span": "On-Time Delivery KPI track performance" },
+        { "from": "Production Planning Process", "to": "Production Order Form", "type": "REQUIRES", "span": "Work orders follow the Production Order Form template" }
+      ]
+    },
+    {
+      "id": "rgt-017",
+      "title": "Risk Assessment Framework",
+      "category": "compliance",
+      "complexity": "complex",
+      "content": "The Enterprise Risk Management Process identifies and mitigates organizational risks. The Chief Risk Officer leads the Risk Management Department with support from the Risk Committee as primary stakeholder. Risk assessments follow the Risk Identification Task and Risk Rating Decision. Findings are logged in the GRC Application and stored in the Risk Register Database. The Risk Exposure Metric and Key Risk Indicator KPI provide visibility. Assessments use the Risk Assessment Form and follow the Risk Treatment Template. All activities comply with the ISO 31000 Standard, COSO Framework Standard, and Enterprise Risk Policy.",
+      "groundTruth": [
+        { "from": "Chief Risk Officer", "to": "Enterprise Risk Management Process", "type": "OWNS", "span": "Chief Risk Officer leads the Risk Management Department" },
+        { "from": "Chief Risk Officer", "to": "Risk Management Department", "type": "OWNS", "span": "Chief Risk Officer leads the Risk Management Department" },
+        { "from": "Risk Committee", "to": "Enterprise Risk Management Process", "type": "REVIEWS", "span": "Risk Committee as primary stakeholder" },
+        { "from": "Risk Identification Task", "to": "Risk Rating Decision", "type": "PRECEDES", "span": "Risk assessments follow the Risk Identification Task and Risk Rating Decision" },
+        { "from": "Enterprise Risk Management Process", "to": "GRC Application", "type": "USES", "span": "Findings are logged in the GRC Application" },
+        { "from": "GRC Application", "to": "Risk Register Database", "type": "INTEGRATES_WITH", "span": "logged in the GRC Application and stored in the Risk Register Database" },
+        { "from": "Risk Exposure Metric", "to": "Enterprise Risk Management Process", "type": "MEASURES", "span": "Risk Exposure Metric...provide visibility" },
+        { "from": "Key Risk Indicator KPI", "to": "Enterprise Risk Management Process", "type": "MEASURES", "span": "Key Risk Indicator KPI provide visibility" },
+        { "from": "Enterprise Risk Management Process", "to": "Risk Assessment Form", "type": "REQUIRES", "span": "Assessments use the Risk Assessment Form" },
+        { "from": "Risk Treatment Template", "to": "Enterprise Risk Management Process", "type": "GOVERNS", "span": "follow the Risk Treatment Template" },
+        { "from": "ISO 31000 Standard", "to": "Enterprise Risk Management Process", "type": "GOVERNS", "span": "All activities comply with the ISO 31000 Standard" },
+        { "from": "COSO Framework Standard", "to": "Enterprise Risk Management Process", "type": "GOVERNS", "span": "comply with...COSO Framework Standard" },
+        { "from": "Enterprise Risk Policy", "to": "Enterprise Risk Management Process", "type": "GOVERNS", "span": "comply with...Enterprise Risk Policy" }
+      ]
+    },
+    {
+      "id": "rgt-018",
+      "title": "Marketing Campaign Execution",
+      "category": "operational",
+      "complexity": "simple",
+      "content": "The Marketing Campaign Process drives customer engagement. The Marketing Manager designs campaigns while the Digital Marketing Team executes them. Campaigns are managed in the Marketing Automation Platform (HubSpot). The Campaign Approval Decision determines launch readiness. The Campaign Performance Metric and Lead Conversion KPI measure success. Campaign briefs follow the Campaign Brief Template.",
+      "groundTruth": [
+        { "from": "Marketing Manager", "to": "Marketing Campaign Process", "type": "OWNS", "span": "Marketing Manager designs campaigns" },
+        { "from": "Digital Marketing Team", "to": "Marketing Campaign Process", "type": "EXECUTES", "span": "Digital Marketing Team executes them" },
+        { "from": "Digital Marketing Team", "to": "Marketing Manager", "type": "REPORTS_TO", "span": "Marketing Manager designs campaigns while the Digital Marketing Team executes" },
+        { "from": "Marketing Campaign Process", "to": "Marketing Automation Platform", "type": "USES", "span": "Campaigns are managed in the Marketing Automation Platform" },
+        { "from": "Marketing Automation Platform", "to": "HubSpot", "type": "USES", "span": "Marketing Automation Platform (HubSpot)" },
+        { "from": "Campaign Approval Decision", "to": "Marketing Campaign Process", "type": "APPROVES", "span": "Campaign Approval Decision determines launch readiness" },
+        { "from": "Campaign Performance Metric", "to": "Marketing Campaign Process", "type": "MEASURES", "span": "Campaign Performance Metric...measure success" },
+        { "from": "Lead Conversion KPI", "to": "Marketing Campaign Process", "type": "MEASURES", "span": "Lead Conversion KPI measure success" },
+        { "from": "Campaign Brief Template", "to": "Marketing Campaign Process", "type": "GOVERNS", "span": "Campaign briefs follow the Campaign Brief Template" }
+      ]
+    },
+    {
+      "id": "rgt-019",
+      "title": "Disaster Recovery Planning",
+      "category": "technical",
+      "complexity": "complex",
+      "content": "The Disaster Recovery Process ensures business continuity during disruptions. The DR Coordinator manages recovery activities supported by the Business Continuity Team. Recovery procedures are documented in the DR Plan Document. The Recovery Site System provides failover capability with data replicated to the DR Database. Recovery is orchestrated through the Azure Site Recovery Application. The Recovery Declaration Decision activates the plan. The Recovery Time Objective Metric and System Availability KPI track readiness. Testing uses the DR Test Checklist Form and DR Exercise Template. All activities follow the ISO 22301 Standard and the Business Continuity Policy.",
+      "groundTruth": [
+        { "from": "DR Coordinator", "to": "Disaster Recovery Process", "type": "OWNS", "span": "DR Coordinator manages recovery activities" },
+        { "from": "Business Continuity Team", "to": "DR Coordinator", "type": "REPORTS_TO", "span": "DR Coordinator manages recovery activities supported by the Business Continuity Team" },
+        { "from": "DR Plan Document", "to": "Disaster Recovery Process", "type": "GOVERNS", "span": "Recovery procedures are documented in the DR Plan Document" },
+        { "from": "Recovery Site System", "to": "DR Database", "type": "INTEGRATES_WITH", "span": "Recovery Site System provides failover capability with data replicated to the DR Database" },
+        { "from": "Disaster Recovery Process", "to": "Azure Site Recovery Application", "type": "USES", "span": "Recovery is orchestrated through the Azure Site Recovery Application" },
+        { "from": "Recovery Declaration Decision", "to": "Disaster Recovery Process", "type": "TRIGGERS", "span": "Recovery Declaration Decision activates the plan" },
+        { "from": "Recovery Time Objective Metric", "to": "Disaster Recovery Process", "type": "TRACKS", "span": "Recovery Time Objective Metric...track readiness" },
+        { "from": "System Availability KPI", "to": "Disaster Recovery Process", "type": "TRACKS", "span": "System Availability KPI track readiness" },
+        { "from": "Disaster Recovery Process", "to": "DR Test Checklist Form", "type": "REQUIRES", "span": "Testing uses the DR Test Checklist Form" },
+        { "from": "DR Exercise Template", "to": "Disaster Recovery Process", "type": "GOVERNS", "span": "Testing uses...DR Exercise Template" },
+        { "from": "ISO 22301 Standard", "to": "Disaster Recovery Process", "type": "GOVERNS", "span": "All activities follow the ISO 22301 Standard" },
+        { "from": "Business Continuity Policy", "to": "Disaster Recovery Process", "type": "GOVERNS", "span": "follow...Business Continuity Policy" }
+      ]
+    },
+    {
+      "id": "rgt-020",
+      "title": "Strategic Planning Cycle",
+      "category": "leadership",
+      "complexity": "medium",
+      "content": "The Strategic Planning Process defines long-term organizational direction. The Chief Strategy Officer leads the effort with support from the Strategy Department. The Executive Leadership Team serves as the primary stakeholder. Strategic priorities emerge from the Strategic Direction Decision. Plans are documented in the Strategic Plan Document and tracked in the Strategy Management Application. The Strategy Database stores objectives and initiatives. The Goal Achievement Metric and Strategic Alignment KPI measure progress. Planning follows the Strategic Initiative Template and adheres to the Strategic Planning Policy.",
+      "groundTruth": [
+        { "from": "Chief Strategy Officer", "to": "Strategic Planning Process", "type": "OWNS", "span": "Chief Strategy Officer leads the effort" },
+        { "from": "Strategy Department", "to": "Chief Strategy Officer", "type": "REPORTS_TO", "span": "Chief Strategy Officer leads the effort with support from the Strategy Department" },
+        { "from": "Executive Leadership Team", "to": "Strategic Planning Process", "type": "REVIEWS", "span": "Executive Leadership Team serves as the primary stakeholder" },
+        { "from": "Strategic Direction Decision", "to": "Strategic Planning Process", "type": "FOLLOWS", "span": "Strategic priorities emerge from the Strategic Direction Decision" },
+        { "from": "Strategic Planning Process", "to": "Strategic Plan Document", "type": "REQUIRES", "span": "Plans are documented in the Strategic Plan Document" },
+        { "from": "Strategy Management Application", "to": "Strategic Planning Process", "type": "TRACKS", "span": "tracked in the Strategy Management Application" },
+        { "from": "Strategy Management Application", "to": "Strategy Database", "type": "INTEGRATES_WITH", "span": "tracked in the Strategy Management Application. The Strategy Database stores objectives" },
+        { "from": "Goal Achievement Metric", "to": "Strategic Planning Process", "type": "MEASURES", "span": "Goal Achievement Metric...measure progress" },
+        { "from": "Strategic Alignment KPI", "to": "Strategic Planning Process", "type": "MEASURES", "span": "Strategic Alignment KPI measure progress" },
+        { "from": "Strategic Initiative Template", "to": "Strategic Planning Process", "type": "GOVERNS", "span": "Planning follows the Strategic Initiative Template" },
+        { "from": "Strategic Planning Policy", "to": "Strategic Planning Process", "type": "GOVERNS", "span": "adheres to the Strategic Planning Policy" }
+      ]
+    },
+    {
+      "id": "rgt-021",
+      "title": "Quality Management System",
+      "category": "operational",
+      "complexity": "medium",
+      "content": "The Quality Management Process ensures products meet specifications. The Quality Manager leads the Quality Department in continuous improvement. The Quality Assurance Team executes testing activities. Inspections follow the Quality Inspection Task with dispositions made via the Quality Disposition Decision. Non-conformances are logged in the Quality Management System (QMS) and tracked in the NCR Database. The Defect Rate Metric and Customer Complaint KPI measure quality. Inspections use the Quality Checklist Form and Corrective Action Template. All work follows the ISO 9001 Standard and Quality Policy.",
+      "groundTruth": [
+        { "from": "Quality Manager", "to": "Quality Management Process", "type": "OWNS", "span": "Quality Manager leads the Quality Department" },
+        { "from": "Quality Manager", "to": "Quality Department", "type": "OWNS", "span": "Quality Manager leads the Quality Department" },
+        { "from": "Quality Assurance Team", "to": "Quality Management Process", "type": "EXECUTES", "span": "Quality Assurance Team executes testing activities" },
+        { "from": "Quality Assurance Team", "to": "Quality Manager", "type": "REPORTS_TO", "span": "Quality Manager leads the Quality Department. The Quality Assurance Team executes" },
+        { "from": "Quality Inspection Task", "to": "Quality Disposition Decision", "type": "PRECEDES", "span": "Inspections follow the Quality Inspection Task with dispositions made via the Quality Disposition Decision" },
+        { "from": "Quality Management Process", "to": "Quality Management System", "type": "USES", "span": "Non-conformances are logged in the Quality Management System" },
+        { "from": "Quality Management System", "to": "NCR Database", "type": "INTEGRATES_WITH", "span": "logged in the Quality Management System (QMS) and tracked in the NCR Database" },
+        { "from": "Defect Rate Metric", "to": "Quality Management Process", "type": "MEASURES", "span": "Defect Rate Metric...measure quality" },
+        { "from": "Customer Complaint KPI", "to": "Quality Management Process", "type": "MEASURES", "span": "Customer Complaint KPI measure quality" },
+        { "from": "Quality Management Process", "to": "Quality Checklist Form", "type": "REQUIRES", "span": "Inspections use the Quality Checklist Form" },
+        { "from": "Corrective Action Template", "to": "Quality Management Process", "type": "GOVERNS", "span": "Inspections use...Corrective Action Template" },
+        { "from": "ISO 9001 Standard", "to": "Quality Management Process", "type": "GOVERNS", "span": "All work follows the ISO 9001 Standard" },
+        { "from": "Quality Policy", "to": "Quality Management Process", "type": "GOVERNS", "span": "follows...Quality Policy" }
+      ]
+    },
+    {
+      "id": "rgt-022",
+      "title": "Budget Planning Process",
+      "category": "leadership",
+      "complexity": "simple",
+      "content": "The Annual Budget Process allocates financial resources across the organization. The Finance Director leads the Finance Department in budget preparation. Department Heads serve as stakeholders providing input. Budget decisions are made through the Budget Allocation Decision. Financial data is managed in the ERP Financial Module and stored in the Budget Database. The Budget Variance Metric and Cost Control KPI track execution. Budget requests use the Budget Request Form.",
+      "groundTruth": [
+        { "from": "Finance Director", "to": "Annual Budget Process", "type": "OWNS", "span": "Finance Director leads the Finance Department in budget preparation" },
+        { "from": "Finance Director", "to": "Finance Department", "type": "OWNS", "span": "Finance Director leads the Finance Department" },
+        { "from": "Department Head", "to": "Annual Budget Process", "type": "REVIEWS", "span": "Department Heads serve as stakeholders providing input" },
+        { "from": "Budget Allocation Decision", "to": "Annual Budget Process", "type": "APPROVES", "span": "Budget decisions are made through the Budget Allocation Decision" },
+        { "from": "Annual Budget Process", "to": "ERP Financial Module", "type": "USES", "span": "Financial data is managed in the ERP Financial Module" },
+        { "from": "ERP Financial Module", "to": "Budget Database", "type": "INTEGRATES_WITH", "span": "managed in the ERP Financial Module and stored in the Budget Database" },
+        { "from": "Budget Variance Metric", "to": "Annual Budget Process", "type": "TRACKS", "span": "Budget Variance Metric...track execution" },
+        { "from": "Cost Control KPI", "to": "Annual Budget Process", "type": "TRACKS", "span": "Cost Control KPI track execution" },
+        { "from": "Annual Budget Process", "to": "Budget Request Form", "type": "REQUIRES", "span": "Budget requests use the Budget Request Form" }
+      ]
+    },
+    {
+      "id": "rgt-023",
+      "title": "Performance Review Cycle",
+      "category": "operational",
+      "complexity": "simple",
+      "content": "The Performance Management Process evaluates employee contributions annually. The HR Business Partner facilitates reviews while Line Managers conduct assessments. The Performance Rating Decision determines compensation adjustments. Reviews are managed in the HRIS Application (Workday) with data in the HR Database. The Performance Rating Metric and Employee Engagement KPI track outcomes. Assessments use the Performance Review Form following the Performance Management Policy.",
+      "groundTruth": [
+        { "from": "HR Business Partner", "to": "Performance Management Process", "type": "EXECUTES", "span": "HR Business Partner facilitates reviews" },
+        { "from": "Line Manager", "to": "Performance Management Process", "type": "EXECUTES", "span": "Line Managers conduct assessments" },
+        { "from": "Performance Rating Decision", "to": "Performance Management Process", "type": "FOLLOWS", "span": "Performance Rating Decision determines compensation adjustments" },
+        { "from": "Performance Management Process", "to": "HRIS Application", "type": "USES", "span": "Reviews are managed in the HRIS Application" },
+        { "from": "HRIS Application", "to": "HR Database", "type": "INTEGRATES_WITH", "span": "managed in the HRIS Application (Workday) with data in the HR Database" },
+        { "from": "Performance Rating Metric", "to": "Performance Management Process", "type": "TRACKS", "span": "Performance Rating Metric...track outcomes" },
+        { "from": "Employee Engagement KPI", "to": "Performance Management Process", "type": "TRACKS", "span": "Employee Engagement KPI track outcomes" },
+        { "from": "Performance Management Process", "to": "Performance Review Form", "type": "REQUIRES", "span": "Assessments use the Performance Review Form" },
+        { "from": "Performance Management Policy", "to": "Performance Management Process", "type": "GOVERNS", "span": "following the Performance Management Policy" }
+      ]
+    },
+    {
+      "id": "rgt-024",
+      "title": "API Integration Management",
+      "category": "technical",
+      "complexity": "medium",
+      "content": "The API Management Process governs integrations across systems. The Integration Architect designs APIs while the API Team implements them. The API Gateway (Azure API Management) routes traffic. API consumers including Partner Systems are key stakeholders. API publishing follows the API Release Decision. The API Catalog Database stores specifications. The API Response Time Metric and API Availability KPI measure performance. Designs follow the API Design Template and adhere to the OpenAPI Standard and API Security Policy.",
+      "groundTruth": [
+        { "from": "Integration Architect", "to": "API Management Process", "type": "OWNS", "span": "Integration Architect designs APIs" },
+        { "from": "API Team", "to": "API Management Process", "type": "EXECUTES", "span": "API Team implements them" },
+        { "from": "API Team", "to": "Integration Architect", "type": "REPORTS_TO", "span": "Integration Architect designs APIs while the API Team implements" },
+        { "from": "API Gateway", "to": "Azure API Management", "type": "USES", "span": "API Gateway (Azure API Management)" },
+        { "from": "Partner Systems", "to": "API Gateway", "type": "DEPENDS_ON", "span": "API Gateway routes traffic. API consumers including Partner Systems" },
+        { "from": "API Release Decision", "to": "API Management Process", "type": "APPROVES", "span": "API publishing follows the API Release Decision" },
+        { "from": "API Management Process", "to": "API Catalog Database", "type": "USES", "span": "API Catalog Database stores specifications" },
+        { "from": "API Response Time Metric", "to": "API Management Process", "type": "MEASURES", "span": "API Response Time Metric...measure performance" },
+        { "from": "API Availability KPI", "to": "API Management Process", "type": "MEASURES", "span": "API Availability KPI measure performance" },
+        { "from": "API Design Template", "to": "API Management Process", "type": "GOVERNS", "span": "Designs follow the API Design Template" },
+        { "from": "OpenAPI Standard", "to": "API Management Process", "type": "GOVERNS", "span": "adhere to the OpenAPI Standard" },
+        { "from": "API Security Policy", "to": "API Management Process", "type": "GOVERNS", "span": "adhere to...API Security Policy" }
+      ]
+    },
+    {
+      "id": "rgt-025",
+      "title": "Multi-Domain Mixed Content",
+      "category": "mixed",
+      "complexity": "complex",
+      "content": "The Digital Transformation Initiative spans multiple domains. The Chief Digital Officer leads the Digital Office while collaborating with the IT Steering Committee. The transformation includes the ERP Modernization Process managed by the ERP Team. Technical implementation uses the Azure Cloud Platform with data migrated to the Cloud Database. The transformation follows the Digital Roadmap Document. Progress is tracked through the Digital Maturity Metric and Transformation ROI KPI. Changes go through the Transformation Governance Decision. Implementation follows the Cloud Migration Template, complies with the SOC 2 Type II Standard and the Digital Transformation Policy. Budget requests use the Initiative Funding Form. The Quarterly Progress Report Activity updates stakeholders.",
+      "groundTruth": [
+        { "from": "Chief Digital Officer", "to": "Digital Transformation Initiative", "type": "OWNS", "span": "Chief Digital Officer leads the Digital Office" },
+        { "from": "Chief Digital Officer", "to": "Digital Office", "type": "OWNS", "span": "Chief Digital Officer leads the Digital Office" },
+        { "from": "IT Steering Committee", "to": "Digital Transformation Initiative", "type": "REVIEWS", "span": "collaborating with the IT Steering Committee" },
+        { "from": "ERP Team", "to": "ERP Modernization Process", "type": "OWNS", "span": "ERP Modernization Process managed by the ERP Team" },
+        { "from": "ERP Modernization Process", "to": "Digital Transformation Initiative", "type": "FOLLOWS", "span": "transformation includes the ERP Modernization Process" },
+        { "from": "Digital Transformation Initiative", "to": "Azure Cloud Platform", "type": "USES", "span": "Technical implementation uses the Azure Cloud Platform" },
+        { "from": "Azure Cloud Platform", "to": "Cloud Database", "type": "INTEGRATES_WITH", "span": "Azure Cloud Platform with data migrated to the Cloud Database" },
+        { "from": "Digital Roadmap Document", "to": "Digital Transformation Initiative", "type": "GOVERNS", "span": "transformation follows the Digital Roadmap Document" },
+        { "from": "Digital Maturity Metric", "to": "Digital Transformation Initiative", "type": "TRACKS", "span": "Progress is tracked through the Digital Maturity Metric" },
+        { "from": "Transformation ROI KPI", "to": "Digital Transformation Initiative", "type": "TRACKS", "span": "Progress is tracked through...Transformation ROI KPI" },
+        { "from": "Transformation Governance Decision", "to": "Digital Transformation Initiative", "type": "APPROVES", "span": "Changes go through the Transformation Governance Decision" },
+        { "from": "Cloud Migration Template", "to": "Digital Transformation Initiative", "type": "GOVERNS", "span": "Implementation follows the Cloud Migration Template" },
+        { "from": "SOC 2 Type II Standard", "to": "Digital Transformation Initiative", "type": "REGULATES", "span": "complies with the SOC 2 Type II Standard" },
+        { "from": "Digital Transformation Policy", "to": "Digital Transformation Initiative", "type": "GOVERNS", "span": "complies with...Digital Transformation Policy" },
+        { "from": "Digital Transformation Initiative", "to": "Initiative Funding Form", "type": "REQUIRES", "span": "Budget requests use the Initiative Funding Form" },
+        { "from": "Quarterly Progress Report Activity", "to": "Digital Transformation Initiative", "type": "FOLLOWS", "span": "Quarterly Progress Report Activity updates stakeholders" }
+      ]
+    }
+  ],
+  "statistics": {
+    "relationshipTypeCounts": {
+      "PRECEDES": 5,
+      "FOLLOWS": 11,
+      "TRIGGERS": 3,
+      "OWNS": 25,
+      "EXECUTES": 17,
+      "APPROVES": 9,
+      "REVIEWS": 9,
+      "USES": 34,
+      "INTEGRATES_WITH": 16,
+      "DEPENDS_ON": 4,
+      "GOVERNS": 48,
+      "REGULATES": 7,
+      "REQUIRES": 19,
+      "MEASURES": 29,
+      "TRACKS": 21,
+      "REPORTS_TO": 13
+    },
+    "categoryDistribution": {
+      "operational": 9,
+      "technical": 7,
+      "compliance": 4,
+      "leadership": 4,
+      "mixed": 1
+    },
+    "complexityDistribution": {
+      "simple": 6,
+      "medium": 11,
+      "complex": 8
+    }
+  }
+}

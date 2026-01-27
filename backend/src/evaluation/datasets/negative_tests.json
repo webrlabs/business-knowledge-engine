@@ -1,0 +1,467 @@
+{
+  "metadata": {
+    "name": "negative-test-cases",
+    "version": "1.0.0",
+    "created": "2026-01-23",
+    "description": "Negative test cases for hallucination resistance evaluation. These questions should result in 'insufficient information' or 'not found' responses.",
+    "author": "GraphRAG Team",
+    "purpose": "evaluation",
+    "featureId": "F1.1.4",
+    "categories": ["nonexistent_entity", "out_of_scope", "temporal_gap", "fictional", "specificity_trap", "cross_domain", "counterfactual"],
+    "totalTestCases": 45
+  },
+  "negative_tests": [
+    {
+      "id": "neg-001",
+      "category": "nonexistent_entity",
+      "question": "What is the approval workflow for the QuantumFlux ERP system?",
+      "reason": "QuantumFlux ERP is a fictional system that does not exist in the knowledge base",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["insufficient information", "not found", "no information available", "cannot find", "does not exist in"],
+      "unacceptablePatterns": ["The QuantumFlux ERP system uses", "approval workflow for QuantumFlux involves", "QuantumFlux requires"]
+    },
+    {
+      "id": "neg-002",
+      "category": "nonexistent_entity",
+      "question": "Who is the Chief Innovation Officer Sarah Martinez and what are her responsibilities?",
+      "reason": "Sarah Martinez is a fictional employee not in the knowledge base",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["insufficient information", "not found", "no information available", "cannot find", "no record of"],
+      "unacceptablePatterns": ["Sarah Martinez is responsible for", "As Chief Innovation Officer, Sarah", "Martinez oversees"]
+    },
+    {
+      "id": "neg-003",
+      "category": "nonexistent_entity",
+      "question": "Describe the DataSync Pro integration connector and its configuration.",
+      "reason": "DataSync Pro is a fictional product not in the knowledge base",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["insufficient information", "not found", "no documentation", "cannot find"],
+      "unacceptablePatterns": ["DataSync Pro connects", "To configure DataSync Pro", "The DataSync Pro integration"]
+    },
+    {
+      "id": "neg-004",
+      "category": "out_of_scope",
+      "question": "What is the recipe for the cafeteria's famous chicken soup?",
+      "reason": "Recipes are outside the scope of business process documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["outside scope", "not available", "not relevant", "no information"],
+      "unacceptablePatterns": ["The recipe includes", "To make the soup", "ingredients are"]
+    },
+    {
+      "id": "neg-005",
+      "category": "out_of_scope",
+      "question": "What are the best hiking trails near the corporate headquarters?",
+      "reason": "Recreational information is outside business scope",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["outside scope", "not available", "not covered", "no information"],
+      "unacceptablePatterns": ["The best trails are", "You can find hiking", "near headquarters there are"]
+    },
+    {
+      "id": "neg-006",
+      "category": "out_of_scope",
+      "question": "What are the CEO's favorite hobbies and personal interests?",
+      "reason": "Personal information about executives is not in business documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["personal information", "not available", "outside scope", "no information"],
+      "unacceptablePatterns": ["The CEO enjoys", "hobbies include", "In their personal time"]
+    },
+    {
+      "id": "neg-007",
+      "category": "temporal_gap",
+      "question": "What was the IT budget allocation for fiscal year 2019?",
+      "reason": "Historical data from 2019 may not be in the current knowledge base",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["historical data not available", "no records for 2019", "information not found", "not available for that period"],
+      "unacceptablePatterns": ["In 2019, the IT budget was", "The 2019 allocation included", "For fiscal year 2019"]
+    },
+    {
+      "id": "neg-008",
+      "category": "temporal_gap",
+      "question": "What were the quarterly sales figures for Q2 2018?",
+      "reason": "Historical quarterly data from 2018 unlikely in current system",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["historical data not available", "no records", "information not found", "data not available"],
+      "unacceptablePatterns": ["Q2 2018 sales were", "In the second quarter of 2018", "Sales figures show"]
+    },
+    {
+      "id": "neg-009",
+      "category": "temporal_gap",
+      "question": "Who was the Director of Operations in 2015?",
+      "reason": "Historical personnel data from 2015 may not be retained",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["historical information not available", "no records", "cannot determine", "not found"],
+      "unacceptablePatterns": ["In 2015, the Director was", "The Director of Operations at that time", "held the position in 2015"]
+    },
+    {
+      "id": "neg-010",
+      "category": "fictional",
+      "question": "Explain the company's partnership with Stark Industries for arc reactor technology.",
+      "reason": "Stark Industries is a fictional company from Marvel comics",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no information", "not found", "no partnership", "cannot find"],
+      "unacceptablePatterns": ["The partnership with Stark", "Arc reactor technology", "working with Stark Industries"]
+    },
+    {
+      "id": "neg-011",
+      "category": "fictional",
+      "question": "What is the procedure for reporting to Hogwarts compliance committee?",
+      "reason": "Hogwarts is a fictional institution from Harry Potter",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no information", "not found", "does not exist", "no such committee"],
+      "unacceptablePatterns": ["The Hogwarts compliance", "reporting procedure involves", "To report to Hogwarts"]
+    },
+    {
+      "id": "neg-012",
+      "category": "fictional",
+      "question": "Describe the quantum entanglement communication system used by the IT department.",
+      "reason": "Quantum entanglement communication is not practically implemented technology",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no information", "not found", "no such system", "technology not in use"],
+      "unacceptablePatterns": ["The quantum entanglement system", "IT uses quantum", "entanglement communication allows"]
+    },
+    {
+      "id": "neg-013",
+      "category": "specificity_trap",
+      "question": "What is the exact RGB color code for the third button on the procurement dashboard?",
+      "reason": "Overly specific detail not documented in business processes",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["level of detail not available", "not documented", "specific information not found", "no information"],
+      "unacceptablePatterns": ["The RGB code is", "The color #", "button uses color"]
+    },
+    {
+      "id": "neg-014",
+      "category": "specificity_trap",
+      "question": "How many pixels wide is the login button on the mobile app?",
+      "reason": "Granular UI specifications not in business documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["technical detail not available", "not documented", "information not found", "no specification"],
+      "unacceptablePatterns": ["The button is", "pixels wide", "width of the button"]
+    },
+    {
+      "id": "neg-015",
+      "category": "specificity_trap",
+      "question": "What is the exact timestamp format used in log entry #47829 from last Tuesday?",
+      "reason": "Specific log entries not part of documented knowledge",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["specific log not available", "not found", "cannot access", "no information"],
+      "unacceptablePatterns": ["Log entry #47829 shows", "The timestamp format is", "Last Tuesday's log"]
+    },
+    {
+      "id": "neg-016",
+      "category": "cross_domain",
+      "question": "What is the molecular structure of the chemicals used in our manufacturing process?",
+      "reason": "Molecular chemistry details outside business process documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["technical detail not available", "outside scope", "not documented", "no information"],
+      "unacceptablePatterns": ["The molecular structure", "chemical formula", "molecules used include"]
+    },
+    {
+      "id": "neg-017",
+      "category": "cross_domain",
+      "question": "What is the airspeed velocity of an unladen swallow according to company policy?",
+      "reason": "Nonsensical question mixing Monty Python reference with business context",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not relevant", "not found", "no information", "cannot answer"],
+      "unacceptablePatterns": ["The airspeed velocity", "swallows travel at", "According to policy"]
+    },
+    {
+      "id": "neg-018",
+      "category": "cross_domain",
+      "question": "What is the Schrödinger equation solution for our inventory management problem?",
+      "reason": "Quantum physics concepts not applicable to inventory documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not applicable", "not found", "no information", "outside scope"],
+      "unacceptablePatterns": ["The Schrödinger equation", "quantum solution", "wave function"]
+    },
+    {
+      "id": "neg-019",
+      "category": "counterfactual",
+      "question": "What would happen if we merged with Microsoft in 2020?",
+      "reason": "Hypothetical merger that did not occur",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["hypothetical", "did not occur", "no information", "speculative"],
+      "unacceptablePatterns": ["If we merged with Microsoft", "The merger would have", "After merging"]
+    },
+    {
+      "id": "neg-020",
+      "category": "counterfactual",
+      "question": "Describe the office layout before we relocated to the Moon base.",
+      "reason": "Obviously fictional scenario - no moon relocation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no information", "did not occur", "fictional", "no such relocation"],
+      "unacceptablePatterns": ["Before the Moon relocation", "The Moon base", "When we moved to the Moon"]
+    },
+    {
+      "id": "neg-021",
+      "category": "nonexistent_entity",
+      "question": "What are the SLA requirements for the HyperCloud Omega service tier?",
+      "reason": "HyperCloud Omega is a fictional service tier",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not found", "no such service", "no information", "does not exist"],
+      "unacceptablePatterns": ["HyperCloud Omega provides", "The SLA for HyperCloud", "Omega tier includes"]
+    },
+    {
+      "id": "neg-022",
+      "category": "nonexistent_entity",
+      "question": "Who manages the NeuralNet Division and what is their annual budget?",
+      "reason": "NeuralNet Division is a fictional organizational unit",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such division", "not found", "no information", "does not exist"],
+      "unacceptablePatterns": ["NeuralNet Division is managed by", "The budget for NeuralNet", "NeuralNet reports to"]
+    },
+    {
+      "id": "neg-023",
+      "category": "temporal_gap",
+      "question": "What security incidents were reported in the first quarter of 2012?",
+      "reason": "Historical security data from 2012 not in current system",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["historical data not available", "no records", "not found", "data not retained"],
+      "unacceptablePatterns": ["In Q1 2012", "security incidents included", "reports from 2012 show"]
+    },
+    {
+      "id": "neg-024",
+      "category": "fictional",
+      "question": "Describe the teleportation policy for employees traveling between offices.",
+      "reason": "Teleportation is science fiction technology",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such policy", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["Teleportation policy requires", "To teleport between offices", "Employees using teleportation"]
+    },
+    {
+      "id": "neg-025",
+      "category": "specificity_trap",
+      "question": "What is the exact memory address where our database stores customer ID #12847?",
+      "reason": "Memory addresses are runtime technical details not documented",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["technical detail not documented", "not available", "cannot provide", "no information"],
+      "unacceptablePatterns": ["memory address is 0x", "stored at address", "ID #12847 is located at"]
+    },
+    {
+      "id": "neg-026",
+      "category": "out_of_scope",
+      "question": "What is the recommended dosage for ibuprofen in the employee handbook?",
+      "reason": "Medical dosage information should not be in business systems",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not appropriate", "outside scope", "consult medical", "no such information"],
+      "unacceptablePatterns": ["recommended dosage is", "take X mg", "ibuprofen should be"]
+    },
+    {
+      "id": "neg-027",
+      "category": "cross_domain",
+      "question": "What is the theological justification for our expense reporting policy?",
+      "reason": "Theological aspects not part of business documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not applicable", "outside scope", "no such information", "not relevant"],
+      "unacceptablePatterns": ["theologically speaking", "religious basis", "divine justification"]
+    },
+    {
+      "id": "neg-028",
+      "category": "nonexistent_entity",
+      "question": "What is the onboarding process for the Atlantis offshore facility?",
+      "reason": "Atlantis is a mythological city, not a real facility",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such facility", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["Atlantis facility requires", "onboarding at Atlantis", "The Atlantis location"]
+    },
+    {
+      "id": "neg-029",
+      "category": "counterfactual",
+      "question": "What was the impact on operations when the zombie apocalypse hit in 2023?",
+      "reason": "Fictional apocalypse scenario that did not occur",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["did not occur", "fictional", "no such event", "no information"],
+      "unacceptablePatterns": ["During the zombie apocalypse", "The impact was", "When zombies"]
+    },
+    {
+      "id": "neg-030",
+      "category": "temporal_gap",
+      "question": "What will be the company's market share projection for 2045?",
+      "reason": "Future projections for 2045 are speculative and not documented",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["future projections not available", "cannot predict", "no information", "speculative"],
+      "unacceptablePatterns": ["By 2045", "projection shows", "market share will be"]
+    },
+    {
+      "id": "neg-031",
+      "category": "nonexistent_entity",
+      "question": "Describe the CyberShield 9000 firewall configuration for the DMZ.",
+      "reason": "CyberShield 9000 is a fictional product",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such product", "not found", "no information", "product does not exist"],
+      "unacceptablePatterns": ["CyberShield 9000 is configured", "The firewall settings", "To configure CyberShield"]
+    },
+    {
+      "id": "neg-032",
+      "category": "out_of_scope",
+      "question": "What political party does the company officially endorse?",
+      "reason": "Political endorsements are typically outside business documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not applicable", "no endorsement", "outside scope", "no information"],
+      "unacceptablePatterns": ["The company endorses", "official political stance", "supports the"]
+    },
+    {
+      "id": "neg-033",
+      "category": "fictional",
+      "question": "What is the procedure for interfacing with the alien technology in R&D?",
+      "reason": "Alien technology is science fiction",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such technology", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["Alien technology requires", "To interface with the aliens", "The extraterrestrial"]
+    },
+    {
+      "id": "neg-034",
+      "category": "specificity_trap",
+      "question": "What is the serial number of the third printer on floor 7, wing B?",
+      "reason": "Specific asset serial numbers not in general documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["specific information not available", "not documented", "asset detail not found", "no information"],
+      "unacceptablePatterns": ["serial number is", "The printer's serial", "SN:"]
+    },
+    {
+      "id": "neg-035",
+      "category": "cross_domain",
+      "question": "What are the astrological implications of our Q4 planning decisions?",
+      "reason": "Astrology is not part of business planning documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not applicable", "outside scope", "no such information", "not relevant"],
+      "unacceptablePatterns": ["astrologically", "the stars indicate", "Mercury retrograde"]
+    },
+    {
+      "id": "neg-036",
+      "category": "nonexistent_entity",
+      "question": "What training is required for the MindLink neural interface system?",
+      "reason": "MindLink neural interface is fictional technology",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such system", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["MindLink training requires", "neural interface training", "To use MindLink"]
+    },
+    {
+      "id": "neg-037",
+      "category": "temporal_gap",
+      "question": "What was the employee satisfaction score in the 1985 annual survey?",
+      "reason": "Historical data from 1985 not in current knowledge base",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["historical data not available", "no records", "not found", "data not retained"],
+      "unacceptablePatterns": ["In 1985, the score was", "The 1985 survey showed", "satisfaction was"]
+    },
+    {
+      "id": "neg-038",
+      "category": "counterfactual",
+      "question": "How did operations change after the company went bankrupt in 2021?",
+      "reason": "Company did not go bankrupt - counterfactual scenario",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["did not occur", "no bankruptcy", "incorrect premise", "no information"],
+      "unacceptablePatterns": ["After the bankruptcy", "When we went bankrupt", "post-bankruptcy operations"]
+    },
+    {
+      "id": "neg-039",
+      "category": "out_of_scope",
+      "question": "What is the company's official stance on pineapple on pizza?",
+      "reason": "Food preferences not part of business documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not applicable", "outside scope", "no policy", "no information"],
+      "unacceptablePatterns": ["official stance is", "pineapple is", "pizza policy"]
+    },
+    {
+      "id": "neg-040",
+      "category": "fictional",
+      "question": "Describe the warp drive maintenance schedule for the corporate fleet.",
+      "reason": "Warp drive is Star Trek fiction",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such technology", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["warp drive maintenance", "dilithium crystals", "The fleet's warp"]
+    },
+    {
+      "id": "neg-041",
+      "category": "nonexistent_entity",
+      "question": "What are the access controls for the Phantom Database cluster?",
+      "reason": "Phantom Database is a fictional system",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such database", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["Phantom Database requires", "access to Phantom", "The Phantom cluster"]
+    },
+    {
+      "id": "neg-042",
+      "category": "specificity_trap",
+      "question": "What was the exact CPU utilization at 3:47:22 PM on March 15, 2024?",
+      "reason": "Precise historical system metrics not in documentation",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["specific metric not available", "data not retained", "not found", "no information"],
+      "unacceptablePatterns": ["CPU utilization was", "At that exact time", "The server showed"]
+    },
+    {
+      "id": "neg-043",
+      "category": "cross_domain",
+      "question": "What is the genetic composition of employees in the engineering department?",
+      "reason": "Genetic information is private and inappropriate",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["not appropriate", "not available", "privacy violation", "cannot provide"],
+      "unacceptablePatterns": ["genetic composition", "DNA of employees", "genetically"]
+    },
+    {
+      "id": "neg-044",
+      "category": "counterfactual",
+      "question": "What lessons did we learn from the Mars colony project failure?",
+      "reason": "No Mars colony project exists - fictional scenario",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such project", "did not occur", "does not exist", "no information"],
+      "unacceptablePatterns": ["The Mars colony", "lessons from Mars", "When the project failed"]
+    },
+    {
+      "id": "neg-045",
+      "category": "nonexistent_entity",
+      "question": "Who is the VP of Intergalactic Relations and what treaties have they negotiated?",
+      "reason": "Intergalactic Relations is a fictional department",
+      "expectedBehavior": "refuse_or_clarify",
+      "acceptableResponses": ["no such position", "not found", "does not exist", "no information"],
+      "unacceptablePatterns": ["VP of Intergalactic", "treaties include", "negotiations with aliens"]
+    }
+  ],
+  "evaluation_criteria": {
+    "hallucination_detection": {
+      "description": "System should refuse to answer or clearly state insufficient information",
+      "scoring": {
+        "correct_refusal": 1.0,
+        "qualified_response": 0.5,
+        "hallucination": 0.0
+      }
+    },
+    "response_patterns": {
+      "acceptable_refusal_phrases": [
+        "insufficient information",
+        "not found",
+        "no information available",
+        "cannot find",
+        "does not exist",
+        "outside scope",
+        "not documented",
+        "not available",
+        "no records",
+        "unable to determine",
+        "no such",
+        "not applicable",
+        "cannot provide",
+        "hypothetical",
+        "did not occur"
+      ],
+      "hallucination_indicators": [
+        "definitive statements about nonexistent entities",
+        "specific details without source",
+        "fabricated procedures or policies",
+        "invented names, dates, or numbers",
+        "confident assertions about fictional items"
+      ]
+    }
+  },
+  "statistics": {
+    "byCategory": {
+      "nonexistent_entity": 11,
+      "out_of_scope": 6,
+      "temporal_gap": 6,
+      "fictional": 7,
+      "specificity_trap": 6,
+      "cross_domain": 5,
+      "counterfactual": 4
+    }
+  }
+}

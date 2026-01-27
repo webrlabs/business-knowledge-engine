@@ -39,6 +39,16 @@ const ENTITY_CATEGORIES = {
   MEASUREMENT: ['Metric', 'KPI'],
 };
 
+// Persona filtering configurations (F6.3.6)
+const FILTERING_DEFAULTS = {
+  enabled: false,              // Whether filtering is enabled by default
+  minEntityRelevance: 0.25,    // Minimum entity relevance score to include
+  minRelationshipRelevance: 0.3, // Minimum relationship relevance score to include
+  hiddenEntityTypes: [],       // Entity types to always hide
+  hiddenRelationshipTypes: [], // Relationship types to always hide
+  showLowRelevanceCount: true, // Include count of filtered items in metadata
+};
+
 // Summary style configurations
 const SUMMARY_STYLES = {
   TECHNICAL: {
@@ -176,6 +186,16 @@ const PERSONAS = {
       prioritizeRecentDocuments: true,
     },
 
+    // Persona-based filtering (F6.3.6)
+    filtering: {
+      enabled: true,
+      minEntityRelevance: 0.35,
+      minRelationshipRelevance: 0.4,
+      hiddenEntityTypes: [], // Ops might want to see most things at a basic level
+      hiddenRelationshipTypes: ['INTEGRATES_WITH', 'CONNECTS_TO', 'STORES_IN'], // Hide technical integrations
+      showLowRelevanceCount: true,
+    },
+
     // Example questions this persona might ask
     exampleQueries: [
       'How do I complete the monthly reconciliation process?',
@@ -256,6 +276,16 @@ const PERSONAS = {
       prioritizeRecentDocuments: false,
     },
 
+    // Persona-based filtering (F6.3.6)
+    filtering: {
+      enabled: true,
+      minEntityRelevance: 0.3,
+      minRelationshipRelevance: 0.35,
+      hiddenEntityTypes: [], // IT sees all technical entities
+      hiddenRelationshipTypes: [], // IT sees all relationship types
+      showLowRelevanceCount: true,
+    },
+
     exampleQueries: [
       'What databases does the CRM system connect to?',
       'Which applications integrate with our ERP?',
@@ -330,6 +360,23 @@ const PERSONAS = {
       includeRoleContext: true,
       includeTechnicalContext: false,
       prioritizeRecentDocuments: true,
+    },
+
+    // Persona-based filtering (F6.3.6) - Hide technical details from execs
+    filtering: {
+      enabled: true,
+      minEntityRelevance: 0.4, // Higher threshold for executives
+      minRelationshipRelevance: 0.45,
+      hiddenEntityTypes: ['Database', 'Application'], // Hide low-level technical entities
+      hiddenRelationshipTypes: [
+        'INTEGRATES_WITH',
+        'CONNECTS_TO',
+        'STORES_IN',
+        'READS_FROM',
+        'WRITES_TO',
+        'HOSTS',
+      ], // Hide technical relationship details
+      showLowRelevanceCount: false, // Don't clutter exec view with filtered counts
     },
 
     exampleQueries: [
@@ -409,6 +456,16 @@ const PERSONAS = {
       prioritizeRecentDocuments: false,
     },
 
+    // Persona-based filtering (F6.3.6)
+    filtering: {
+      enabled: true,
+      minEntityRelevance: 0.35,
+      minRelationshipRelevance: 0.4,
+      hiddenEntityTypes: [], // Compliance may need to see all entity types for audit
+      hiddenRelationshipTypes: ['CONNECTS_TO', 'STORES_IN'], // Hide low-level technical details
+      showLowRelevanceCount: true,
+    },
+
     exampleQueries: [
       'What regulations govern our data handling practices?',
       'Who is responsible for GDPR compliance?',
@@ -473,6 +530,16 @@ const PERSONAS = {
       includeRoleContext: true,
       includeTechnicalContext: true,
       prioritizeRecentDocuments: false,
+    },
+
+    // Persona-based filtering (F6.3.6) - Default persona has no filtering
+    filtering: {
+      enabled: false, // Default persona shows everything
+      minEntityRelevance: 0.2,
+      minRelationshipRelevance: 0.25,
+      hiddenEntityTypes: [],
+      hiddenRelationshipTypes: [],
+      showLowRelevanceCount: false,
     },
 
     exampleQueries: [
@@ -768,6 +835,333 @@ class PersonaService {
     };
   }
 
+  // ==================== Persona-Based Filtering (F6.3.6) ====================
+
+  /**
+   * Get filtering configuration for a persona
+   * @param {string} personaId - Persona identifier
+   * @returns {Object} Filtering configuration
+   */
+  getFilteringConfig(personaId) {
+    const persona = this.getPersonaOrDefault(personaId);
+    return { ...FILTERING_DEFAULTS, ...persona.filtering };
+  }
+
+  /**
+   * Check if filtering is enabled for a persona
+   * @param {string} personaId - Persona identifier
+   * @returns {boolean} True if filtering is enabled
+   */
+  isFilteringEnabled(personaId) {
+    const config = this.getFilteringConfig(personaId);
+    return config.enabled === true;
+  }
+
+  /**
+   * Check if an entity type should be shown for a persona
+   * @param {string} personaId - Persona identifier
+   * @param {string} entityType - Entity type to check
+   * @returns {boolean} True if entity type should be shown
+   */
+  shouldShowEntityType(personaId, entityType) {
+    const config = this.getFilteringConfig(personaId);
+
+    if (!config.enabled) return true;
+
+    const normalizedType = (entityType || '').trim();
+    return !config.hiddenEntityTypes.some(
+      (hidden) => hidden.toLowerCase() === normalizedType.toLowerCase()
+    );
+  }
+
+  /**
+   * Check if a relationship type should be shown for a persona
+   * @param {string} personaId - Persona identifier
+   * @param {string} relationshipType - Relationship type to check
+   * @returns {boolean} True if relationship type should be shown
+   */
+  shouldShowRelationshipType(personaId, relationshipType) {
+    const config = this.getFilteringConfig(personaId);
+
+    if (!config.enabled) return true;
+
+    const normalizedType = (relationshipType || '').trim().toUpperCase();
+    return !config.hiddenRelationshipTypes.some(
+      (hidden) => hidden.toUpperCase() === normalizedType
+    );
+  }
+
+  /**
+   * Filter entities based on persona relevance (F6.3.6)
+   * Removes entities below the relevance threshold or of hidden types
+   *
+   * @param {string} personaId - Persona identifier
+   * @param {Array} entities - Array of entities to filter
+   * @param {Object} options - Filter options
+   * @param {boolean} options.forceFilter - Force filtering even if not enabled by default
+   * @param {number} options.minRelevance - Override minimum relevance threshold
+   * @returns {Object} Filtered result with entities and metadata
+   */
+  filterEntitiesByRelevance(personaId, entities, options = {}) {
+    const config = this.getFilteringConfig(personaId);
+    const shouldFilter = options.forceFilter || config.enabled;
+
+    if (!shouldFilter || !entities || entities.length === 0) {
+      return {
+        entities,
+        metadata: {
+          filtered: false,
+          originalCount: entities?.length || 0,
+          filteredCount: entities?.length || 0,
+          removedCount: 0,
+        },
+      };
+    }
+
+    const minRelevance = options.minRelevance ?? config.minEntityRelevance;
+    const filtered = [];
+    const removed = [];
+
+    for (const entity of entities) {
+      const entityType = entity.type || entity.ontologyType || 'Unknown';
+
+      // Check if type is hidden
+      if (!this.shouldShowEntityType(personaId, entityType)) {
+        removed.push({ entity, reason: 'hidden_type', type: entityType });
+        continue;
+      }
+
+      // Calculate relevance score if not already present
+      const relevanceScore = entity.personaScore ?? this.calculateEntityScore(
+        personaId,
+        entityType,
+        entity.importance ?? 0.5,
+        entity.similarity ?? entity.score ?? 0.5
+      );
+
+      // Check if below relevance threshold
+      if (relevanceScore < minRelevance) {
+        removed.push({ entity, reason: 'low_relevance', score: relevanceScore });
+        continue;
+      }
+
+      // Entity passes filters
+      filtered.push({
+        ...entity,
+        personaRelevance: relevanceScore,
+      });
+    }
+
+    // Sort filtered entities by relevance
+    filtered.sort((a, b) => (b.personaRelevance || 0) - (a.personaRelevance || 0));
+
+    const metadata = {
+      filtered: true,
+      personaId,
+      originalCount: entities.length,
+      filteredCount: filtered.length,
+      removedCount: removed.length,
+      minRelevanceThreshold: minRelevance,
+    };
+
+    if (config.showLowRelevanceCount) {
+      metadata.removedByReason = {
+        hidden_type: removed.filter((r) => r.reason === 'hidden_type').length,
+        low_relevance: removed.filter((r) => r.reason === 'low_relevance').length,
+      };
+    }
+
+    return { entities: filtered, metadata, removed };
+  }
+
+  /**
+   * Filter relationships based on persona relevance (F6.3.6)
+   * Removes relationships of hidden types or below the relevance threshold
+   *
+   * @param {string} personaId - Persona identifier
+   * @param {Array} relationships - Array of relationships to filter
+   * @param {Object} options - Filter options
+   * @param {boolean} options.forceFilter - Force filtering even if not enabled by default
+   * @param {number} options.minRelevance - Override minimum relevance threshold
+   * @param {Set} options.allowedEntityNames - Only include relationships between these entities
+   * @returns {Object} Filtered result with relationships and metadata
+   */
+  filterRelationshipsByRelevance(personaId, relationships, options = {}) {
+    const config = this.getFilteringConfig(personaId);
+    const shouldFilter = options.forceFilter || config.enabled;
+
+    if (!shouldFilter || !relationships || relationships.length === 0) {
+      return {
+        relationships,
+        metadata: {
+          filtered: false,
+          originalCount: relationships?.length || 0,
+          filteredCount: relationships?.length || 0,
+          removedCount: 0,
+        },
+      };
+    }
+
+    const minRelevance = options.minRelevance ?? config.minRelationshipRelevance;
+    const allowedEntities = options.allowedEntityNames;
+    const filtered = [];
+    const removed = [];
+
+    for (const rel of relationships) {
+      const relType = rel.type || 'RELATED_TO';
+
+      // Check if type is hidden
+      if (!this.shouldShowRelationshipType(personaId, relType)) {
+        removed.push({ relationship: rel, reason: 'hidden_type', type: relType });
+        continue;
+      }
+
+      // Check if endpoints are in allowed entities (if specified)
+      if (allowedEntities) {
+        if (!allowedEntities.has(rel.from) || !allowedEntities.has(rel.to)) {
+          removed.push({ relationship: rel, reason: 'endpoint_filtered' });
+          continue;
+        }
+      }
+
+      // Calculate relevance score
+      const relevanceScore = this.getRelationshipWeight(personaId, relType);
+
+      // Check if below relevance threshold
+      if (relevanceScore < minRelevance) {
+        removed.push({ relationship: rel, reason: 'low_relevance', score: relevanceScore });
+        continue;
+      }
+
+      // Relationship passes filters
+      filtered.push({
+        ...rel,
+        personaRelevance: relevanceScore,
+      });
+    }
+
+    // Sort filtered relationships by relevance
+    filtered.sort((a, b) => (b.personaRelevance || 0) - (a.personaRelevance || 0));
+
+    const metadata = {
+      filtered: true,
+      personaId,
+      originalCount: relationships.length,
+      filteredCount: filtered.length,
+      removedCount: removed.length,
+      minRelevanceThreshold: minRelevance,
+    };
+
+    if (config.showLowRelevanceCount) {
+      metadata.removedByReason = {
+        hidden_type: removed.filter((r) => r.reason === 'hidden_type').length,
+        low_relevance: removed.filter((r) => r.reason === 'low_relevance').length,
+        endpoint_filtered: removed.filter((r) => r.reason === 'endpoint_filtered').length,
+      };
+    }
+
+    return { relationships: filtered, metadata, removed };
+  }
+
+  /**
+   * Filter complete GraphRAG results by persona relevance (F6.3.6)
+   * Main method for applying persona-based filtering to query results
+   *
+   * @param {string} personaId - Persona identifier
+   * @param {Object} results - GraphRAG query results
+   * @param {Array} results.entities - Entities to filter
+   * @param {Array} results.relationships - Relationships to filter
+   * @param {Object} options - Filter options
+   * @param {boolean} options.forceFilter - Force filtering even if not enabled by default
+   * @param {boolean} options.filterRelationshipEndpoints - Also filter relationships by entity presence
+   * @returns {Object} Filtered results with metadata
+   */
+  filterResultsByPersona(personaId, results, options = {}) {
+    const config = this.getFilteringConfig(personaId);
+    const shouldFilter = options.forceFilter || config.enabled;
+
+    if (!shouldFilter) {
+      return {
+        ...results,
+        filteringMetadata: {
+          applied: false,
+          personaId,
+          reason: 'filtering_not_enabled',
+        },
+      };
+    }
+
+    // Filter entities first
+    const entityResult = this.filterEntitiesByRelevance(
+      personaId,
+      results.entities || [],
+      options
+    );
+
+    // Get set of remaining entity names for relationship filtering
+    const remainingEntityNames = new Set(
+      entityResult.entities.map((e) => e.name)
+    );
+
+    // Filter relationships, optionally considering entity presence
+    const relationshipOptions = { ...options };
+    if (options.filterRelationshipEndpoints !== false) {
+      relationshipOptions.allowedEntityNames = remainingEntityNames;
+    }
+
+    const relationshipResult = this.filterRelationshipsByRelevance(
+      personaId,
+      results.relationships || [],
+      relationshipOptions
+    );
+
+    return {
+      ...results,
+      entities: entityResult.entities,
+      relationships: relationshipResult.relationships,
+      filteringMetadata: {
+        applied: true,
+        personaId,
+        personaName: this.getPersona(personaId)?.name || 'Unknown',
+        entity: entityResult.metadata,
+        relationship: relationshipResult.metadata,
+        totalRemoved: entityResult.metadata.removedCount + relationshipResult.metadata.removedCount,
+      },
+    };
+  }
+
+  /**
+   * Get filtering summary for a persona (F6.3.6)
+   * Returns a human-readable summary of what will be filtered
+   *
+   * @param {string} personaId - Persona identifier
+   * @returns {Object} Filtering summary
+   */
+  getFilteringSummary(personaId) {
+    const persona = this.getPersonaOrDefault(personaId);
+    const config = this.getFilteringConfig(personaId);
+
+    return {
+      personaId: persona.id,
+      personaName: persona.name,
+      filteringEnabled: config.enabled,
+      entityFiltering: {
+        minRelevanceThreshold: config.minEntityRelevance,
+        hiddenTypes: config.hiddenEntityTypes,
+        hiddenTypeCount: config.hiddenEntityTypes.length,
+      },
+      relationshipFiltering: {
+        minRelevanceThreshold: config.minRelationshipRelevance,
+        hiddenTypes: config.hiddenRelationshipTypes,
+        hiddenTypeCount: config.hiddenRelationshipTypes.length,
+      },
+      description: config.enabled
+        ? `Entities with relevance < ${config.minEntityRelevance} or types [${config.hiddenEntityTypes.join(', ') || 'none'}] will be hidden. ` +
+          `Relationships with relevance < ${config.minRelationshipRelevance} or types [${config.hiddenRelationshipTypes.join(', ') || 'none'}] will be hidden.`
+        : 'Filtering is disabled for this persona. All results will be shown.',
+    };
+  }
+
   /**
    * Reset to default state (for testing)
    */
@@ -806,5 +1200,6 @@ module.exports = {
   PERSONA_IDS,
   ENTITY_CATEGORIES,
   SUMMARY_STYLES,
+  FILTERING_DEFAULTS,
   PERSONAS,
 };

@@ -28,6 +28,15 @@ const schemas = {
       maxResults: Joi.number().integer().min(1).max(50).default(10),
       includeGraph: Joi.boolean().default(true),
       documentIds: Joi.array().items(Joi.string().pattern(uuidPattern)).max(10),
+      // Advanced GraphRAG options
+      lazySummaries: Joi.boolean().optional(),
+      minCommunitySize: Joi.number().integer().min(2).optional(),
+      resolution: Joi.number().min(0.1).max(5.0).optional(),
+      persona: Joi.string().valid('ops', 'it', 'leadership', 'compliance', 'default').optional(),
+      includeCommunityContext: Joi.boolean().optional(),
+      useImportanceWeighting: Joi.boolean().optional(),
+      maxHops: Joi.number().integer().min(1).max(5).optional(),
+      maxEntities: Joi.number().integer().min(1).max(100).optional(),
     }).optional(),
   }),
 

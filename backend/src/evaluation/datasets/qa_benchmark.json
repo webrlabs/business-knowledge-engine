@@ -1,0 +1,1280 @@
+{
+  "metadata": {
+    "name": "qa-benchmark",
+    "version": "1.1.0",
+    "created": "2026-01-23",
+    "description": "Comprehensive Q&A benchmark dataset for GraphRAG evaluation covering operational, technical, compliance, and leadership domains.",
+    "author": "GraphRAG Team",
+    "purpose": "evaluation",
+    "categories": ["operational", "technical", "compliance", "leadership"],
+    "personas": ["Ops", "IT", "Compliance", "Leadership"],
+    "totalQuestions": 52,
+    "featureId": "F1.1.1"
+  },
+  "retrieval": [
+    {
+      "id": "ret-001",
+      "query": "What is the purchase order approval workflow?",
+      "category": "operational",
+      "persona": "Ops",
+      "retrieved": ["doc-po-001", "doc-po-002", "doc-finance-001", "doc-proc-001", "doc-hr-001"],
+      "relevant": ["doc-po-001", "doc-po-002", "doc-finance-001"],
+      "expectedEntities": ["Purchase Order Process", "Approval Workflow", "Finance Department"]
+    },
+    {
+      "id": "ret-002",
+      "query": "How does the invoice reconciliation process work?",
+      "category": "operational",
+      "persona": "Ops",
+      "retrieved": ["doc-ap-001", "doc-finance-002", "doc-po-003", "doc-vendor-001", "doc-report-001"],
+      "relevant": ["doc-ap-001", "doc-finance-002"],
+      "expectedEntities": ["Invoice Reconciliation", "Accounts Payable", "Three-Way Match"]
+    },
+    {
+      "id": "ret-003",
+      "query": "What ERP systems are deployed in the organization?",
+      "category": "technical",
+      "persona": "IT",
+      "retrieved": ["doc-erp-001", "doc-it-001", "doc-sap-001", "doc-integration-001", "doc-arch-001"],
+      "relevant": ["doc-erp-001", "doc-sap-001", "doc-integration-001"],
+      "expectedEntities": ["SAP S/4HANA", "ERP System", "Enterprise Architecture"]
+    },
+    {
+      "id": "ret-004",
+      "query": "What are the GDPR compliance requirements for data processing?",
+      "category": "compliance",
+      "persona": "Compliance",
+      "retrieved": ["doc-gdpr-001", "doc-privacy-001", "doc-policy-001", "doc-data-001", "doc-legal-001"],
+      "relevant": ["doc-gdpr-001", "doc-privacy-001", "doc-policy-001"],
+      "expectedEntities": ["GDPR", "Data Processing Agreement", "Data Subject Rights"]
+    },
+    {
+      "id": "ret-005",
+      "query": "What are the key performance metrics for Q4?",
+      "category": "leadership",
+      "persona": "Leadership",
+      "retrieved": ["doc-kpi-001", "doc-quarterly-001", "doc-finance-003", "doc-ops-001", "doc-sales-001"],
+      "relevant": ["doc-kpi-001", "doc-quarterly-001", "doc-finance-003"],
+      "expectedEntities": ["KPI Dashboard", "Revenue Target", "Operational Efficiency"]
+    },
+    {
+      "id": "ret-006",
+      "query": "How is employee onboarding handled?",
+      "category": "operational",
+      "persona": "Ops",
+      "retrieved": ["doc-hr-001", "doc-onboard-001", "doc-it-002", "doc-training-001", "doc-policy-002"],
+      "relevant": ["doc-hr-001", "doc-onboard-001", "doc-it-002"],
+      "expectedEntities": ["Onboarding Process", "HR Department", "IT Provisioning"]
+    },
+    {
+      "id": "ret-007",
+      "query": "What disaster recovery procedures are in place?",
+      "category": "technical",
+      "persona": "IT",
+      "retrieved": ["doc-dr-001", "doc-backup-001", "doc-bcp-001", "doc-it-003", "doc-cloud-001"],
+      "relevant": ["doc-dr-001", "doc-backup-001", "doc-bcp-001"],
+      "expectedEntities": ["Disaster Recovery Plan", "RTO", "RPO", "Backup System"]
+    },
+    {
+      "id": "ret-008",
+      "query": "What SOX controls apply to financial reporting?",
+      "category": "compliance",
+      "persona": "Compliance",
+      "retrieved": ["doc-sox-001", "doc-audit-001", "doc-finance-004", "doc-control-001", "doc-risk-001"],
+      "relevant": ["doc-sox-001", "doc-audit-001", "doc-control-001"],
+      "expectedEntities": ["SOX Compliance", "Internal Controls", "Financial Reporting"]
+    },
+    {
+      "id": "ret-009",
+      "query": "What is the strategic roadmap for digital transformation?",
+      "category": "leadership",
+      "persona": "Leadership",
+      "retrieved": ["doc-strategy-001", "doc-digital-001", "doc-roadmap-001", "doc-initiative-001", "doc-budget-001"],
+      "relevant": ["doc-strategy-001", "doc-digital-001", "doc-roadmap-001"],
+      "expectedEntities": ["Digital Transformation", "Strategic Initiative", "Technology Roadmap"]
+    },
+    {
+      "id": "ret-010",
+      "query": "How does the change management process work?",
+      "category": "operational",
+      "persona": "Ops",
+      "retrieved": ["doc-change-001", "doc-itil-001", "doc-release-001", "doc-approval-001", "doc-cab-001"],
+      "relevant": ["doc-change-001", "doc-itil-001", "doc-cab-001"],
+      "expectedEntities": ["Change Management", "CAB", "Change Request"]
+    },
+    {
+      "id": "ret-011",
+      "query": "What API security standards are enforced?",
+      "category": "technical",
+      "persona": "IT",
+      "retrieved": ["doc-api-001", "doc-security-001", "doc-oauth-001", "doc-gateway-001", "doc-standard-001"],
+      "relevant": ["doc-api-001", "doc-security-001", "doc-oauth-001"],
+      "expectedEntities": ["API Gateway", "OAuth 2.0", "API Security Policy"]
+    },
+    {
+      "id": "ret-012",
+      "query": "What audit trail requirements exist for financial transactions?",
+      "category": "compliance",
+      "persona": "Compliance",
+      "retrieved": ["doc-audit-002", "doc-logging-001", "doc-finance-005", "doc-retention-001", "doc-compliance-001"],
+      "relevant": ["doc-audit-002", "doc-logging-001", "doc-retention-001"],
+      "expectedEntities": ["Audit Trail", "Transaction Log", "Retention Policy"]
+    },
+    {
+      "id": "ret-013",
+      "query": "What is the budget allocation for technology initiatives?",
+      "category": "leadership",
+      "persona": "Leadership",
+      "retrieved": ["doc-budget-002", "doc-capex-001", "doc-opex-001", "doc-finance-006", "doc-planning-001"],
+      "relevant": ["doc-budget-002", "doc-capex-001", "doc-opex-001"],
+      "expectedEntities": ["IT Budget", "CapEx", "OpEx", "Investment Plan"]
+    },
+    {
+      "id": "ret-014",
+      "query": "How is vendor performance monitored?",
+      "category": "operational",
+      "persona": "Ops",
+      "retrieved": ["doc-vendor-002", "doc-sla-001", "doc-contract-001", "doc-scorecard-001", "doc-procurement-001"],
+      "relevant": ["doc-vendor-002", "doc-sla-001", "doc-scorecard-001"],
+      "expectedEntities": ["Vendor Scorecard", "SLA", "Performance Review"]
+    },
+    {
+      "id": "ret-015",
+      "query": "What is the cloud migration strategy?",
+      "category": "technical",
+      "persona": "IT",
+      "retrieved": ["doc-cloud-002", "doc-azure-001", "doc-migration-001", "doc-hybrid-001", "doc-infrastructure-001"],
+      "relevant": ["doc-cloud-002", "doc-azure-001", "doc-migration-001"],
+      "expectedEntities": ["Cloud Migration", "Azure", "Hybrid Cloud"]
+    }
+  ],
+  "qa": [
+    {
+      "id": "qa-001",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the purchase order approval process?",
+      "answer": "The purchase order approval process involves three main steps: requisition submission by the requesting department, review and approval by the budget owner, and final approval by procurement. Orders above $10,000 require additional CFO approval.",
+      "context": "The standard purchase order workflow begins with a requisition form submitted through the procurement portal. The budget owner reviews the request against available funds. Once budget approval is obtained, procurement validates the vendor and pricing before final processing. High-value purchases over $10,000 threshold require executive sign-off from the CFO.",
+      "expectedAnswer": "Purchase orders go through requisition, budget owner review, and procurement approval. High-value orders need CFO approval.",
+      "expectedEntities": ["Purchase Order Process", "Budget Owner", "Procurement", "CFO"],
+      "sources": [
+        {
+          "id": "doc-po-001",
+          "title": "Purchase Order Policy",
+          "content": "The standard purchase order workflow begins with a requisition form submitted through the procurement portal. The budget owner reviews the request against available funds."
+        },
+        {
+          "id": "doc-po-002",
+          "title": "Procurement Guidelines",
+          "content": "High-value purchases over $10,000 threshold require executive sign-off from the CFO. Procurement validates the vendor and pricing before final processing."
+        }
+      ]
+    },
+    {
+      "id": "qa-002",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How does the invoice reconciliation process work?",
+      "answer": "Invoice reconciliation uses a three-way match process comparing the purchase order, goods receipt, and invoice. The system automatically matches documents when values align within tolerance. Discrepancies are routed to AP specialists for manual review and vendor communication.",
+      "context": "The accounts payable team processes invoices through automated three-way matching. The system compares PO line items, receiving documents, and invoice details. Matching tolerance is set at 2% for quantity and $50 for price. Non-matching items generate exception reports for AP specialist review.",
+      "expectedAnswer": "Three-way match compares PO, receipt, and invoice. Auto-match within tolerance; discrepancies go to AP for review.",
+      "expectedEntities": ["Invoice Reconciliation", "Three-Way Match", "AP Specialist", "Goods Receipt"],
+      "sources": [
+        {
+          "id": "doc-ap-001",
+          "title": "Invoice Processing Manual",
+          "content": "The accounts payable team processes invoices through automated three-way matching. The system compares PO line items, receiving documents, and invoice details."
+        }
+      ]
+    },
+    {
+      "id": "qa-003",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the employee onboarding workflow?",
+      "answer": "Employee onboarding spans pre-hire, day one, and 90-day phases. Pre-hire includes background checks and equipment ordering. Day one covers orientation, system access provisioning, and manager introductions. The 90-day period includes training completion and performance milestones.",
+      "context": "The HR onboarding process begins two weeks before start date with pre-hire activities. IT receives equipment requests through ServiceNow. Day one orientation includes company overview, benefits enrollment, and workspace setup. Manager assigns training through the LMS within first week.",
+      "expectedAnswer": "Three phases: pre-hire (background/equipment), day one (orientation/access), and 90-day (training/milestones).",
+      "expectedEntities": ["Onboarding Process", "HR Department", "IT Provisioning", "ServiceNow", "LMS"],
+      "sources": [
+        {
+          "id": "doc-hr-001",
+          "title": "Employee Onboarding Guide",
+          "content": "The HR onboarding process begins two weeks before start date with pre-hire activities. IT receives equipment requests through ServiceNow."
+        }
+      ]
+    },
+    {
+      "id": "qa-004",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How are vendor contracts managed?",
+      "answer": "Vendor contracts follow a lifecycle from negotiation through renewal or termination. Legal reviews all contracts over $50,000. The contract management system tracks key dates, obligations, and compliance requirements. Renewal notices are sent 90 days before expiration.",
+      "context": "Procurement initiates vendor contracts with standardized templates. Legal review is mandatory for agreements exceeding $50,000 or containing non-standard terms. The CLM system maintains contract repository with milestone tracking. Auto-renewal prevention requires explicit approval.",
+      "expectedAnswer": "Contracts go through legal review for large deals, tracked in CLM with 90-day renewal notices.",
+      "expectedEntities": ["Contract Management", "Legal Review", "CLM System", "Procurement"],
+      "sources": [
+        {
+          "id": "doc-vendor-001",
+          "title": "Vendor Management Policy",
+          "content": "Procurement initiates vendor contracts with standardized templates. Legal review is mandatory for agreements exceeding $50,000."
+        }
+      ]
+    },
+    {
+      "id": "qa-005",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the change management approval process?",
+      "answer": "Changes are classified as standard, normal, or emergency. Standard changes are pre-approved. Normal changes require CAB review weekly. Emergency changes need approval from the change manager and CISO for security-related items, with post-implementation review within 48 hours.",
+      "context": "ITIL-based change management categorizes requests by risk and impact. Standard changes follow documented procedures without CAB approval. Normal changes presented at weekly CAB meetings with risk assessment. Emergency changes follow expedited path with mandatory PIR.",
+      "expectedAnswer": "Three types: standard (pre-approved), normal (CAB review), emergency (expedited with PIR).",
+      "expectedEntities": ["Change Management", "CAB", "ITIL", "Emergency Change", "PIR"],
+      "sources": [
+        {
+          "id": "doc-change-001",
+          "title": "Change Management Policy",
+          "content": "ITIL-based change management categorizes requests by risk and impact. Standard changes follow documented procedures without CAB approval."
+        }
+      ]
+    },
+    {
+      "id": "qa-006",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How does inventory management work in the warehouse?",
+      "answer": "Warehouse inventory uses perpetual tracking with cycle counts. Barcode scanning captures all movements. Min/max levels trigger automatic reorder through the procurement system. Monthly reconciliation ensures physical and system counts align.",
+      "context": "The WMS tracks inventory in real-time using RF scanning. ABC analysis categorizes items for cycle counting frequency. Safety stock calculations consider lead time and demand variability. Integration with SAP MM handles procurement triggers.",
+      "expectedAnswer": "Perpetual tracking with barcode scanning, min/max reorder triggers, and monthly reconciliation.",
+      "expectedEntities": ["WMS", "Inventory Management", "Cycle Count", "SAP MM"],
+      "sources": [
+        {
+          "id": "doc-warehouse-001",
+          "title": "Warehouse Operations Manual",
+          "content": "The WMS tracks inventory in real-time using RF scanning. ABC analysis categorizes items for cycle counting frequency."
+        }
+      ]
+    },
+    {
+      "id": "qa-007",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the customer order fulfillment process?",
+      "answer": "Orders flow from sales to warehouse for picking, packing, and shipping. The OMS validates inventory availability and payment. Picking follows wave optimization for efficiency. Shipping integrates with carrier APIs for rate shopping and tracking.",
+      "context": "Customer orders enter through the e-commerce platform or sales team. OMS performs credit check and inventory allocation. Warehouse receives pick tickets organized by zone. Packing stations verify items and generate shipping labels through carrier integration.",
+      "expectedAnswer": "OMS validates orders, warehouse picks/packs, carrier integration for shipping.",
+      "expectedEntities": ["OMS", "Order Fulfillment", "Warehouse", "Carrier Integration"],
+      "sources": [
+        {
+          "id": "doc-fulfillment-001",
+          "title": "Order Fulfillment Process",
+          "content": "Customer orders enter through the e-commerce platform or sales team. OMS performs credit check and inventory allocation."
+        }
+      ]
+    },
+    {
+      "id": "qa-008",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How are production schedules created?",
+      "answer": "Production planning uses MRP to generate schedules based on demand forecasts and inventory levels. Weekly planning meetings review capacity constraints. The APS system optimizes sequencing considering setup times, material availability, and delivery dates.",
+      "context": "Manufacturing planning runs MRP weekly on Sunday nights. Planners review exception messages Monday morning. APS considers machine availability, tooling requirements, and skill constraints. Daily production meetings address real-time adjustments.",
+      "expectedAnswer": "MRP generates schedules from forecasts, APS optimizes sequencing, weekly planning meetings review.",
+      "expectedEntities": ["MRP", "APS", "Production Planning", "Capacity Planning"],
+      "sources": [
+        {
+          "id": "doc-production-001",
+          "title": "Production Planning Guide",
+          "content": "Manufacturing planning runs MRP weekly on Sunday nights. Planners review exception messages Monday morning."
+        }
+      ]
+    },
+    {
+      "id": "qa-009",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the quality control process for manufacturing?",
+      "answer": "Quality control follows a stage-gate approach with incoming inspection, in-process checks, and final inspection. Statistical process control monitors critical parameters. Non-conformances trigger root cause analysis and corrective action tracking.",
+      "context": "QC inspectors verify incoming materials against specifications. In-process controls use control charts for critical dimensions. Final inspection includes visual, dimensional, and functional testing. CAPA system manages non-conformances with 8D methodology.",
+      "expectedAnswer": "Stage-gate inspections, SPC monitoring, CAPA for non-conformances using 8D methodology.",
+      "expectedEntities": ["QC", "SPC", "CAPA", "Inspection", "8D Methodology"],
+      "sources": [
+        {
+          "id": "doc-quality-001",
+          "title": "Quality Control Procedures",
+          "content": "QC inspectors verify incoming materials against specifications. In-process controls use control charts for critical dimensions."
+        }
+      ]
+    },
+    {
+      "id": "qa-010",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How is equipment maintenance scheduled?",
+      "answer": "Maintenance follows a mix of preventive, predictive, and reactive approaches. PM schedules are based on manufacturer recommendations and operating hours. IoT sensors enable condition-based maintenance for critical equipment. CMMS tracks all work orders and parts usage.",
+      "context": "The maintenance team uses IBM Maximo for CMMS. Preventive maintenance calendars are generated annually based on equipment criticality. Predictive analytics monitor vibration and temperature data from sensors. Emergency repairs follow priority classification.",
+      "expectedAnswer": "Preventive based on schedules, predictive using IoT sensors, all tracked in CMMS.",
+      "expectedEntities": ["CMMS", "Preventive Maintenance", "Predictive Maintenance", "IBM Maximo"],
+      "sources": [
+        {
+          "id": "doc-maintenance-001",
+          "title": "Equipment Maintenance Policy",
+          "content": "The maintenance team uses IBM Maximo for CMMS. Preventive maintenance calendars are generated annually based on equipment criticality."
+        }
+      ]
+    },
+    {
+      "id": "qa-011",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the enterprise architecture for core systems?",
+      "answer": "The enterprise architecture centers on SAP S/4HANA for ERP, Salesforce for CRM, and ServiceNow for ITSM. Integration uses Azure Integration Services with API-led connectivity. Data flows through Azure Data Lake for analytics.",
+      "context": "Core business applications include SAP S/4HANA deployed on Azure, Salesforce Sales Cloud, and ServiceNow ITSM. MuleSoft Anypoint manages API layer. Master data management uses Informatica MDM. Reporting consolidates in Power BI with Azure Synapse backend.",
+      "expectedAnswer": "SAP, Salesforce, ServiceNow as core apps; Azure for integration and data lake; MuleSoft for APIs.",
+      "expectedEntities": ["SAP S/4HANA", "Salesforce", "ServiceNow", "Azure Integration Services", "MuleSoft"],
+      "sources": [
+        {
+          "id": "doc-arch-001",
+          "title": "Enterprise Architecture Overview",
+          "content": "Core business applications include SAP S/4HANA deployed on Azure, Salesforce Sales Cloud, and ServiceNow ITSM."
+        }
+      ]
+    },
+    {
+      "id": "qa-012",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is data backup and recovery managed?",
+      "answer": "Backup strategy follows 3-2-1 rule: three copies, two media types, one offsite. Daily incremental backups run overnight with weekly full backups. Recovery testing occurs quarterly. Azure Backup handles cloud workloads while Veeam manages on-premises VMs.",
+      "context": "Backup infrastructure uses Azure Backup for cloud resources and Veeam for on-premises systems. Retention policy keeps daily backups for 30 days, weekly for 52 weeks, monthly for 7 years. DR site replication provides 15-minute RPO for critical systems.",
+      "expectedAnswer": "3-2-1 strategy with Azure Backup for cloud, Veeam for on-prem, quarterly recovery testing.",
+      "expectedEntities": ["Azure Backup", "Veeam", "Backup Strategy", "RPO", "DR Site"],
+      "sources": [
+        {
+          "id": "doc-backup-001",
+          "title": "Backup and Recovery Procedures",
+          "content": "Backup infrastructure uses Azure Backup for cloud resources and Veeam for on-premises systems."
+        }
+      ]
+    },
+    {
+      "id": "qa-013",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What security controls protect the network perimeter?",
+      "answer": "Network security uses defense in depth with next-gen firewalls, IDS/IPS, and web application firewalls. Zero trust architecture requires authentication for all connections. Segmentation isolates critical systems. DDoS protection is provided by Azure.",
+      "context": "Palo Alto NGFWs protect the perimeter with threat intelligence feeds. Network segmentation uses VLANs and microsegmentation for sensitive workloads. CrowdStrike provides endpoint detection and response. Azure DDoS Standard protects public endpoints.",
+      "expectedAnswer": "Defense in depth with NGFWs, zero trust, segmentation, Azure DDoS, CrowdStrike EDR.",
+      "expectedEntities": ["NGFW", "IDS/IPS", "Zero Trust", "Microsegmentation", "CrowdStrike"],
+      "sources": [
+        {
+          "id": "doc-security-001",
+          "title": "Network Security Architecture",
+          "content": "Palo Alto NGFWs protect the perimeter with threat intelligence feeds. Network segmentation uses VLANs and microsegmentation."
+        }
+      ]
+    },
+    {
+      "id": "qa-014",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is identity and access management handled?",
+      "answer": "IAM is centralized through Azure Active Directory with SSO for all applications. RBAC defines access based on job function. Privileged access uses CyberArk PAM with just-in-time elevation. MFA is mandatory for all users, with phishing-resistant methods for admins.",
+      "context": "Azure AD serves as the identity provider with SAML/OIDC federation. Role definitions follow least privilege principle. CyberArk vaults privileged credentials with session recording. Conditional access policies enforce device compliance and location-based restrictions.",
+      "expectedAnswer": "Azure AD for identity, RBAC for access, CyberArk PAM for privileged accounts, mandatory MFA.",
+      "expectedEntities": ["Azure AD", "RBAC", "CyberArk", "MFA", "Conditional Access"],
+      "sources": [
+        {
+          "id": "doc-iam-001",
+          "title": "Identity Management Policy",
+          "content": "Azure AD serves as the identity provider with SAML/OIDC federation. Role definitions follow least privilege principle."
+        }
+      ]
+    },
+    {
+      "id": "qa-015",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the CI/CD pipeline architecture?",
+      "answer": "CI/CD uses Azure DevOps with Git repositories, automated builds, and deployment pipelines. Unit tests and SAST run on every commit. Environments progress from dev to test to staging to production. Blue-green deployments minimize downtime.",
+      "context": "Development teams use Azure DevOps for source control and pipelines. SonarQube performs static analysis on pull requests. Container images deploy to AKS with Helm charts. Infrastructure as code uses Terraform with state stored in Azure Storage.",
+      "expectedAnswer": "Azure DevOps for Git/pipelines, SonarQube for SAST, AKS for containers, Terraform for IaC.",
+      "expectedEntities": ["Azure DevOps", "CI/CD", "SonarQube", "AKS", "Terraform"],
+      "sources": [
+        {
+          "id": "doc-devops-001",
+          "title": "DevOps Standards",
+          "content": "Development teams use Azure DevOps for source control and pipelines. SonarQube performs static analysis on pull requests."
+        }
+      ]
+    },
+    {
+      "id": "qa-016",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is application monitoring implemented?",
+      "answer": "Monitoring uses Azure Monitor with Application Insights for APM. Logs aggregate in Log Analytics workspace with custom alerts. Dashboards in Grafana visualize key metrics. PagerDuty handles incident routing based on severity and on-call schedules.",
+      "context": "Application telemetry flows to Application Insights with distributed tracing. Infrastructure metrics collected by Azure Monitor agents. Custom Kusto queries power alert rules. Grafana dashboards display real-time performance metrics. PagerDuty integrates via webhook.",
+      "expectedAnswer": "Azure Monitor and App Insights for APM, Grafana dashboards, PagerDuty for alerting.",
+      "expectedEntities": ["Azure Monitor", "Application Insights", "Grafana", "PagerDuty", "Log Analytics"],
+      "sources": [
+        {
+          "id": "doc-monitoring-001",
+          "title": "Monitoring and Alerting Guide",
+          "content": "Application telemetry flows to Application Insights with distributed tracing. Infrastructure metrics collected by Azure Monitor agents."
+        }
+      ]
+    },
+    {
+      "id": "qa-017",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the database architecture strategy?",
+      "answer": "Database strategy uses managed services: Azure SQL for transactional workloads, Cosmos DB for global distribution, and Azure Synapse for analytics. Redis Cache improves performance for frequent queries. Polybase enables cross-database analytics.",
+      "context": "Relational data resides in Azure SQL with elastic pools for multi-tenant isolation. Cosmos DB handles session state and IoT telemetry. Azure Synapse provides data warehouse with dedicated SQL pools. Cache-aside pattern using Redis reduces database load.",
+      "expectedAnswer": "Azure SQL for OLTP, Cosmos DB for NoSQL, Synapse for analytics, Redis for caching.",
+      "expectedEntities": ["Azure SQL", "Cosmos DB", "Azure Synapse", "Redis Cache", "Data Warehouse"],
+      "sources": [
+        {
+          "id": "doc-database-001",
+          "title": "Data Platform Architecture",
+          "content": "Relational data resides in Azure SQL with elastic pools for multi-tenant isolation. Cosmos DB handles session state and IoT telemetry."
+        }
+      ]
+    },
+    {
+      "id": "qa-018",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How are APIs designed and governed?",
+      "answer": "API design follows OpenAPI 3.0 standards with REST best practices. Azure API Management provides gateway, documentation, and rate limiting. OAuth 2.0 secures all endpoints. API versioning uses URL path with deprecation notices 6 months before retirement.",
+      "context": "All APIs documented in OpenAPI specification. Azure APIM enforces policies for authentication, throttling, and transformation. Developer portal provides interactive documentation. Breaking changes require new major version with migration guide.",
+      "expectedAnswer": "OpenAPI 3.0 standards, Azure APIM for gateway, OAuth 2.0 for security, versioned URLs.",
+      "expectedEntities": ["OpenAPI", "Azure API Management", "OAuth 2.0", "API Gateway", "REST"],
+      "sources": [
+        {
+          "id": "doc-api-001",
+          "title": "API Design Standards",
+          "content": "All APIs documented in OpenAPI specification. Azure APIM enforces policies for authentication, throttling, and transformation."
+        }
+      ]
+    },
+    {
+      "id": "qa-019",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the disaster recovery strategy?",
+      "answer": "DR follows active-passive configuration with Azure Site Recovery for VMs and geo-redundant storage for data. RTO is 4 hours for critical systems, 24 hours for standard. DR testing occurs bi-annually with documented runbooks for failover procedures.",
+      "context": "Primary datacenter in East US with DR in West US. Azure Site Recovery handles VM replication. Databases use active geo-replication. Critical applications have RTO of 4 hours, RPO of 1 hour. Annual DR drill validates recovery procedures.",
+      "expectedAnswer": "Active-passive with Azure Site Recovery, 4-hour RTO for critical, bi-annual testing.",
+      "expectedEntities": ["Azure Site Recovery", "RTO", "RPO", "Geo-Redundant Storage", "DR Drill"],
+      "sources": [
+        {
+          "id": "doc-dr-001",
+          "title": "Disaster Recovery Plan",
+          "content": "Primary datacenter in East US with DR in West US. Azure Site Recovery handles VM replication."
+        }
+      ]
+    },
+    {
+      "id": "qa-020",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is data encryption managed?",
+      "answer": "Encryption at rest uses Azure Storage Service Encryption with customer-managed keys in Key Vault. Transport encryption requires TLS 1.2 minimum. Database columns with PII use column-level encryption. Key rotation occurs annually.",
+      "context": "Azure Key Vault manages encryption keys with HSM backing. Storage accounts enforce encryption at rest with CMK. TLS certificates managed through Azure certificates. Sensitive database columns encrypted using Always Encrypted with enclave.",
+      "expectedAnswer": "CMK in Key Vault, TLS 1.2+ for transport, Always Encrypted for PII columns, annual key rotation.",
+      "expectedEntities": ["Azure Key Vault", "TLS", "Always Encrypted", "CMK", "HSM"],
+      "sources": [
+        {
+          "id": "doc-encryption-001",
+          "title": "Encryption Standards",
+          "content": "Azure Key Vault manages encryption keys with HSM backing. Storage accounts enforce encryption at rest with CMK."
+        }
+      ]
+    },
+    {
+      "id": "qa-021",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What are the GDPR requirements for data subject requests?",
+      "answer": "DSRs must be fulfilled within 30 days. The system supports access, rectification, erasure, portability, and restriction requests. Identity verification is required before processing. The privacy team reviews erasure requests for legal hold conflicts.",
+      "context": "Data subject rights workflow implemented in ServiceNow. Automated data discovery locates personal data across systems. Manual review checks for retention requirements and legal holds. Response templates ensure consistent communication.",
+      "expectedAnswer": "30-day fulfillment, support all DSR types, identity verification, legal hold review for erasure.",
+      "expectedEntities": ["GDPR", "DSR", "Data Subject Rights", "Privacy Team", "Legal Hold"],
+      "sources": [
+        {
+          "id": "doc-gdpr-001",
+          "title": "GDPR Compliance Guide",
+          "content": "Data subject rights workflow implemented in ServiceNow. Automated data discovery locates personal data across systems."
+        }
+      ]
+    },
+    {
+      "id": "qa-022",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What SOX controls apply to financial systems?",
+      "answer": "SOX controls include segregation of duties for financial transactions, access reviews quarterly, change management for financial applications, and audit logging of all financial data access. Key controls are tested annually by external auditors.",
+      "context": "ITGC controls cover access management, change control, and operations. Application controls include automated three-way match and approval workflows. Management certifies control effectiveness quarterly. External auditors test controls during annual audit.",
+      "expectedAnswer": "Segregation of duties, quarterly access reviews, change control, audit logging, annual testing.",
+      "expectedEntities": ["SOX", "ITGC", "Segregation of Duties", "Application Controls", "External Audit"],
+      "sources": [
+        {
+          "id": "doc-sox-001",
+          "title": "SOX Compliance Framework",
+          "content": "ITGC controls cover access management, change control, and operations. Application controls include automated three-way match."
+        }
+      ]
+    },
+    {
+      "id": "qa-023",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "How is PCI DSS compliance maintained?",
+      "answer": "PCI DSS compliance uses network segmentation for cardholder data environment, tokenization for stored card data, and point-to-point encryption for transactions. Quarterly vulnerability scans and annual penetration tests validate controls. ASV scanning occurs monthly.",
+      "context": "Cardholder data environment isolated in dedicated Azure subscription. Payment processing uses third-party tokenization service. PCI scope minimized through P2PE terminals. QSA performs annual assessment. Continuous monitoring via SIEM.",
+      "expectedAnswer": "CDE segmentation, tokenization, P2PE, quarterly vuln scans, annual pen test, QSA assessment.",
+      "expectedEntities": ["PCI DSS", "CDE", "Tokenization", "P2PE", "QSA", "ASV"],
+      "sources": [
+        {
+          "id": "doc-pci-001",
+          "title": "PCI Compliance Policy",
+          "content": "Cardholder data environment isolated in dedicated Azure subscription. Payment processing uses third-party tokenization service."
+        }
+      ]
+    },
+    {
+      "id": "qa-024",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What data retention policies apply to different data types?",
+      "answer": "Financial records retain for 7 years per regulatory requirement. Customer data retains for contract duration plus 2 years. Employee records retain for employment plus 7 years. Log data retains for 1 year for security analysis. Backup tapes follow primary data retention.",
+      "context": "Retention schedule published in records management policy. Legal hold overrides standard retention. Automated data lifecycle management enforces deletion. Retention certificates document compliance. Archive tier reduces storage costs for long-term data.",
+      "expectedAnswer": "7 years for financial, contract+2 for customer, employment+7 for employee, 1 year for logs.",
+      "expectedEntities": ["Data Retention", "Records Management", "Legal Hold", "Data Lifecycle"],
+      "sources": [
+        {
+          "id": "doc-retention-001",
+          "title": "Data Retention Policy",
+          "content": "Retention schedule published in records management policy. Legal hold overrides standard retention."
+        }
+      ]
+    },
+    {
+      "id": "qa-025",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "How is privacy impact assessment conducted?",
+      "answer": "PIAs are required for new projects involving personal data processing. The assessment evaluates data collection necessity, legal basis, risks, and mitigations. Privacy team reviews all PIAs and provides recommendations. High-risk processing requires DPO approval.",
+      "context": "Project managers submit PIA questionnaire during planning phase. Privacy team scores risk based on data types and processing activities. Recommendations may include technical controls or process changes. DPO consultation required for high-risk processing.",
+      "expectedAnswer": "Required for personal data projects, evaluates necessity and risks, Privacy team review, DPO approval for high-risk.",
+      "expectedEntities": ["PIA", "Privacy Team", "DPO", "Risk Assessment", "Personal Data"],
+      "sources": [
+        {
+          "id": "doc-pia-001",
+          "title": "Privacy Impact Assessment Procedure",
+          "content": "Project managers submit PIA questionnaire during planning phase. Privacy team scores risk based on data types and processing activities."
+        }
+      ]
+    },
+    {
+      "id": "qa-026",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What audit trail requirements exist for regulated activities?",
+      "answer": "Audit trails capture who, what, when, and where for all regulated activities. Logs are immutable and timestamped with cryptographic integrity. Retention meets regulatory minimums. Real-time alerting flags suspicious patterns for investigation.",
+      "context": "Centralized logging in Azure Sentinel with WORM storage. Log fields include user ID, action, timestamp, source IP, and resource affected. Hash chains ensure tamper evidence. SIEM correlation rules detect anomalies. Log exports available for regulator requests.",
+      "expectedAnswer": "Immutable logs with who/what/when/where, cryptographic integrity, retention meets requirements, real-time alerting.",
+      "expectedEntities": ["Audit Trail", "Azure Sentinel", "WORM", "SIEM", "Log Retention"],
+      "sources": [
+        {
+          "id": "doc-audit-001",
+          "title": "Audit Logging Standards",
+          "content": "Centralized logging in Azure Sentinel with WORM storage. Log fields include user ID, action, timestamp, source IP, and resource affected."
+        }
+      ]
+    },
+    {
+      "id": "qa-027",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "How is third-party risk managed?",
+      "answer": "Third-party risk assessment occurs during vendor selection and annually thereafter. Security questionnaires evaluate controls. Critical vendors require SOC 2 reports. Contracts include security requirements and audit rights. Continuous monitoring tracks vendor security posture.",
+      "context": "Vendor risk management program categorizes vendors by data access and criticality. Due diligence includes security assessment questionnaire. SOC 2 Type II reports required for critical vendors. Contract clauses mandate breach notification within 24 hours.",
+      "expectedAnswer": "Assessment at selection and annually, security questionnaires, SOC 2 for critical, contractual security requirements.",
+      "expectedEntities": ["Third-Party Risk", "SOC 2", "Vendor Assessment", "Security Questionnaire", "Due Diligence"],
+      "sources": [
+        {
+          "id": "doc-tprm-001",
+          "title": "Third-Party Risk Management",
+          "content": "Vendor risk management program categorizes vendors by data access and criticality. Due diligence includes security assessment questionnaire."
+        }
+      ]
+    },
+    {
+      "id": "qa-028",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What incident response procedures exist for data breaches?",
+      "answer": "Data breach response follows a four-phase process: identification, containment, eradication, and recovery. Legal and privacy teams assess notification requirements. Affected individuals notified within 72 hours per GDPR. Post-incident review documents lessons learned.",
+      "context": "Incident response plan defines roles and escalation paths. Security operations center provides 24/7 monitoring. Forensic investigation preserves evidence. Communication templates prepared for various scenarios. Tabletop exercises test response readiness.",
+      "expectedAnswer": "Four phases: identify, contain, eradicate, recover. Legal/privacy assess notifications. 72-hour GDPR notification. Post-incident review.",
+      "expectedEntities": ["Incident Response", "Data Breach", "SOC", "GDPR Notification", "Forensic Investigation"],
+      "sources": [
+        {
+          "id": "doc-ir-001",
+          "title": "Incident Response Plan",
+          "content": "Incident response plan defines roles and escalation paths. Security operations center provides 24/7 monitoring."
+        }
+      ]
+    },
+    {
+      "id": "qa-029",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "How are regulatory changes tracked and implemented?",
+      "answer": "Regulatory intelligence service monitors global regulatory developments. Compliance team assesses impact monthly. Gap analyses identify required changes. Implementation projects follow standard SDLC. Compliance dashboard tracks remediation progress.",
+      "context": "External regulatory tracker service provides alerts on new requirements. Compliance team maintains regulation inventory with applicability mapping. Impact assessments drive project prioritization. Regular board reporting on compliance posture.",
+      "expectedAnswer": "External monitoring service, monthly impact assessment, gap analysis, project-based implementation, dashboard tracking.",
+      "expectedEntities": ["Regulatory Intelligence", "Compliance Dashboard", "Gap Analysis", "Impact Assessment"],
+      "sources": [
+        {
+          "id": "doc-reg-001",
+          "title": "Regulatory Change Management",
+          "content": "External regulatory tracker service provides alerts on new requirements. Compliance team maintains regulation inventory."
+        }
+      ]
+    },
+    {
+      "id": "qa-030",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What controls exist for export compliance?",
+      "answer": "Export compliance screening occurs for all international transactions. Denied party screening checks customers and partners against restricted lists. Technology transfer controls apply to controlled items. Annual training mandatory for employees handling exports.",
+      "context": "Automated screening integrated with order management system. Visual Compliance tool checks OFAC, BIS, and EU sanctions lists. Export classifications reviewed by trade compliance team. Documentation requirements ensure audit trail for exports.",
+      "expectedAnswer": "Transaction screening, denied party checks, technology transfer controls, annual training.",
+      "expectedEntities": ["Export Compliance", "OFAC", "Denied Party Screening", "Trade Compliance"],
+      "sources": [
+        {
+          "id": "doc-export-001",
+          "title": "Export Compliance Policy",
+          "content": "Automated screening integrated with order management system. Visual Compliance tool checks OFAC, BIS, and EU sanctions lists."
+        }
+      ]
+    },
+    {
+      "id": "qa-031",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What are the key performance indicators for the business?",
+      "answer": "Key KPIs include revenue growth (target 15%), EBITDA margin (target 20%), customer satisfaction (NPS target 50), employee engagement (target 80%), and operational efficiency (cost per transaction reduction 5%). Dashboard updates monthly with trends.",
+      "context": "Executive dashboard consolidates financial and operational KPIs. Revenue tracked against quarterly targets. Customer metrics from Voice of Customer program. Employee metrics from annual engagement survey and pulse checks. Operational metrics from process mining.",
+      "expectedAnswer": "Revenue growth 15%, EBITDA 20%, NPS 50, engagement 80%, 5% efficiency improvement.",
+      "expectedEntities": ["KPI", "Revenue", "EBITDA", "NPS", "Employee Engagement"],
+      "sources": [
+        {
+          "id": "doc-kpi-001",
+          "title": "Executive Dashboard Guide",
+          "content": "Executive dashboard consolidates financial and operational KPIs. Revenue tracked against quarterly targets."
+        }
+      ]
+    },
+    {
+      "id": "qa-032",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What is the digital transformation strategy?",
+      "answer": "Digital transformation focuses on three pillars: customer experience digitization, operational automation, and data-driven decision making. Key initiatives include e-commerce platform upgrade, RPA deployment, and analytics center of excellence. Three-year roadmap with $50M investment.",
+      "context": "Digital strategy approved by board in 2025. Customer pillar includes mobile app redesign and omnichannel integration. Operations pillar targets 40% process automation. Data pillar establishes enterprise data platform and AI/ML capabilities.",
+      "expectedAnswer": "Three pillars: customer experience, operational automation, data-driven decisions. $50M over 3 years.",
+      "expectedEntities": ["Digital Transformation", "RPA", "Analytics CoE", "E-commerce", "AI/ML"],
+      "sources": [
+        {
+          "id": "doc-digital-001",
+          "title": "Digital Transformation Strategy",
+          "content": "Digital strategy approved by board in 2025. Customer pillar includes mobile app redesign and omnichannel integration."
+        }
+      ]
+    },
+    {
+      "id": "qa-033",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "How is technology investment prioritized?",
+      "answer": "Technology investments are evaluated using a scoring model considering strategic alignment, ROI, risk, and resource requirements. Projects compete for funding in quarterly portfolio reviews. Mandatory investments (security, compliance) are funded first. Discretionary projects ranked by business value.",
+      "context": "IT governance board reviews investment requests monthly. Business cases require NPV analysis with 3-year horizon. Portfolio management tool tracks project health. Quarterly steering committee adjusts priorities based on strategic shifts.",
+      "expectedAnswer": "Scoring model (strategic fit, ROI, risk), quarterly portfolio reviews, mandatory items first, rank by value.",
+      "expectedEntities": ["IT Governance", "Portfolio Management", "Business Case", "NPV", "Steering Committee"],
+      "sources": [
+        {
+          "id": "doc-invest-001",
+          "title": "IT Investment Framework",
+          "content": "IT governance board reviews investment requests monthly. Business cases require NPV analysis with 3-year horizon."
+        }
+      ]
+    },
+    {
+      "id": "qa-034",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What is the risk appetite for the organization?",
+      "answer": "Risk appetite is defined as moderate with specific tolerances by category. Financial risk tolerance is 5% of revenue. Operational risk tolerance is 99.9% system availability. Compliance risk tolerance is zero for material violations. Strategic risk tolerance allows controlled experimentation.",
+      "context": "Enterprise risk management framework defines risk appetite statement. Board reviews annually. Risk tolerance metrics monitored quarterly. Breaches escalate to risk committee. Risk culture promoted through training and incentive alignment.",
+      "expectedAnswer": "Moderate overall: 5% revenue for financial, 99.9% availability for operations, zero tolerance for compliance.",
+      "expectedEntities": ["Risk Appetite", "ERM", "Risk Tolerance", "Risk Committee", "Compliance Risk"],
+      "sources": [
+        {
+          "id": "doc-risk-001",
+          "title": "Enterprise Risk Management Framework",
+          "content": "Enterprise risk management framework defines risk appetite statement. Board reviews annually. Risk tolerance metrics monitored quarterly."
+        }
+      ]
+    },
+    {
+      "id": "qa-035",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "How is organizational change managed?",
+      "answer": "Organizational change follows Prosci ADKAR methodology. Sponsor coalition drives alignment. Communication plan ensures stakeholder engagement. Training prepares affected employees. Resistance management addresses concerns. Success metrics track adoption rates.",
+      "context": "Change management office supports major initiatives. Executive sponsors champion changes at leadership level. Change network of ambassadors promotes adoption. Pulse surveys measure sentiment. Reinforcement mechanisms sustain changes.",
+      "expectedAnswer": "Prosci ADKAR methodology, sponsor coalition, communication and training plans, resistance management.",
+      "expectedEntities": ["Change Management", "ADKAR", "Sponsor Coalition", "Change Network", "Adoption"],
+      "sources": [
+        {
+          "id": "doc-ocm-001",
+          "title": "Organizational Change Management",
+          "content": "Change management office supports major initiatives. Executive sponsors champion changes at leadership level."
+        }
+      ]
+    },
+    {
+      "id": "qa-036",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What is the talent strategy for critical roles?",
+      "answer": "Talent strategy includes succession planning for critical roles, high-potential development programs, competitive compensation, and strategic workforce planning. Key positions have identified successors with development plans. External talent acquisition focuses on emerging skill needs.",
+      "context": "HR business partners facilitate talent reviews quarterly. 9-box grid assesses performance and potential. Leadership development program accelerates high-potential growth. Compensation benchmarking ensures market competitiveness. Skills gap analysis drives learning investments.",
+      "expectedAnswer": "Succession planning, high-potential programs, competitive compensation, strategic workforce planning.",
+      "expectedEntities": ["Talent Strategy", "Succession Planning", "High-Potential", "Workforce Planning", "Leadership Development"],
+      "sources": [
+        {
+          "id": "doc-talent-001",
+          "title": "Talent Management Strategy",
+          "content": "HR business partners facilitate talent reviews quarterly. 9-box grid assesses performance and potential."
+        }
+      ]
+    },
+    {
+      "id": "qa-037",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "How is sustainability integrated into operations?",
+      "answer": "Sustainability program targets carbon neutrality by 2030. Initiatives include renewable energy adoption, supply chain sustainability requirements, waste reduction, and sustainable product design. ESG metrics reported annually. Science-based targets guide emission reductions.",
+      "context": "Sustainability committee oversees ESG initiatives. Carbon footprint baseline established in 2024. Renewable energy covers 60% of electricity consumption. Supplier code of conduct includes environmental requirements. Annual sustainability report follows GRI standards.",
+      "expectedAnswer": "Carbon neutrality by 2030, renewable energy, supply chain requirements, ESG reporting.",
+      "expectedEntities": ["Sustainability", "ESG", "Carbon Neutrality", "Science-Based Targets", "GRI"],
+      "sources": [
+        {
+          "id": "doc-esg-001",
+          "title": "Sustainability Strategy",
+          "content": "Sustainability committee oversees ESG initiatives. Carbon footprint baseline established in 2024."
+        }
+      ]
+    },
+    {
+      "id": "qa-038",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What governance structures exist for major initiatives?",
+      "answer": "Major initiatives have steering committees with executive sponsors, program management offices, and defined governance cadences. Monthly status reviews assess progress against milestones. Escalation paths address blockers. Stage gates validate deliverables before phase transitions.",
+      "context": "Enterprise PMO provides governance framework. Project charters define scope, budget, and timeline. RAID logs track risks, assumptions, issues, and dependencies. Executive dashboards provide portfolio visibility. Lessons learned captured for continuous improvement.",
+      "expectedAnswer": "Steering committees, PMO, monthly reviews, escalation paths, stage gates.",
+      "expectedEntities": ["Governance", "PMO", "Steering Committee", "Stage Gate", "RAID Log"],
+      "sources": [
+        {
+          "id": "doc-governance-001",
+          "title": "Program Governance Framework",
+          "content": "Enterprise PMO provides governance framework. Project charters define scope, budget, and timeline."
+        }
+      ]
+    },
+    {
+      "id": "qa-039",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "How is customer experience measured and improved?",
+      "answer": "Customer experience uses NPS, CSAT, and CES metrics across touchpoints. Journey mapping identifies pain points. Voice of customer program captures feedback. CX improvements prioritized by impact and effort. Customer advisory board provides strategic input.",
+      "context": "CX team analyzes customer feedback from surveys, social media, and support interactions. Medallia platform aggregates experience data. Journey orchestration personalizes interactions. Closed-loop process ensures customer issues are addressed.",
+      "expectedAnswer": "NPS/CSAT/CES metrics, journey mapping, voice of customer, advisory board input.",
+      "expectedEntities": ["Customer Experience", "NPS", "CSAT", "CES", "Voice of Customer", "Journey Mapping"],
+      "sources": [
+        {
+          "id": "doc-cx-001",
+          "title": "Customer Experience Strategy",
+          "content": "CX team analyzes customer feedback from surveys, social media, and support interactions. Medallia platform aggregates experience data."
+        }
+      ]
+    },
+    {
+      "id": "qa-040",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What is the market expansion strategy?",
+      "answer": "Market expansion prioritizes adjacent markets with existing product fit. Geographic expansion focuses on APAC and Latin America. Partnership strategy accelerates market entry. M&A pipeline evaluates strategic acquisitions. New market entry requires business case with 3-year projections.",
+      "context": "Corporate development team evaluates expansion opportunities. Market attractiveness considers size, growth, and competition. Entry modes include organic growth, partnerships, and acquisitions. Regional teams execute market-specific strategies.",
+      "expectedAnswer": "Adjacent markets first, APAC and LATAM geographic focus, partnerships and M&A for acceleration.",
+      "expectedEntities": ["Market Expansion", "Geographic Expansion", "M&A", "Partnership Strategy", "Corporate Development"],
+      "sources": [
+        {
+          "id": "doc-strategy-001",
+          "title": "Growth Strategy",
+          "content": "Corporate development team evaluates expansion opportunities. Market attractiveness considers size, growth, and competition."
+        }
+      ]
+    },
+    {
+      "id": "qa-041",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How are service level agreements monitored?",
+      "answer": "SLA monitoring uses automated dashboards tracking response times, resolution times, and availability metrics. Real-time alerts notify teams of potential breaches. Monthly SLA reports review performance trends. Service credits calculated automatically for violations.",
+      "context": "ServiceNow tracks incident and request SLAs. Business criticality determines SLA tiers. Escalation triggers at 80% of target time. SLA compliance reports generated weekly. Vendor SLAs monitored through integration feeds.",
+      "expectedAnswer": "Automated dashboards, real-time alerts, monthly reports, automatic credit calculation.",
+      "expectedEntities": ["SLA", "ServiceNow", "Incident Management", "Service Credits", "Escalation"],
+      "sources": [
+        {
+          "id": "doc-sla-001",
+          "title": "SLA Management Guide",
+          "content": "ServiceNow tracks incident and request SLAs. Business criticality determines SLA tiers."
+        }
+      ]
+    },
+    {
+      "id": "qa-042",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "What is the capacity planning process?",
+      "answer": "Capacity planning reviews infrastructure utilization quarterly. Forecasts consider business growth projections and seasonal patterns. Right-sizing recommendations optimize cloud costs. Capacity alerts trigger at 80% utilization. Annual planning aligns with budget cycles.",
+      "context": "Cloud cost management tool provides utilization visibility. Machine learning predicts capacity needs. Reserved instances purchased for stable workloads. Auto-scaling handles variable demand. Monthly optimization reviews identify savings opportunities.",
+      "expectedAnswer": "Quarterly reviews, ML-based forecasting, right-sizing recommendations, 80% alert threshold.",
+      "expectedEntities": ["Capacity Planning", "Cloud Cost Management", "Auto-Scaling", "Reserved Instances"],
+      "sources": [
+        {
+          "id": "doc-capacity-001",
+          "title": "Capacity Planning Procedures",
+          "content": "Cloud cost management tool provides utilization visibility. Machine learning predicts capacity needs."
+        }
+      ]
+    },
+    {
+      "id": "qa-043",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is technical debt managed?",
+      "answer": "Technical debt is cataloged in a dedicated backlog with business impact scores. 20% of sprint capacity allocated to debt reduction. Architectural decision records document trade-offs. Debt retirement prioritized by risk and maintenance cost. Quarterly reviews assess debt levels.",
+      "context": "Engineering teams log technical debt in Jira with severity ratings. ADRs capture architectural decisions and their rationale. Refactoring sprints address high-priority debt. Code quality metrics track debt trends. Architecture review board approves major debt remediation.",
+      "expectedAnswer": "Cataloged backlog with impact scores, 20% sprint capacity, ADRs for trade-offs, quarterly reviews.",
+      "expectedEntities": ["Technical Debt", "ADR", "Refactoring", "Code Quality", "Architecture Review Board"],
+      "sources": [
+        {
+          "id": "doc-techdebt-001",
+          "title": "Technical Debt Management",
+          "content": "Engineering teams log technical debt in Jira with severity ratings. ADRs capture architectural decisions and their rationale."
+        }
+      ]
+    },
+    {
+      "id": "qa-044",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the container orchestration strategy?",
+      "answer": "Container orchestration uses Azure Kubernetes Service for production workloads. Helm charts standardize deployments. Service mesh with Istio handles traffic management and security. GitOps workflow via Flux enables declarative configuration. Pod security policies enforce runtime constraints.",
+      "context": "AKS clusters deployed in multiple regions for high availability. Namespaces isolate workloads by team and environment. Horizontal pod autoscaler adjusts replicas based on demand. Prometheus and Grafana provide observability. Image scanning in CI pipeline prevents vulnerable deployments.",
+      "expectedAnswer": "AKS for orchestration, Helm for packaging, Istio service mesh, GitOps with Flux.",
+      "expectedEntities": ["AKS", "Kubernetes", "Helm", "Istio", "GitOps", "Service Mesh"],
+      "sources": [
+        {
+          "id": "doc-k8s-001",
+          "title": "Container Platform Guide",
+          "content": "AKS clusters deployed in multiple regions for high availability. Namespaces isolate workloads by team and environment."
+        }
+      ]
+    },
+    {
+      "id": "qa-045",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "How is access certification performed?",
+      "answer": "Access certification runs quarterly for all users with system access. Managers review and certify or revoke access for direct reports. Privileged access certified monthly. SailPoint automates certification campaigns. Non-response defaults to revocation after grace period.",
+      "context": "Identity governance program includes access certification. Risk-based approach prioritizes sensitive systems. Certification campaigns target user populations. Segregation of duties violations flagged for review. Audit trail documents all certification decisions.",
+      "expectedAnswer": "Quarterly for all users, monthly for privileged, SailPoint automation, non-response revokes.",
+      "expectedEntities": ["Access Certification", "SailPoint", "Identity Governance", "Privileged Access", "SoD"],
+      "sources": [
+        {
+          "id": "doc-cert-001",
+          "title": "Access Certification Procedures",
+          "content": "Identity governance program includes access certification. Risk-based approach prioritizes sensitive systems."
+        }
+      ]
+    },
+    {
+      "id": "qa-046",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How is knowledge management organized?",
+      "answer": "Knowledge management uses Confluence as the central repository. Content organized by department and topic taxonomy. Article lifecycle includes draft, review, published, and archived states. Search optimization improves discoverability. Usage analytics identify knowledge gaps.",
+      "context": "Knowledge base serves internal employees and customer-facing teams. Content owners responsible for accuracy and currency. Review cycles ensure information remains current. Templates standardize article format. Integration with ServiceNow surfaces relevant articles during incident resolution.",
+      "expectedAnswer": "Confluence repository, taxonomy organization, lifecycle management, search optimization.",
+      "expectedEntities": ["Knowledge Management", "Confluence", "Content Lifecycle", "Taxonomy"],
+      "sources": [
+        {
+          "id": "doc-km-001",
+          "title": "Knowledge Management Policy",
+          "content": "Knowledge base serves internal employees and customer-facing teams. Content owners responsible for accuracy and currency."
+        }
+      ]
+    },
+    {
+      "id": "qa-047",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "What is the innovation strategy?",
+      "answer": "Innovation strategy includes internal R&D, venture investments, and open innovation partnerships. Innovation lab explores emerging technologies. Hackathons engage employees in ideation. Stage-gate process advances promising concepts. Innovation portfolio balanced across horizons.",
+      "context": "Chief Innovation Officer leads corporate innovation agenda. R&D budget is 5% of revenue. Corporate venture arm invests in strategic startups. University partnerships provide research collaboration. Innovation metrics track idea pipeline and commercialization success.",
+      "expectedAnswer": "Internal R&D, venture investments, open innovation, hackathons, stage-gate process.",
+      "expectedEntities": ["Innovation", "R&D", "Corporate Venture", "Innovation Lab", "Hackathon"],
+      "sources": [
+        {
+          "id": "doc-innovation-001",
+          "title": "Innovation Strategy",
+          "content": "Chief Innovation Officer leads corporate innovation agenda. R&D budget is 5% of revenue."
+        }
+      ]
+    },
+    {
+      "id": "qa-048",
+      "category": "technical",
+      "persona": "IT",
+      "question": "How is event-driven architecture implemented?",
+      "answer": "Event-driven architecture uses Azure Event Hubs for high-throughput ingestion and Azure Service Bus for enterprise messaging. Event schemas registered in schema registry. Saga pattern handles distributed transactions. Dead letter queues capture failed messages for retry.",
+      "context": "Microservices communicate through events using publish-subscribe pattern. Apache Avro schemas ensure compatibility. Event sourcing captures state changes. CQRS separates read and write models. Correlation IDs enable distributed tracing.",
+      "expectedAnswer": "Event Hubs for streaming, Service Bus for messaging, schema registry, saga pattern.",
+      "expectedEntities": ["Event-Driven Architecture", "Azure Event Hubs", "Service Bus", "Event Sourcing", "CQRS"],
+      "sources": [
+        {
+          "id": "doc-eda-001",
+          "title": "Event-Driven Architecture Guide",
+          "content": "Microservices communicate through events using publish-subscribe pattern. Apache Avro schemas ensure compatibility."
+        }
+      ]
+    },
+    {
+      "id": "qa-049",
+      "category": "compliance",
+      "persona": "Compliance",
+      "question": "What vulnerability management program exists?",
+      "answer": "Vulnerability management includes weekly scans, risk-based prioritization, and defined remediation SLAs. Critical vulnerabilities require 24-hour remediation. Qualys provides scanning capabilities. Exception process allows temporary risk acceptance. Metrics track remediation velocity.",
+      "context": "Vulnerability management program covers infrastructure, applications, and containers. CVSS scores determine priority. Integration with CMDB identifies asset owners. Automated ticketing routes vulnerabilities to responsible teams. Monthly reporting to security committee.",
+      "expectedAnswer": "Weekly scans, CVSS-based prioritization, 24-hour SLA for critical, Qualys scanning.",
+      "expectedEntities": ["Vulnerability Management", "Qualys", "CVSS", "Remediation SLA", "Security Committee"],
+      "sources": [
+        {
+          "id": "doc-vuln-001",
+          "title": "Vulnerability Management Policy",
+          "content": "Vulnerability management program covers infrastructure, applications, and containers. CVSS scores determine priority."
+        }
+      ]
+    },
+    {
+      "id": "qa-050",
+      "category": "operational",
+      "persona": "Ops",
+      "question": "How is demand forecasting performed?",
+      "answer": "Demand forecasting combines statistical methods with machine learning models. Historical sales data, market trends, and promotional calendars feed the forecast. S&OP process reconciles demand and supply plans monthly. Forecast accuracy measured against actuals with MAPE metric.",
+      "context": "Demand planning team uses SAP IBP for forecasting. Consensus forecast integrates sales, marketing, and finance inputs. ABC-XYZ analysis segments products for forecast method selection. Exception-based management focuses attention on significant variances.",
+      "expectedAnswer": "Statistical and ML models, S&OP reconciliation monthly, MAPE accuracy measurement.",
+      "expectedEntities": ["Demand Forecasting", "SAP IBP", "S&OP", "MAPE", "Consensus Forecast"],
+      "sources": [
+        {
+          "id": "doc-demand-001",
+          "title": "Demand Planning Guide",
+          "content": "Demand planning team uses SAP IBP for forecasting. Consensus forecast integrates sales, marketing, and finance inputs."
+        }
+      ]
+    },
+    {
+      "id": "qa-051",
+      "category": "technical",
+      "persona": "IT",
+      "question": "What is the data mesh architecture approach?",
+      "answer": "Data mesh organizes data ownership by domain teams who publish data products. Self-serve data platform enables discovery and access. Federated governance ensures interoperability. Data contracts define schema and quality expectations. Mesh observability tracks data product health.",
+      "context": "Data mesh adoption treats data as a product. Domain teams own their analytical data. Data catalog enables discovery across domains. Quality metrics automated through great expectations framework. Cross-domain queries supported through federated query engine.",
+      "expectedAnswer": "Domain ownership, self-serve platform, federated governance, data contracts.",
+      "expectedEntities": ["Data Mesh", "Data Products", "Federated Governance", "Data Contracts", "Data Catalog"],
+      "sources": [
+        {
+          "id": "doc-mesh-001",
+          "title": "Data Mesh Architecture",
+          "content": "Data mesh adoption treats data as a product. Domain teams own their analytical data."
+        }
+      ]
+    },
+    {
+      "id": "qa-052",
+      "category": "leadership",
+      "persona": "Leadership",
+      "question": "How is the operating model designed?",
+      "answer": "Operating model follows a federated structure with shared services for efficiency and business units for agility. Global process owners ensure consistency. Centers of excellence provide expertise. Governance model balances local autonomy with enterprise standards.",
+      "context": "Operating model redesign completed in 2025. Shared services include finance, HR, and IT. Business units organized by market segment. Matrix structure balances functional and business line reporting. Operating committees meet monthly for cross-functional alignment.",
+      "expectedAnswer": "Federated with shared services, global process owners, CoEs, balanced governance.",
+      "expectedEntities": ["Operating Model", "Shared Services", "Business Units", "Centers of Excellence", "Governance"],
+      "sources": [
+        {
+          "id": "doc-opmodel-001",
+          "title": "Operating Model Design",
+          "content": "Operating model redesign completed in 2025. Shared services include finance, HR, and IT."
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "documentId": "benchmark-doc-001",
+      "category": "operational",
+      "extracted": [
+        { "name": "Purchase Order Process", "type": "Process", "confidence": 0.95 },
+        { "name": "Finance Department", "type": "Department", "confidence": 0.92 },
+        { "name": "Approval Workflow", "type": "Process", "confidence": 0.88 },
+        { "name": "CFO", "type": "Role", "confidence": 0.90 },
+        { "name": "Procurement Portal", "type": "System", "confidence": 0.85 },
+        { "name": "Budget Owner", "type": "Role", "confidence": 0.87 }
+      ],
+      "groundTruth": [
+        { "name": "Purchase Order Process", "type": "Process" },
+        { "name": "Finance Department", "type": "Department" },
+        { "name": "Approval Workflow", "type": "Process" },
+        { "name": "CFO", "type": "Role" },
+        { "name": "SAP ERP", "type": "System" },
+        { "name": "Budget Review", "type": "Activity" },
+        { "name": "Procurement Team", "type": "Team" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-002",
+      "category": "technical",
+      "extracted": [
+        { "name": "SAP S/4HANA", "type": "System", "confidence": 0.96 },
+        { "name": "Azure Integration Services", "type": "System", "confidence": 0.91 },
+        { "name": "Salesforce", "type": "System", "confidence": 0.94 },
+        { "name": "ServiceNow", "type": "System", "confidence": 0.93 },
+        { "name": "Data Lake", "type": "System", "confidence": 0.88 },
+        { "name": "MuleSoft", "type": "System", "confidence": 0.89 }
+      ],
+      "groundTruth": [
+        { "name": "SAP S/4HANA", "type": "System" },
+        { "name": "Azure Integration Services", "type": "System" },
+        { "name": "Salesforce", "type": "System" },
+        { "name": "ServiceNow", "type": "System" },
+        { "name": "Azure Data Lake", "type": "System" },
+        { "name": "MuleSoft Anypoint", "type": "System" },
+        { "name": "Power BI", "type": "System" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-003",
+      "category": "compliance",
+      "extracted": [
+        { "name": "GDPR", "type": "Regulation", "confidence": 0.97 },
+        { "name": "Data Subject Rights", "type": "Policy", "confidence": 0.89 },
+        { "name": "Privacy Team", "type": "Team", "confidence": 0.86 },
+        { "name": "DSR Workflow", "type": "Process", "confidence": 0.84 },
+        { "name": "Legal Hold", "type": "Process", "confidence": 0.82 }
+      ],
+      "groundTruth": [
+        { "name": "GDPR", "type": "Regulation" },
+        { "name": "Data Subject Rights", "type": "Policy" },
+        { "name": "Privacy Team", "type": "Team" },
+        { "name": "DSR Workflow", "type": "Process" },
+        { "name": "DPO", "type": "Role" },
+        { "name": "Data Discovery", "type": "Process" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-004",
+      "category": "leadership",
+      "extracted": [
+        { "name": "Digital Transformation", "type": "Initiative", "confidence": 0.94 },
+        { "name": "E-commerce Platform", "type": "System", "confidence": 0.91 },
+        { "name": "RPA", "type": "Technology", "confidence": 0.89 },
+        { "name": "Analytics CoE", "type": "Team", "confidence": 0.87 },
+        { "name": "Customer Experience", "type": "Initiative", "confidence": 0.85 }
+      ],
+      "groundTruth": [
+        { "name": "Digital Transformation", "type": "Initiative" },
+        { "name": "E-commerce Platform", "type": "System" },
+        { "name": "RPA", "type": "Technology" },
+        { "name": "Analytics Center of Excellence", "type": "Team" },
+        { "name": "Customer Experience Program", "type": "Initiative" },
+        { "name": "Enterprise Data Platform", "type": "System" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-005",
+      "category": "operational",
+      "extracted": [
+        { "name": "Change Management", "type": "Process", "confidence": 0.93 },
+        { "name": "CAB", "type": "Team", "confidence": 0.90 },
+        { "name": "Emergency Change", "type": "Process", "confidence": 0.87 },
+        { "name": "ITIL", "type": "Framework", "confidence": 0.92 },
+        { "name": "PIR", "type": "Process", "confidence": 0.84 }
+      ],
+      "groundTruth": [
+        { "name": "Change Management Process", "type": "Process" },
+        { "name": "Change Advisory Board", "type": "Team" },
+        { "name": "Emergency Change Process", "type": "Process" },
+        { "name": "ITIL Framework", "type": "Framework" },
+        { "name": "Post-Implementation Review", "type": "Process" },
+        { "name": "Change Manager", "type": "Role" }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "documentId": "benchmark-doc-001",
+      "category": "operational",
+      "extracted": [
+        { "from": "Finance Department", "to": "Purchase Order Process", "type": "OWNS" },
+        { "from": "Approval Workflow", "to": "Purchase Order Process", "type": "PART_OF" },
+        { "from": "CFO", "to": "Approval Workflow", "type": "EXECUTES" },
+        { "from": "Purchase Order Process", "to": "Procurement Portal", "type": "USES" },
+        { "from": "Budget Owner", "to": "Approval Workflow", "type": "EXECUTES" }
+      ],
+      "groundTruth": [
+        { "from": "Finance Department", "to": "Purchase Order Process", "type": "OWNS" },
+        { "from": "Approval Workflow", "to": "Purchase Order Process", "type": "PART_OF" },
+        { "from": "CFO", "to": "Approval Workflow", "type": "APPROVES" },
+        { "from": "Purchase Order Process", "to": "SAP ERP", "type": "USES" },
+        { "from": "Budget Review", "to": "Approval Workflow", "type": "PRECEDES" },
+        { "from": "Procurement Team", "to": "Purchase Order Process", "type": "EXECUTES" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-002",
+      "category": "technical",
+      "extracted": [
+        { "from": "SAP S/4HANA", "to": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+        { "from": "Salesforce", "to": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+        { "from": "ServiceNow", "to": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+        { "from": "Azure Integration Services", "to": "Data Lake", "type": "WRITES_TO" }
+      ],
+      "groundTruth": [
+        { "from": "SAP S/4HANA", "to": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+        { "from": "Salesforce", "to": "MuleSoft Anypoint", "type": "INTEGRATES_WITH" },
+        { "from": "ServiceNow", "to": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+        { "from": "Azure Integration Services", "to": "Azure Data Lake", "type": "WRITES_TO" },
+        { "from": "Power BI", "to": "Azure Data Lake", "type": "READS_FROM" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-003",
+      "category": "compliance",
+      "extracted": [
+        { "from": "GDPR", "to": "Data Subject Rights", "type": "MANDATES" },
+        { "from": "Privacy Team", "to": "DSR Workflow", "type": "EXECUTES" },
+        { "from": "DSR Workflow", "to": "Legal Hold", "type": "CHECKS" }
+      ],
+      "groundTruth": [
+        { "from": "GDPR", "to": "Data Subject Rights", "type": "MANDATES" },
+        { "from": "Privacy Team", "to": "DSR Workflow", "type": "OWNS" },
+        { "from": "DPO", "to": "Privacy Team", "type": "OVERSEES" },
+        { "from": "DSR Workflow", "to": "Data Discovery", "type": "USES" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-004",
+      "category": "leadership",
+      "extracted": [
+        { "from": "Digital Transformation", "to": "E-commerce Platform", "type": "INCLUDES" },
+        { "from": "Digital Transformation", "to": "RPA", "type": "INCLUDES" },
+        { "from": "Analytics CoE", "to": "Digital Transformation", "type": "SUPPORTS" }
+      ],
+      "groundTruth": [
+        { "from": "Digital Transformation", "to": "E-commerce Platform", "type": "INCLUDES" },
+        { "from": "Digital Transformation", "to": "RPA", "type": "INCLUDES" },
+        { "from": "Analytics Center of Excellence", "to": "Enterprise Data Platform", "type": "OWNS" },
+        { "from": "Customer Experience Program", "to": "Digital Transformation", "type": "PART_OF" }
+      ]
+    },
+    {
+      "documentId": "benchmark-doc-005",
+      "category": "operational",
+      "extracted": [
+        { "from": "CAB", "to": "Change Management", "type": "GOVERNS" },
+        { "from": "Emergency Change", "to": "Change Management", "type": "PART_OF" },
+        { "from": "PIR", "to": "Emergency Change", "type": "FOLLOWS" }
+      ],
+      "groundTruth": [
+        { "from": "Change Advisory Board", "to": "Change Management Process", "type": "GOVERNS" },
+        { "from": "Emergency Change Process", "to": "Change Management Process", "type": "PART_OF" },
+        { "from": "Post-Implementation Review", "to": "Emergency Change Process", "type": "FOLLOWS" },
+        { "from": "Change Manager", "to": "Change Management Process", "type": "OWNS" },
+        { "from": "ITIL Framework", "to": "Change Management Process", "type": "DEFINES" }
+      ]
+    }
+  ],
+  "community_summaries": [
+    {
+      "generatedSummary": {
+        "title": "Finance and Procurement Community",
+        "summary": "This community focuses on financial operations including purchase order processing, invoice reconciliation, and procurement workflows. Key stakeholders include the Finance Department, CFO, and Procurement Team using SAP ERP and the Procurement Portal.",
+        "keyEntities": ["Finance Department", "Purchase Order Process", "CFO", "SAP ERP", "Procurement Team"]
+      },
+      "groundTruth": {
+        "id": 1,
+        "members": ["Finance Department", "Purchase Order Process", "Approval Workflow", "CFO", "SAP ERP", "Budget Owner", "Procurement Team", "Invoice Reconciliation"],
+        "dominantType": "Process",
+        "typeCounts": { "Department": 1, "Process": 3, "Role": 2, "System": 1, "Team": 1 },
+        "relationships": [
+          { "source": "Finance Department", "target": "Purchase Order Process", "type": "OWNS" },
+          { "source": "CFO", "target": "Approval Workflow", "type": "APPROVES" }
+        ]
+      }
+    },
+    {
+      "generatedSummary": {
+        "title": "Enterprise Integration Community",
+        "summary": "This community encompasses the enterprise application landscape centered on SAP S/4HANA, Salesforce, and ServiceNow. Azure Integration Services and MuleSoft provide connectivity, with data flowing to Azure Data Lake for analytics via Power BI.",
+        "keyEntities": ["SAP S/4HANA", "Azure Integration Services", "Salesforce", "ServiceNow", "Power BI"]
+      },
+      "groundTruth": {
+        "id": 2,
+        "members": ["SAP S/4HANA", "Azure Integration Services", "Salesforce", "ServiceNow", "MuleSoft Anypoint", "Azure Data Lake", "Power BI"],
+        "dominantType": "System",
+        "typeCounts": { "System": 7 },
+        "relationships": [
+          { "source": "SAP S/4HANA", "target": "Azure Integration Services", "type": "INTEGRATES_WITH" },
+          { "source": "Power BI", "target": "Azure Data Lake", "type": "READS_FROM" }
+        ]
+      }
+    },
+    {
+      "generatedSummary": {
+        "title": "Privacy and Compliance Community",
+        "summary": "This community handles data privacy compliance centered on GDPR requirements. The Privacy Team manages Data Subject Request workflows with DPO oversight, ensuring proper data discovery and legal hold processes are followed.",
+        "keyEntities": ["GDPR", "Privacy Team", "DSR Workflow", "DPO", "Data Subject Rights"]
+      },
+      "groundTruth": {
+        "id": 3,
+        "members": ["GDPR", "Data Subject Rights", "Privacy Team", "DSR Workflow", "DPO", "Data Discovery", "Legal Hold"],
+        "dominantType": "Process",
+        "typeCounts": { "Regulation": 1, "Policy": 1, "Team": 1, "Process": 3, "Role": 1 },
+        "relationships": [
+          { "source": "GDPR", "target": "Data Subject Rights", "type": "MANDATES" },
+          { "source": "DPO", "target": "Privacy Team", "type": "OVERSEES" }
+        ]
+      }
+    }
+  ]
+}

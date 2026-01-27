@@ -9,6 +9,7 @@ const { CommunitySummaryService, CONFIG } = require('../community-summary-servic
 // Mock dependencies
 jest.mock('../../algorithms/louvain', () => ({
   detectCommunities: jest.fn(),
+  detectSubgraphCommunities: jest.fn(),
 }));
 
 jest.mock('../graph-service', () => ({
@@ -41,7 +42,7 @@ jest.mock('../openai-service', () => ({
   })),
 }));
 
-const { detectCommunities } = require('../../algorithms/louvain');
+const { detectCommunities, detectSubgraphCommunities } = require('../../algorithms/louvain');
 
 describe('CommunitySummaryService', () => {
   let service;
@@ -80,6 +81,31 @@ describe('CommunitySummaryService', () => {
         hierarchyLevels: 1,
         resolution: 1.0,
         executionTimeMs: 100,
+      },
+    });
+
+    detectSubgraphCommunities.mockResolvedValue({
+      communities: { n1: 0, n2: 0, n3: 1 },
+      communityList: [
+        {
+          id: 0,
+          size: 2,
+          members: [
+            { id: 'n1', name: 'Process A', type: 'Process' },
+            { id: 'n2', name: 'Task B', type: 'Task' },
+          ],
+          typeCounts: { Process: 1, Task: 1 },
+          dominantType: 'Process',
+        },
+      ],
+      modularity: 0.42,
+      metadata: {
+        nodeCount: 2,
+        edgeCount: 1,
+        communityCount: 1,
+        hierarchyLevels: 1,
+        resolution: 1.0,
+        executionTimeMs: 50,
       },
     });
 
@@ -156,6 +182,32 @@ describe('CommunitySummaryService', () => {
       expect(result).toHaveProperty('partialAnswers');
       expect(result).toHaveProperty('metadata');
       expect(result.metadata.communitiesProcessed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('generateSummariesForSubgraph', () => {
+    it('should generate summaries for subgraph communities with caching', async () => {
+      const entities = [
+        { id: 'n1', name: 'Process A', type: 'Process' },
+        { id: 'n2', name: 'Task B', type: 'Task' },
+      ];
+      const relationships = [
+        { from: 'Process A', to: 'Task B', type: 'CONTAINS' },
+      ];
+
+      const result = await service.generateSummariesForSubgraph(entities, relationships);
+
+      expect(detectSubgraphCommunities).toHaveBeenCalled();
+      expect(result.metadata.mode).toBe('lazy');
+      expect(Object.keys(result.summaries).length).toBeGreaterThan(0);
+
+      // Lazy summaries SHOULD populate the shared cache now (F6.2.3)
+      const cached = service.getAllCachedSummaries();
+      expect(Object.keys(cached).length).toBeGreaterThan(0);
+      
+      // Verify stable ID format
+      const cacheKey = Object.keys(cached)[0];
+      expect(cacheKey).toMatch(/^comm_/);
     });
   });
 

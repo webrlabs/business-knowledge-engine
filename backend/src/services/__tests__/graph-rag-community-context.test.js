@@ -106,6 +106,7 @@ describe('GraphRAG Community Context (F3.1.5)', () => {
       getAllCachedSummaries: jest.fn().mockReturnValue({}),
       getCommunitySummary: jest.fn(),
       generateAllSummaries: jest.fn(),
+      generateSummariesForSubgraph: jest.fn(),
       globalQuery: jest.fn(),
     };
     getCommunitySummaryService.mockReturnValue(mockCommunitySummary);
@@ -209,6 +210,31 @@ describe('GraphRAG Community Context (F3.1.5)', () => {
 
       expect(context).toContain('community_0');
       expect(mockOpenAIService.getChatCompletion).toHaveBeenCalled();
+    });
+
+    it('should use lazy subgraph summaries when enabled (F6.2.2)', async () => {
+      mockCommunitySummary.generateSummariesForSubgraph.mockResolvedValue({
+        summaries: {
+          0: {
+            title: 'Lazy Community',
+            summary: 'Lazy summary for subgraph.',
+            memberCount: 2,
+          },
+        },
+        communities: [
+          { id: 0, size: 2, members: [{ name: 'Process A' }, { name: 'Task B' }] },
+        ],
+        metadata: { mode: 'lazy' },
+      });
+
+      const context = await service._buildCommunityContext(
+        mockCommunities,
+        mockExpandedGraph,
+        { lazySummaries: true }
+      );
+
+      expect(mockCommunitySummary.generateSummariesForSubgraph).toHaveBeenCalled();
+      expect(context).toContain('Lazy Community');
     });
 
     it('should respect maxSummaries option', async () => {

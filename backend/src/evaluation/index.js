@@ -10,6 +10,11 @@
  * - Relationship Extraction Evaluator (Precision, Recall, F1, Direction Accuracy for relationships)
  * - Results Storage Service (Persistent storage for benchmark results) - F1.3.2
  * - Dashboard Service (Visual dashboards and trend reports) - F1.3.5
+ * - Community Summary Evaluator (Quality metrics for community summaries) - F6.1.5
+ * - Lazy vs Eager Comparison (A/B comparison of GraphRAG strategies) - F6.2.4
+ * - Negative Test Evaluator (Hallucination resistance testing) - F1.1.4
+ * - Adversarial Evaluator (Prompt injection and jailbreak testing) - F5.3.1
+ * - Security Bypass Evaluator (Security trimming bypass testing) - F5.3.4
  */
 
 const metrics = require('./metrics');
@@ -21,6 +26,11 @@ const relationshipExtractionEvaluator = require('./relationship-extraction-evalu
 const resultsStorageService = require('./results-storage-service');
 const chunkingComparison = require('./chunking-comparison');
 const dashboardService = require('./dashboard-service');
+const communitySummaryEvaluator = require('./community-summary-evaluator');
+const lazyVsEagerComparison = require('./lazy-vs-eager-comparison');
+const negativeTestEvaluator = require('./negative-test-evaluator');
+const adversarialEvaluator = require('./adversarial-evaluator');
+const securityBypassEvaluator = require('./security-bypass-evaluator');
 
 module.exports = {
   // Retrieval metrics
@@ -89,5 +99,37 @@ module.exports = {
   DashboardService: dashboardService.DashboardService,
   getDashboardService: dashboardService.getDashboardService,
   generateSparkline: dashboardService.generateSparkline,
-  DASHBOARD_CONFIG: dashboardService.CONFIG
+  DASHBOARD_CONFIG: dashboardService.CONFIG,
+
+  // Community Summary Evaluator (F6.1.5)
+  evaluateCommunitySummary: communitySummaryEvaluator.evaluateCommunitySummary,
+  evaluateBatchCommunitySummaries: communitySummaryEvaluator.evaluateBatchCommunitySummaries,
+  formatCommunitySummaryEvaluation: communitySummaryEvaluator.formatCommunitySummaryEvaluation,
+
+  // Lazy vs Eager Comparison (F6.2.4)
+  compareStrategies: lazyVsEagerComparison.compareStrategies,
+  runLazyEagerBenchmark: lazyVsEagerComparison.runComparisonBenchmark,
+  formatLazyEagerReport: lazyVsEagerComparison.formatComparisonReport,
+  formatLazyEagerReportMarkdown: lazyVsEagerComparison.formatComparisonReportMarkdown,
+  formatLazyEagerReportJSON: lazyVsEagerComparison.formatComparisonReportJSON,
+  createSampleComparisonDataset: lazyVsEagerComparison.createSampleComparisonDataset,
+  getLazyEagerRecommendation: lazyVsEagerComparison.getRecommendation,
+
+  // Negative Test Evaluator (F1.1.4)
+  evaluateNegativeTest: negativeTestEvaluator.evaluateNegativeTest,
+  evaluateBatchNegativeTests: negativeTestEvaluator.evaluateBatchNegativeTests,
+  formatNegativeTestEvaluation: negativeTestEvaluator.formatNegativeTestEvaluation,
+  formatBatchNegativeTestEvaluation: negativeTestEvaluator.formatBatchNegativeTestEvaluation,
+  NegativeTestCategories: negativeTestEvaluator.CATEGORIES,
+
+  // Adversarial Evaluator (F5.3.1)
+  evaluateAdversarialTest: adversarialEvaluator.evaluateAdversarialTest,
+  evaluateBatchAdversarialTests: adversarialEvaluator.evaluateBatchAdversarialTests,
+  formatAdversarialEvaluation: adversarialEvaluator.formatAdversarialEvaluation,
+  AdversarialCategories: adversarialEvaluator.CATEGORIES,
+
+  // Security Bypass Evaluator (F5.3.4)
+  SecurityBypassEvaluator: securityBypassEvaluator.SecurityBypassEvaluator,
+  runSecurityBypassTests: securityBypassEvaluator.runSecurityBypassTests,
+  SecurityBypassCategories: securityBypassEvaluator.CATEGORIES,
 };

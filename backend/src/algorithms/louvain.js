@@ -266,6 +266,167 @@ function aggregateCommunities(communities, adjacency) {
 }
 
 /**
+ * Run the Louvain algorithm on a set of nodes and edges.
+ *
+ * @param {Array} nodes - List of nodes
+ * @param {Array} edges - List of edges
+ * @param {Object} options - Configuration options
+ * @returns {Object} Community detection results
+ */
+function runLouvainAlgorithm(nodes, edges, options = {}) {
+  const config = { ...DEFAULT_CONFIG, ...options };
+  const { resolution } = config;
+  const startTime = Date.now();
+
+  if (nodes.length === 0) {
+    return {
+      communities: {},
+      communityList: [],
+      modularity: 0,
+      metadata: {
+        nodeCount: 0,
+        edgeCount: 0,
+        communityCount: 0,
+        hierarchyLevels: 0,
+        executionTimeMs: 0,
+      },
+    };
+  }
+
+  // Build adjacency structures
+  const adjacency = new Map();
+  const degrees = new Map();
+  const nodeIdSet = new Set(nodes.map((n) => n.id));
+
+  // Initialize
+  for (const node of nodes) {
+    adjacency.set(node.id, new Set());
+    degrees.set(node.id, 0);
+  }
+
+  // Build adjacency list (undirected graph for community detection)
+  let totalWeight = 0;
+  for (const edge of edges) {
+    const source = edge.source;
+    const target = edge.target;
+
+    if (nodeIdSet.has(source) && nodeIdSet.has(target) && source !== target) {
+      adjacency.get(source).add(target);
+      adjacency.get(target).add(source);
+      degrees.set(source, (degrees.get(source) || 0) + 1);
+      degrees.set(target, (degrees.get(target) || 0) + 1);
+      totalWeight++;
+    }
+  }
+
+  // Initialize each node in its own community
+  let communities = new Map();
+  for (const node of nodes) {
+    communities.set(node.id, node.id);
+  }
+
+  // Track hierarchy levels
+  let hierarchyLevels = 0;
+  let improved = true;
+  let currentAdjacency = adjacency;
+  let currentDegrees = degrees;
+  let currentCommunities = communities;
+  let currentTotalWeight = totalWeight;
+
+  // Main Louvain loop: alternate between local moving and aggregation
+  while (improved) {
+    hierarchyLevels++;
+
+    // Phase 1: Local moving
+    const result = localMovingPhase(
+      currentCommunities,
+      currentAdjacency,
+      currentDegrees,
+      currentTotalWeight,
+      config
+    );
+    currentCommunities = result.communities;
+    improved = result.improved;
+
+    if (!improved) break;
+
+    // Check if all nodes are in the same community
+    const uniqueCommunities = new Set(currentCommunities.values());
+    if (uniqueCommunities.size <= 1) break;
+
+    // Phase 2: Aggregation
+    const aggregated = aggregateCommunities(currentCommunities, currentAdjacency);
+
+    // If no aggregation possible, stop
+    if (aggregated.superCommunities.size === currentCommunities.size) {
+      break;
+    }
+
+    // Map original node communities through hierarchy
+    if (hierarchyLevels === 1) {
+      // First level: use direct mapping
+      for (const [nodeId, superId] of aggregated.nodeToSuperMapping) {
+        communities.set(nodeId, superId);
+      }
+    } else {
+      // Later levels: compose mappings
+      for (const [nodeId, currentComm] of communities) {
+        const superComm = aggregated.communityToSuper.get(currentComm);
+        if (superComm) {
+          communities.set(nodeId, superComm);
+        }
+      }
+    }
+
+    currentAdjacency = aggregated.superAdjacency;
+    currentDegrees = aggregated.superDegrees;
+    currentCommunities = aggregated.superCommunities;
+  }
+
+  // Renumber communities to sequential integers
+  const communityRemap = new Map();
+  let nextCommunityId = 0;
+  for (const communityId of communities.values()) {
+    if (!communityRemap.has(communityId)) {
+      communityRemap.set(communityId, nextCommunityId++);
+    }
+  }
+
+  // Apply remapping
+  for (const [nodeId, communityId] of communities) {
+    communities.set(nodeId, communityRemap.get(communityId));
+  }
+
+  // Calculate final modularity
+  const modularity = calculateModularity(
+    communities,
+    adjacency,
+    degrees,
+    totalWeight,
+    resolution
+  );
+
+  // Build community list with member nodes
+  const communityList = buildCommunityList(nodes, communities);
+
+  const executionTimeMs = Date.now() - startTime;
+
+  return {
+    communities: Object.fromEntries(communities),
+    communityList,
+    modularity,
+    metadata: {
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      communityCount: communityList.length,
+      hierarchyLevels,
+      resolution,
+      executionTimeMs,
+    },
+  };
+}
+
+/**
  * Detect communities in the knowledge graph using the Louvain algorithm.
  *
  * @param {Object} options - Configuration options
@@ -276,10 +437,8 @@ function aggregateCommunities(communities, adjacency) {
  */
 async function detectCommunities(options = {}) {
   const config = { ...DEFAULT_CONFIG, ...options };
-  const { resolution } = config;
 
   log.info('Starting Louvain community detection', { config });
-  const startTime = Date.now();
 
   try {
     // Fetch graph data
@@ -297,7 +456,7 @@ async function detectCommunities(options = {}) {
           edgeCount: 0,
           communityCount: 0,
           hierarchyLevels: 0,
-          executionTimeMs: Date.now() - startTime,
+          executionTimeMs: 0,
         },
       };
     }
@@ -307,149 +466,80 @@ async function detectCommunities(options = {}) {
       edgeCount: edges.length,
     });
 
-    // Build adjacency structures
-    const adjacency = new Map();
-    const degrees = new Map();
-    const nodeIdSet = new Set(nodes.map((n) => n.id));
+    const result = runLouvainAlgorithm(nodes, edges, config);
 
-    // Initialize
-    for (const node of nodes) {
-      adjacency.set(node.id, new Set());
-      degrees.set(node.id, 0);
-    }
-
-    // Build adjacency list (undirected graph for community detection)
-    let totalWeight = 0;
-    for (const edge of edges) {
-      const source = edge.source;
-      const target = edge.target;
-
-      if (nodeIdSet.has(source) && nodeIdSet.has(target) && source !== target) {
-        adjacency.get(source).add(target);
-        adjacency.get(target).add(source);
-        degrees.set(source, (degrees.get(source) || 0) + 1);
-        degrees.set(target, (degrees.get(target) || 0) + 1);
-        totalWeight++;
-      }
-    }
-
-    // Initialize each node in its own community
-    let communities = new Map();
-    for (const node of nodes) {
-      communities.set(node.id, node.id);
-    }
-
-    // Track hierarchy levels
-    let hierarchyLevels = 0;
-    let improved = true;
-    let currentAdjacency = adjacency;
-    let currentDegrees = degrees;
-    let currentCommunities = communities;
-    let currentTotalWeight = totalWeight;
-
-    // Main Louvain loop: alternate between local moving and aggregation
-    while (improved) {
-      hierarchyLevels++;
-
-      // Phase 1: Local moving
-      const result = localMovingPhase(
-        currentCommunities,
-        currentAdjacency,
-        currentDegrees,
-        currentTotalWeight,
-        config
-      );
-      currentCommunities = result.communities;
-      improved = result.improved;
-
-      if (!improved) break;
-
-      // Check if all nodes are in the same community
-      const uniqueCommunities = new Set(currentCommunities.values());
-      if (uniqueCommunities.size <= 1) break;
-
-      // Phase 2: Aggregation
-      const aggregated = aggregateCommunities(currentCommunities, currentAdjacency);
-
-      // If no aggregation possible, stop
-      if (aggregated.superCommunities.size === currentCommunities.size) {
-        break;
-      }
-
-      // Map original node communities through hierarchy
-      if (hierarchyLevels === 1) {
-        // First level: use direct mapping
-        for (const [nodeId, superId] of aggregated.nodeToSuperMapping) {
-          communities.set(nodeId, superId);
-        }
-      } else {
-        // Later levels: compose mappings
-        for (const [nodeId, currentComm] of communities) {
-          const superComm = aggregated.communityToSuper.get(currentComm);
-          if (superComm) {
-            communities.set(nodeId, superComm);
-          }
-        }
-      }
-
-      currentAdjacency = aggregated.superAdjacency;
-      currentDegrees = aggregated.superDegrees;
-      currentCommunities = aggregated.superCommunities;
-
-      log.debug(`Completed hierarchy level ${hierarchyLevels}`, {
-        communities: uniqueCommunities.size,
-      });
-    }
-
-    // Renumber communities to sequential integers
-    const communityRemap = new Map();
-    let nextCommunityId = 0;
-    for (const communityId of communities.values()) {
-      if (!communityRemap.has(communityId)) {
-        communityRemap.set(communityId, nextCommunityId++);
-      }
-    }
-
-    // Apply remapping
-    for (const [nodeId, communityId] of communities) {
-      communities.set(nodeId, communityRemap.get(communityId));
-    }
-
-    // Calculate final modularity
-    const modularity = calculateModularity(
-      communities,
-      adjacency,
-      degrees,
-      totalWeight,
-      resolution
-    );
-
-    // Build community list with member nodes
-    const communityList = buildCommunityList(nodes, communities);
-
-    const executionTimeMs = Date.now() - startTime;
     log.info('Louvain community detection completed', {
-      communityCount: communityList.length,
-      modularity: modularity.toFixed(4),
-      hierarchyLevels,
-      executionTimeMs,
+      communityCount: result.communityList.length,
+      modularity: result.modularity.toFixed(4),
+      hierarchyLevels: result.metadata.hierarchyLevels,
+      executionTimeMs: result.metadata.executionTimeMs,
     });
 
-    return {
-      communities: Object.fromEntries(communities),
-      communityList,
-      modularity,
-      metadata: {
-        nodeCount: nodes.length,
-        edgeCount: edges.length,
-        communityCount: communityList.length,
-        hierarchyLevels,
-        resolution,
-        executionTimeMs,
-      },
-    };
+    return result;
   } catch (error) {
     log.errorWithStack('Louvain community detection failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Detect communities within a specific subgraph.
+ * Used for LazyGraphRAG (query-time community detection).
+ * Feature: F6.2.1 - On-Demand Community Detection
+ *
+ * @param {Array<string>} nodeIds - IDs of nodes in the subgraph
+ * @param {Object} options - Configuration options
+ * @returns {Promise<Object>} Community detection results
+ */
+async function detectSubgraphCommunities(nodeIds, options = {}) {
+  const config = { ...DEFAULT_CONFIG, ...options };
+
+  if (!nodeIds || nodeIds.length === 0) {
+    return {
+      communities: {},
+      communityList: [],
+      modularity: 0,
+      metadata: { nodeCount: 0, edgeCount: 0, communityCount: 0, executionTimeMs: 0 },
+    };
+  }
+
+  try {
+    const graphService = getGraphService();
+    const subgraph = await graphService.getSubgraph(nodeIds, true);
+    
+    // Map names to IDs for edges
+    const nameToId = new Map();
+    const nodes = subgraph.entities.map(e => {
+      nameToId.set(e.name, e.id);
+      return {
+        id: e.id,
+        name: e.name,
+        type: e.type || 'Unknown'
+      };
+    });
+
+    const edges = subgraph.relationships.map(r => {
+      const sourceId = nameToId.get(r.from);
+      const targetId = nameToId.get(r.to);
+      
+      if (sourceId && targetId) {
+        return {
+          source: sourceId,
+          target: targetId,
+          type: r.type
+        };
+      }
+      return null;
+    }).filter(e => e !== null);
+
+    log.debug('Running subgraph community detection', {
+      nodeCount: nodes.length,
+      edgeCount: edges.length
+    });
+
+    return runLouvainAlgorithm(nodes, edges, config);
+  } catch (error) {
+    log.errorWithStack('Subgraph community detection failed', error);
     throw error;
   }
 }
@@ -973,6 +1063,7 @@ module.exports = {
   detectCommunities,
   detectCommunitiesIncremental,
   detectCommunitiesSmart,
+  detectSubgraphCommunities,
   getEntityCommunity,
   getTopCommunities,
   calculateModularity,

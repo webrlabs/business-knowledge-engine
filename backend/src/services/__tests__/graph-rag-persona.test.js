@@ -131,6 +131,16 @@ describe('GraphRAG Persona Features (F6.3)', () => {
       getPromptHint: jest.fn(),
       hasPersona: jest.fn().mockReturnValue(true),
       getRelationshipWeight: jest.fn().mockReturnValue(0.5),
+      // F6.3.6: Persona-based filtering
+      isFilteringEnabled: jest.fn().mockReturnValue(false),
+      filterResultsByPersona: jest.fn().mockImplementation((personaId, results, options) => ({
+        ...results,
+        filteringMetadata: {
+          applied: false,
+          personaId,
+          reason: 'filtering_not_enabled',
+        },
+      })),
     };
     getPersonaService.mockReturnValue(mockPersonaService);
 

@@ -1,0 +1,160 @@
+{
+  "metadata": {
+    "name": "lazy-vs-eager-benchmark",
+    "version": "1.0.0",
+    "description": "Benchmark dataset for comparing Lazy vs Eager GraphRAG strategies (F6.2.4)",
+    "created": "2026-01-23",
+    "author": "GraphRAG Evaluation Team",
+    "categories": ["process", "organization", "technical", "compliance", "leadership"],
+    "queryTypes": ["local", "global", "mixed"]
+  },
+  "queries": [
+    {
+      "id": "LVE-001",
+      "question": "What is the purchase order approval workflow?",
+      "expectedAnswer": "The purchase order approval workflow includes requisition creation, manager approval, budget verification, and final procurement sign-off.",
+      "category": "process",
+      "difficulty": "easy",
+      "queryType": "local",
+      "notes": "Tests focused retrieval on a single process"
+    },
+    {
+      "id": "LVE-002",
+      "question": "Who are the key stakeholders in vendor management?",
+      "expectedAnswer": "Key stakeholders include Procurement Manager, Legal Counsel for contracts, Finance for payments, and Quality Assurance for vendor audits.",
+      "category": "organization",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Tests entity-centric queries"
+    },
+    {
+      "id": "LVE-003",
+      "question": "How do the ERP system and inventory management integrate?",
+      "expectedAnswer": "The ERP system integrates with inventory management through real-time stock level syncing, automated reorder triggers, and unified reporting dashboards.",
+      "category": "technical",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Tests relationship traversal between systems"
+    },
+    {
+      "id": "LVE-004",
+      "question": "What compliance requirements govern data retention policies?",
+      "expectedAnswer": "Data retention policies must comply with GDPR 7-year financial records requirement, SOX audit trail mandates, and industry-specific regulations.",
+      "category": "compliance",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Tests compliance/policy entity queries"
+    },
+    {
+      "id": "LVE-005",
+      "question": "Summarize the main business processes across all departments.",
+      "expectedAnswer": "Main processes include Procure-to-Pay (Finance), Order-to-Cash (Sales), Hire-to-Retire (HR), and Plan-to-Produce (Operations).",
+      "category": "leadership",
+      "difficulty": "hard",
+      "queryType": "global",
+      "notes": "Global query - requires cross-community synthesis"
+    },
+    {
+      "id": "LVE-006",
+      "question": "What are the critical dependencies between IT systems?",
+      "expectedAnswer": "Critical dependencies include ERP to Database servers, CRM to Email systems, and all systems to Active Directory for authentication.",
+      "category": "technical",
+      "difficulty": "hard",
+      "queryType": "global",
+      "notes": "Global query - multi-hop relationship traversal"
+    },
+    {
+      "id": "LVE-007",
+      "question": "Describe the organizational structure of the operations department.",
+      "expectedAnswer": "Operations is led by the COO, with Directors for Manufacturing, Logistics, and Quality. Each Director oversees multiple team leads.",
+      "category": "organization",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Hierarchical entity query"
+    },
+    {
+      "id": "LVE-008",
+      "question": "What risks are associated with the invoice processing workflow?",
+      "expectedAnswer": "Key risks include duplicate payments, unauthorized approvals, late payment penalties, and fraud through fictitious vendors.",
+      "category": "compliance",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Risk-focused process query"
+    },
+    {
+      "id": "LVE-009",
+      "question": "How does the company ensure quality control across manufacturing?",
+      "expectedAnswer": "Quality control includes incoming inspection, in-process checks, final testing, and periodic ISO audits with corrective action tracking.",
+      "category": "process",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "Process detail query"
+    },
+    {
+      "id": "LVE-010",
+      "question": "Provide an executive overview of technology investments and their business impact.",
+      "expectedAnswer": "Key investments include cloud migration (30% cost reduction), CRM upgrade (20% sales efficiency), and automation (40% manual task reduction).",
+      "category": "leadership",
+      "difficulty": "hard",
+      "queryType": "global",
+      "notes": "Executive summary requiring cross-domain synthesis"
+    },
+    {
+      "id": "LVE-011",
+      "question": "What training programs exist for new employees?",
+      "expectedAnswer": "Training includes company orientation, role-specific onboarding, compliance training (GDPR, security), and ongoing professional development.",
+      "category": "organization",
+      "difficulty": "easy",
+      "queryType": "local",
+      "notes": "HR process query"
+    },
+    {
+      "id": "LVE-012",
+      "question": "Explain the end-to-end customer order fulfillment process.",
+      "expectedAnswer": "Order fulfillment starts with order receipt, inventory allocation, picking/packing, shipping, and delivery confirmation with feedback collection.",
+      "category": "process",
+      "difficulty": "medium",
+      "queryType": "local",
+      "notes": "End-to-end process query"
+    },
+    {
+      "id": "LVE-013",
+      "question": "What security controls protect customer data?",
+      "expectedAnswer": "Controls include encryption at rest and in transit, access controls (RBAC), audit logging, regular penetration testing, and incident response procedures.",
+      "category": "compliance",
+      "difficulty": "hard",
+      "queryType": "local",
+      "notes": "Security-focused compliance query"
+    },
+    {
+      "id": "LVE-014",
+      "question": "How are KPIs measured and reported across the organization?",
+      "expectedAnswer": "KPIs are tracked in dashboards, reported monthly to leadership, with automated alerts for threshold breaches and quarterly trend analysis.",
+      "category": "leadership",
+      "difficulty": "medium",
+      "queryType": "global",
+      "notes": "Cross-functional reporting query"
+    },
+    {
+      "id": "LVE-015",
+      "question": "What disaster recovery procedures are in place for critical systems?",
+      "expectedAnswer": "DR includes daily backups, off-site replication, documented recovery procedures, annual DR testing, and defined RTO/RPO targets.",
+      "category": "technical",
+      "difficulty": "hard",
+      "queryType": "local",
+      "notes": "IT infrastructure query"
+    }
+  ],
+  "evaluationCriteria": {
+    "latencyThresholds": {
+      "excellent": 2000,
+      "good": 5000,
+      "acceptable": 10000
+    },
+    "qualityThresholds": {
+      "excellent": 4.5,
+      "good": 3.5,
+      "acceptable": 2.5
+    }
+  }
+}

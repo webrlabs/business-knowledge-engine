@@ -6,6 +6,7 @@ import { API_BASE_URL, useAuthFetch } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast, ToastContainer } from '@/components/Toast';
 import HelpTooltip from '@/components/HelpTooltip';
+import PersonaSelector from '@/components/PersonaSelector';
 
 interface Message {
   id: string;
@@ -13,6 +14,7 @@ interface Message {
   content: string;
   citations?: string[];
   timestamp: Date;
+  persona?: string;
 }
 
 export default function GraphRAGQueryPage() {
@@ -23,6 +25,7 @@ export default function GraphRAGQueryPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [inputError, setInputError] = useState('');
   const [inputTouched, setInputTouched] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState('default');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -76,6 +79,7 @@ export default function GraphRAGQueryPage() {
       role: 'user',
       content: inputValue,
       timestamp: new Date(),
+      persona: selectedPersona,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -88,7 +92,12 @@ export default function GraphRAGQueryPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: inputValue }),
+        body: JSON.stringify({
+          query: inputValue,
+          options: {
+            persona: selectedPersona,
+          },
+        }),
       });
 
       if (!response.ok) {
@@ -103,6 +112,7 @@ export default function GraphRAGQueryPage() {
         content: data.answer,
         citations: data.citations || [],
         timestamp: new Date(),
+        persona: selectedPersona,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -151,16 +161,28 @@ export default function GraphRAGQueryPage() {
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
       <div className="h-full flex flex-col">
         <div className="mb-6">
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">GraphRAG Query</h2>
-            <HelpTooltip
-              content="GraphRAG combines vector search with graph traversal to provide accurate, context-aware answers about your business processes. Ask natural language questions and get answers with citations linking back to source documents."
-              learnMoreLink="#"
-            />
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">GraphRAG Query</h2>
+                <HelpTooltip
+                  content="GraphRAG combines vector search with graph traversal to provide accurate, context-aware answers about your business processes. Ask natural language questions and get answers with citations linking back to source documents."
+                  learnMoreLink="#"
+                />
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                Ask questions about your business processes and get AI-powered answers
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Response style:</span>
+              <PersonaSelector
+                selectedPersona={selectedPersona}
+                onPersonaChange={setSelectedPersona}
+                disabled={isLoading}
+              />
+            </div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Ask questions about your business processes and get AI-powered answers
-          </p>
         </div>
 
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">

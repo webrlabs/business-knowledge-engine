@@ -17,4 +17,7 @@ module.exports = {
   ...require('./configuration-service'),
   ...require('./temporal-service'),
   ...require('./pagination-service'),
+  ...require('./incremental-sync-service'),
+  ...require('./connector-health-service'),
+  ...require('./deletion-sync-service'),
 };

@@ -17,11 +17,13 @@ const {
   detectCommunities,
   detectCommunitiesIncremental,
   detectCommunitiesSmart,
+  detectSubgraphCommunities,
 } = require('../algorithms/louvain');
 const { getGraphService } = require('./graph-service');
 const { getOpenAIService } = require('./openai-service');
 const { getCommunityStorageService } = require('./community-storage-service');
 const { log } = require('../utils/logger');
+const crypto = require('crypto');
 
 /**
  * Configuration for community summary generation
@@ -645,6 +647,111 @@ class CommunitySummaryService {
   }
 
   /**
+   * Generate summaries for communities detected within a query subgraph.
+   * Feature: F6.2.2 - Query-Time Summarization
+   *
+   * @param {Array} entities - Entities in the subgraph
+   * @param {Array} relationships - Relationships in the subgraph
+   * @param {Object} options - Options for detection/summarization
+   * @param {number} options.minCommunitySize - Minimum community size to summarize
+   * @param {number} options.resolution - Louvain resolution parameter
+   * @returns {Promise<Object>} Summaries and metadata
+   */
+  async generateSummariesForSubgraph(entities = [], relationships = [], options = {}) {
+    const startTime = Date.now();
+    const minCommunitySize = options.minCommunitySize || CONFIG.MIN_COMMUNITY_SIZE_FOR_SUMMARY;
+    const nodeIds = entities.map(e => e.id).filter(Boolean);
+
+    if (nodeIds.length === 0) {
+      return {
+        summaries: {},
+        communities: [],
+        metadata: {
+          summarizedCount: 0,
+          skippedCount: 0,
+          executionTimeMs: 0,
+          generatedAt: new Date().toISOString(),
+          mode: 'lazy',
+          reason: 'no_nodes',
+        },
+      };
+    }
+
+    try {
+      const detectionResult = await detectSubgraphCommunities(nodeIds, {
+        resolution: options.resolution || 1.0,
+      });
+
+      const communityList = detectionResult.communityList || [];
+      const eligibleCommunities = communityList.filter(c => c.size >= minCommunitySize);
+
+      if (eligibleCommunities.length === 0) {
+        return {
+          summaries: {},
+          communities: [],
+          metadata: {
+            ...detectionResult.metadata,
+            summarizedCount: 0,
+            skippedCount: communityList.length,
+            executionTimeMs: Date.now() - startTime,
+            generatedAt: new Date().toISOString(),
+            mode: 'lazy',
+            reason: 'no_eligible_communities',
+          },
+        };
+      }
+
+      const relationshipsMap = this._buildRelationshipsMapFromSubgraph(
+        eligibleCommunities,
+        relationships
+      );
+
+      // F6.2.3: Use stable community IDs for caching
+      // Since detection IDs are non-deterministic, we generate a hash based on members
+      for (const community of eligibleCommunities) {
+        community.id = this._generateStableCommunityId(community.members);
+      }
+
+      const summaries = await this._generateSummariesBatch(
+        eligibleCommunities,
+        relationshipsMap,
+        false, // Don't force refresh
+        { cache: true } // Enable caching for lazy summaries
+      );
+
+      return {
+        summaries,
+        communities: eligibleCommunities,
+        metadata: {
+          ...detectionResult.metadata,
+          summarizedCount: Object.keys(summaries).length,
+          skippedCount: communityList.length - eligibleCommunities.length,
+          executionTimeMs: Date.now() - startTime,
+          generatedAt: new Date().toISOString(),
+          mode: 'lazy',
+        },
+      };
+    } catch (error) {
+      log.warn('Failed to generate subgraph summaries, returning empty result', {
+        error: error.message,
+      });
+
+      return {
+        summaries: {},
+        communities: [],
+        metadata: {
+          summarizedCount: 0,
+          skippedCount: 0,
+          executionTimeMs: Date.now() - startTime,
+          generatedAt: new Date().toISOString(),
+          mode: 'lazy',
+          error: error.message,
+        },
+      };
+    }
+  }
+
+  /**
    * Map-Reduce: Generate partial answers from community summaries
    * This is the MAP phase of Microsoft GraphRAG's global search
    *
@@ -818,6 +925,32 @@ Please synthesize these partial answers into a comprehensive response to the que
     };
   }
 
+  /**
+   * Generate a stable community ID based on its members.
+   * Used for caching lazy summaries where detection IDs are non-deterministic.
+   *
+   * @param {Array} members - Array of member objects or IDs
+   * @returns {string} Stable hash ID (e.g., "comm_a1b2c3...")
+   */
+  _generateStableCommunityId(members) {
+    if (!members || members.length === 0) return 'comm_empty';
+
+    // Extract IDs/names and sort them for stability
+    const ids = members
+      .map(m => (typeof m === 'object' ? (m.id || m.name) : m))
+      .filter(Boolean)
+      .map(String)
+      .sort();
+
+    // Generate hash
+    const hash = crypto
+      .createHash('md5')
+      .update(ids.join(','))
+      .digest('hex');
+
+    return `comm_${hash.substring(0, 12)}`;
+  }
+
   // ========== Private Methods ==========
 
   /**
@@ -869,11 +1002,54 @@ Please synthesize these partial answers into a comprehensive response to the que
   }
 
   /**
+   * Build a relationships map using a subgraph relationship list.
+   * @param {Array} communities - Community list with members
+   * @param {Array} relationships - Subgraph relationships
+   * @returns {Map} Map of communityId -> relationship list
+   */
+  _buildRelationshipsMapFromSubgraph(communities, relationships = []) {
+    const relationshipsMap = new Map();
+    const nameToCommunity = new Map();
+
+    for (const community of communities) {
+      relationshipsMap.set(community.id, []);
+      for (const member of community.members || []) {
+        const name = typeof member === 'string' ? member : member.name;
+        if (name) {
+          nameToCommunity.set(name, community.id);
+        }
+      }
+    }
+
+    for (const rel of relationships) {
+      const sourceName = rel.from || rel.source;
+      const targetName = rel.to || rel.target;
+      if (!sourceName || !targetName) continue;
+
+      const sourceCommunity = nameToCommunity.get(sourceName);
+      const targetCommunity = nameToCommunity.get(targetName);
+      if (sourceCommunity && sourceCommunity === targetCommunity) {
+        const bucket = relationshipsMap.get(sourceCommunity);
+        if (bucket) {
+          bucket.push({
+            source: sourceName,
+            target: targetName,
+            type: rel.type || rel.label || 'RELATED_TO',
+          });
+        }
+      }
+    }
+
+    return relationshipsMap;
+  }
+
+  /**
    * Generate summaries for a batch of communities
    */
-  async _generateSummariesBatch(communities, relationshipsMap, forceRefresh = false) {
+  async _generateSummariesBatch(communities, relationshipsMap, forceRefresh = false, options = {}) {
     const summaries = {};
     const batches = [];
+    const useCache = options.cache !== false;
 
     // Split into batches
     for (let i = 0; i < communities.length; i += CONFIG.BATCH_SIZE) {
@@ -883,7 +1059,7 @@ Please synthesize these partial answers into a comprehensive response to the que
     for (const batch of batches) {
       const batchPromises = batch.map(async (community) => {
         // Check cache unless forcing refresh
-        if (!forceRefresh) {
+        if (useCache && !forceRefresh) {
           const cached = this.cache.get(String(community.id));
           if (cached) {
             return { communityId: community.id, summary: cached };
@@ -894,7 +1070,9 @@ Please synthesize these partial answers into a comprehensive response to the que
         const summary = await this._generateSingleSummary(community, relationships);
 
         // Cache the result
-        this.cache.set(String(community.id), summary);
+        if (useCache) {
+          this.cache.set(String(community.id), summary);
+        }
 
         return { communityId: community.id, summary };
       });

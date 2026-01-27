@@ -166,20 +166,23 @@ class OpenAIService {
     const results = [];
     const cb = this._getCircuitBreaker();
 
+    // Define operation that takes batch as argument (avoid closure caching issue)
+    const embeddingOperation = async (batchInput) => {
+      return this._retryWithBackoff(async () => {
+        return await client.embeddings.create({
+          model,
+          input: batchInput,
+        });
+      });
+    };
+
+    // Get or create the circuit breaker once (it's now stateless w.r.t. input)
+    const breaker = cb.getBreaker('openai', embeddingOperation, { name: 'getEmbeddingsBatch' });
+
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const batch = texts.slice(i, i + BATCH_SIZE);
-
-      const operation = async () => {
-        return this._retryWithBackoff(async () => {
-          return await client.embeddings.create({
-            model,
-            input: batch,
-          });
-        });
-      };
-
-      const breaker = cb.getBreaker('openai', operation, { name: 'getEmbeddingsBatch' });
-      const response = await breaker.fire();
+      // Pass batch as argument to fire() instead of closing over it
+      const response = await breaker.fire(batch);
       results.push(...response.data.map((d) => d.embedding));
     }
 

@@ -189,6 +189,35 @@ class GraphRAGService {
       cachedCommunitySummaries: cachedSummaryCount,
     });
 
+    // Apply persona-based filtering if requested (F6.3.6)
+    let finalEntities = expandedGraph.entities;
+    let finalRelationships = expandedGraph.relationships;
+    let filteringMetadata = null;
+
+    if (options.persona && options.filterByPersona !== false) {
+      const filteredResults = this.personaService.filterResultsByPersona(
+        options.persona,
+        { entities: expandedGraph.entities, relationships: expandedGraph.relationships },
+        {
+          forceFilter: options.forceFilter || false,
+          filterRelationshipEndpoints: options.filterRelationshipEndpoints !== false,
+        }
+      );
+      finalEntities = filteredResults.entities;
+      finalRelationships = filteredResults.relationships;
+      filteringMetadata = filteredResults.filteringMetadata;
+
+      if (filteringMetadata.applied) {
+        log.info('Persona-based filtering applied', {
+          persona: options.persona,
+          originalEntities: expandedGraph.entities.length,
+          filteredEntities: finalEntities.length,
+          originalRelationships: expandedGraph.relationships.length,
+          filteredRelationships: finalRelationships.length,
+        });
+      }
+    }
+
     return {
       context,
       metadata: {
@@ -198,6 +227,11 @@ class GraphRAGService {
           entityCount: expandedGraph.entities.length,
           relationshipCount: expandedGraph.relationships.length,
         },
+        // Filtered counts (F6.3.6)
+        filteredGraph: filteringMetadata?.applied ? {
+          entityCount: finalEntities.length,
+          relationshipCount: finalRelationships.length,
+        } : null,
         chunkCount: relevantChunks.length,
         communityCount: communities.length,
         processingTimeMs: processingTime,
@@ -215,11 +249,17 @@ class GraphRAGService {
           subgraphCommunities: communities.length,
           cachedSummariesAvailable: cachedSummaryCount,
           maxSummariesIncluded: CONFIG.MAX_COMMUNITY_SUMMARIES,
+          lazySummaries: options.lazySummaries === true,
         },
+        // Persona-based filtering metadata (F6.3.6)
+        personaFiltering: filteringMetadata,
       },
-      // Raw data for further processing
-      entities: expandedGraph.entities,
-      relationships: expandedGraph.relationships,
+      // Raw data for further processing (filtered if persona filtering applied)
+      entities: finalEntities,
+      relationships: finalRelationships,
+      // Include unfiltered data for reference when filtering is applied
+      unfilteredEntities: filteringMetadata?.applied ? expandedGraph.entities : null,
+      unfilteredRelationships: filteringMetadata?.applied ? expandedGraph.relationships : null,
       chunks: relevantChunks,
       communities,
     };
@@ -832,6 +872,50 @@ Focus on business entities like:
     const summaries = [];
     const maxSummaries = options.maxSummaries || CONFIG.MAX_COMMUNITY_SUMMARIES;
 
+    if (options.lazySummaries) {
+      try {
+        const lazyResult = await this.communitySummary.generateSummariesForSubgraph(
+          expandedGraph.entities,
+          expandedGraph.relationships,
+          {
+            minCommunitySize: options.minCommunitySize,
+            resolution: options.resolution,
+          }
+        );
+
+        const lazyCommunities = (lazyResult.communities || [])
+          .sort((a, b) => b.size - a.size)
+          .slice(0, maxSummaries);
+
+        for (const community of lazyCommunities) {
+          const summary = lazyResult.summaries?.[community.id] ||
+            lazyResult.summaries?.[String(community.id)];
+
+          if (summary) {
+            const entityCount = summary.memberCount || community.size || 'N/A';
+            summaries.push(
+              `### ${summary.title || `Community ${community.id}`} (${entityCount} entities)\n${summary.summary}`
+            );
+          }
+        }
+
+        if (summaries.length > 0) {
+          log.debug('Community context built for GraphRAG (F6.2.2)', {
+            totalCommunities: lazyCommunities.length,
+            summariesIncluded: summaries.length,
+            maxSummaries,
+            lazyMode: true,
+          });
+
+          return summaries.join('\n\n');
+        }
+      } catch (error) {
+        log.warn('Lazy community summarization failed, falling back to cached summaries', {
+          error: error.message,
+        });
+      }
+    }
+
     // Try to get pre-computed summaries from the community summary service
     const cachedSummaries = this.communitySummary.getAllCachedSummaries();
     const hasCachedSummaries = Object.keys(cachedSummaries).length > 0;
@@ -1039,8 +1123,21 @@ Always cite specific entities or sources when possible.${personaInstruction}`,
       context: ragResult.context,
       metadata: ragResult.metadata,
       sources: {
-        entities: ragResult.entities.map(e => ({ name: e.name, type: e.type })),
+        entities: ragResult.entities.map(e => ({
+          name: e.name,
+          type: e.type,
+          relevance: e.personaRelevance, // F6.3.6
+        })),
         documents: [...new Set(ragResult.chunks.map(c => c.sourceFile).filter(Boolean))],
+        // F6.3.6: Include filtering summary if applied
+        filtering: ragResult.metadata?.personaFiltering?.applied ? {
+          applied: true,
+          persona: ragResult.metadata.personaFiltering.personaName,
+          entitiesShown: ragResult.entities.length,
+          entitiesFiltered: ragResult.metadata.personaFiltering.entity?.removedCount || 0,
+          relationshipsShown: ragResult.relationships?.length || 0,
+          relationshipsFiltered: ragResult.metadata.personaFiltering.relationship?.removedCount || 0,
+        } : null,
       },
     };
   }

@@ -33,6 +33,7 @@ const {
   validateEntityAction,
   validateBatchRejection,
 } = require('./middleware/validation');
+const { apiVersioning } = require('./middleware/api-versioning');
 const { uploadBuffer, deleteBlob, getBlobNameFromUrl } = require('./storage/blob');
 const {
   createDocument,
@@ -61,6 +62,7 @@ const { getLatencyBudgetService, OPERATION_TYPES: LATENCY_OPERATION_TYPES } = re
 const { getPerformanceDashboardService, throughputMiddleware, HEALTH_STATUS: PERF_HEALTH_STATUS } = require('./services/performance-dashboard-service');
 const { getPromptInjectionService } = require('./services/prompt-injection-service');
 const { promptInjectionGuard } = require('./middleware/prompt-injection');
+const { latencyBudgetMiddleware, trackLatency } = require('./middleware/latency-budget');
 const { getFeatureFlags, isFeatureEnabled, FLAG_CATEGORIES } = require('./services/feature-flags-service');
 const { getConfigurationService, CONFIG_CATEGORIES, CONFIG_TYPES } = require('./services/configuration-service');
 const {
@@ -88,6 +90,36 @@ const {
   HealthStatus,
   Dependencies: HealthDependencies,
 } = require('./services/health-check-service');
+const {
+  getConnectorHealthService,
+  ConnectorStatus,
+  SyncStatus,
+  ConnectorType,
+  ErrorSeverity,
+} = require('./services/connector-health-service');
+const {
+  getDeletionSyncService,
+  DeletionStatus,
+  DeletionReason,
+} = require('./services/deletion-sync-service');
+const {
+  ADLSGen2Connector,
+  createADLSGen2Connector,
+  AuthenticationType: ADLSAuthenticationType,
+  SharePointConnector,
+  createSharePointConnector,
+  SHAREPOINT_SUPPORTED_FILE_TYPES,
+  SHAREPOINT_CONNECTOR_TYPE,
+} = require('./connectors');
+const {
+  compareStrategies,
+  runComparisonBenchmark: runLazyEagerBenchmark,
+  formatComparisonReport,
+  formatComparisonReportMarkdown,
+  formatComparisonReportJSON,
+  createSampleComparisonDataset,
+  getRecommendation,
+} = require('./evaluation/lazy-vs-eager-comparison');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 8080; // Port configuration
@@ -121,8 +153,15 @@ app.use(telemetryMiddleware);
 // Performance dashboard throughput tracking (F5.2.7)
 app.use(throughputMiddleware());
 
+// Latency budget tracking for SLO enforcement (F5.2.5)
+// Auto-detects operation type from path and tracks latency against budgets
+app.use(latencyBudgetMiddleware());
+
 // HTTP request logging
 app.use(httpLogger);
+
+// API versioning middleware (FC.5)
+app.use(apiVersioning());
 
 // Apply general rate limiting to all API routes (IP-based, first line of defense)
 app.use('/api', generalLimiter);
@@ -1143,6 +1182,2690 @@ app.post('/api/performance/reset', authenticateJwt, (req, res) => {
   res.json({
     success: true,
     message: 'Performance metrics reset',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ============================================================================
+// Connector Health Monitoring Endpoints (F4.2.7)
+// ============================================================================
+
+/**
+ * @swagger
+ * /api/connectors/health:
+ *   get:
+ *     summary: Get connector health summary
+ *     description: Returns overall health summary for all registered connectors
+ *     tags: [Connectors]
+ *     responses:
+ *       200:
+ *         description: Connector health summary
+ */
+app.get('/api/connectors/health', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const summary = connectorHealthService.getHealthSummary();
+
+  res.json(summary);
+});
+
+/**
+ * @swagger
+ * /api/connectors/health/dashboard:
+ *   get:
+ *     summary: Get connector health dashboard widget data
+ *     description: Returns formatted data for dashboard widget display
+ *     tags: [Connectors]
+ *     responses:
+ *       200:
+ *         description: Dashboard widget data
+ */
+app.get('/api/connectors/health/dashboard', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const dashboard = connectorHealthService.getDashboardWidget();
+
+  res.json(dashboard);
+});
+
+/**
+ * @swagger
+ * /api/connectors/health/config:
+ *   get:
+ *     summary: Get connector health config
+ *     description: Returns current connector health monitoring configuration
+ *     tags: [Connectors]
+ *     responses:
+ *       200:
+ *         description: Configuration
+ */
+app.get('/api/connectors/health/config', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const config = connectorHealthService.getConfig();
+
+  res.json(config);
+});
+
+/**
+ * @swagger
+ * /api/connectors/types:
+ *   get:
+ *     summary: Get supported connector types
+ *     description: Returns list of supported connector types
+ *     tags: [Connectors]
+ *     responses:
+ *       200:
+ *         description: Connector types
+ */
+app.get('/api/connectors/types', (req, res) => {
+  res.json({
+    types: Object.values(ConnectorType),
+    statuses: Object.values(ConnectorStatus),
+    syncStatuses: Object.values(SyncStatus),
+    errorSeverities: Object.values(ErrorSeverity),
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/sync/history:
+ *   get:
+ *     summary: Get sync history
+ *     description: Returns sync history for all connectors or filtered by connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: query
+ *         name: connectorId
+ *         schema:
+ *           type: string
+ *         description: Filter by connector ID
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Sync history
+ */
+app.get('/api/connectors/sync/history', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const limit = parseInt(req.query.limit) || 20;
+  const connectorId = req.query.connectorId || null;
+
+  const history = connectorHealthService.getSyncHistory(connectorId, limit);
+
+  res.json({
+    history,
+    total: history.length,
+    filters: {
+      connectorId,
+      limit,
+    },
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors:
+ *   get:
+ *     summary: List all connectors
+ *     description: Returns status of all registered connectors
+ *     tags: [Connectors]
+ *     responses:
+ *       200:
+ *         description: List of connector statuses
+ */
+app.get('/api/connectors', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const connectors = connectorHealthService.getAllConnectorsStatus();
+
+  res.json({
+    connectors,
+    total: connectors.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors:
+ *   post:
+ *     summary: Register a new connector
+ *     description: Registers a new connector for health monitoring
+ *     tags: [Connectors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - connectorId
+ *               - connectorType
+ *             properties:
+ *               connectorId:
+ *                 type: string
+ *               connectorType:
+ *                 type: string
+ *                 enum: [sharepoint, adls, blob_storage, local_file, custom]
+ *               connectionConfig:
+ *                 type: object
+ *               isEnabled:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Connector registered
+ *       400:
+ *         description: Invalid request
+ */
+app.post('/api/connectors', authenticateJwt, (req, res) => {
+  const { connectorId, connectorType, connectionConfig, isEnabled } = req.body;
+
+  if (!connectorId || !connectorType) {
+    return res.status(400).json({
+      error: 'Missing required fields: connectorId and connectorType',
+    });
+  }
+
+  const validTypes = Object.values(ConnectorType);
+  if (!validTypes.includes(connectorType)) {
+    return res.status(400).json({
+      error: `Invalid connectorType. Must be one of: ${validTypes.join(', ')}`,
+    });
+  }
+
+  const connectorHealthService = getConnectorHealthService();
+  const connector = connectorHealthService.registerConnector(connectorId, connectorType, {
+    connectionConfig,
+    isEnabled,
+  });
+
+  res.status(201).json({
+    message: 'Connector registered',
+    connector,
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}:
+ *   get:
+ *     summary: Get connector status
+ *     description: Returns detailed status for a specific connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique connector identifier
+ *     responses:
+ *       200:
+ *         description: Connector status
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/connectors/:connectorId', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const status = connectorHealthService.getConnectorStatus(req.params.connectorId);
+
+  if (!status) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(status);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}:
+ *   delete:
+ *     summary: Unregister a connector
+ *     description: Removes a connector from health monitoring
+ *     tags: [Connectors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector unregistered
+ *       404:
+ *         description: Connector not found
+ */
+app.delete('/api/connectors/:connectorId', authenticateJwt, (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const removed = connectorHealthService.unregisterConnector(req.params.connectorId);
+
+  if (!removed) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json({
+    message: 'Connector unregistered',
+    connectorId: req.params.connectorId,
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/start:
+ *   post:
+ *     summary: Track sync start
+ *     description: Tracks the start of a sync operation for a connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               syncId:
+ *                 type: string
+ *               syncType:
+ *                 type: string
+ *                 enum: [full, incremental]
+ *               expectedDocuments:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Sync start tracked
+ *       404:
+ *         description: Connector not found
+ */
+app.post('/api/connectors/:connectorId/sync/start', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const result = connectorHealthService.trackSyncStart(req.params.connectorId, {
+    syncId: req.body.syncId,
+    syncType: req.body.syncType,
+    expectedDocuments: req.body.expectedDocuments,
+  });
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/complete:
+ *   post:
+ *     summary: Track sync completion
+ *     description: Tracks the completion of a sync operation for a connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [success, partial, failure]
+ *               documentsProcessed:
+ *                 type: number
+ *               documentsFailed:
+ *                 type: number
+ *               bytesProcessed:
+ *                 type: number
+ *               errors:
+ *                 type: array
+ *     responses:
+ *       200:
+ *         description: Sync completion tracked
+ *       404:
+ *         description: Connector not found
+ */
+app.post('/api/connectors/:connectorId/sync/complete', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const result = connectorHealthService.trackSyncComplete(req.params.connectorId, {
+    status: req.body.status || SyncStatus.SUCCESS,
+    documentsProcessed: req.body.documentsProcessed || 0,
+    documentsFailed: req.body.documentsFailed || 0,
+    bytesProcessed: req.body.bytesProcessed || 0,
+    errors: req.body.errors,
+  });
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/error:
+ *   post:
+ *     summary: Track sync error
+ *     description: Tracks an error during sync operation
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               type:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               severity:
+ *                 type: string
+ *                 enum: [low, medium, high, critical]
+ *               documentId:
+ *                 type: string
+ *               phase:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Error tracked
+ *       404:
+ *         description: Connector not found
+ */
+app.post('/api/connectors/:connectorId/sync/error', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const result = connectorHealthService.trackSyncError(req.params.connectorId, {
+    type: req.body.type,
+    message: req.body.message,
+    code: req.body.code,
+    severity: req.body.severity,
+    documentId: req.body.documentId,
+    phase: req.body.phase,
+    context: req.body.context,
+  });
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/errors:
+ *   get:
+ *     summary: Get connector error history
+ *     description: Returns error history for a specific connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Error history
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/connectors/:connectorId/errors', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const limit = parseInt(req.query.limit) || 20;
+  const errors = connectorHealthService.getErrorHistory(req.params.connectorId, limit);
+
+  if (errors.length === 0 && !connectorHealthService.getConnectorStatus(req.params.connectorId)) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json({
+    connectorId: req.params.connectorId,
+    errors,
+    total: errors.length,
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/errors/analysis:
+ *   get:
+ *     summary: Analyze error patterns
+ *     description: Returns error pattern analysis for a connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Error analysis
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/connectors/:connectorId/errors/analysis', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const analysis = connectorHealthService.analyzeErrorPatterns(req.params.connectorId);
+
+  if (!analysis) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json({
+    connectorId: req.params.connectorId,
+    analysis,
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/metrics:
+ *   get:
+ *     summary: Get connector metrics
+ *     description: Returns metrics for a specific connector
+ *     tags: [Connectors]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector metrics
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/connectors/:connectorId/metrics', (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const metrics = connectorHealthService.getConnectorMetrics(req.params.connectorId);
+
+  if (!metrics) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(metrics);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/metrics/reset:
+ *   post:
+ *     summary: Reset connector metrics
+ *     description: Resets metrics and error history for a connector
+ *     tags: [Connectors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Metrics reset
+ *       404:
+ *         description: Connector not found
+ */
+app.post('/api/connectors/:connectorId/metrics/reset', authenticateJwt, (req, res) => {
+  const connectorHealthService = getConnectorHealthService();
+  const result = connectorHealthService.resetConnectorMetrics(req.params.connectorId);
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  log.info('Connector metrics reset', { connectorId: req.params.connectorId, userId: req.user?.oid });
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/enabled:
+ *   put:
+ *     summary: Enable/disable connector
+ *     description: Changes the enabled state of a connector
+ *     tags: [Connectors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - enabled
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Connector state changed
+ *       404:
+ *         description: Connector not found
+ */
+app.put('/api/connectors/:connectorId/enabled', authenticateJwt, (req, res) => {
+  const { enabled } = req.body;
+
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({
+      error: 'enabled must be a boolean',
+    });
+  }
+
+  const connectorHealthService = getConnectorHealthService();
+  const result = connectorHealthService.setConnectorEnabled(req.params.connectorId, enabled);
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(result);
+});
+
+// ============================================================================
+// ADLS Gen2 Connector Endpoints (F4.2.3)
+// ============================================================================
+
+// Map of active ADLS connectors by ID
+const adlsConnectors = new Map();
+
+/**
+ * @swagger
+ * /api/adls/connectors:
+ *   get:
+ *     summary: List ADLS Gen2 connectors
+ *     description: Returns all registered ADLS Gen2 connector instances
+ *     tags: [ADLS Gen2 Connector]
+ *     responses:
+ *       200:
+ *         description: List of ADLS connectors
+ */
+app.get('/api/adls/connectors', (req, res) => {
+  const connectors = [];
+  for (const [id, connector] of adlsConnectors) {
+    connectors.push(connector.getStatus());
+  }
+  res.json({
+    connectors,
+    count: connectors.length,
+  });
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors:
+ *   post:
+ *     summary: Create ADLS Gen2 connector
+ *     description: Creates and initializes a new ADLS Gen2 connector instance
+ *     tags: [ADLS Gen2 Connector]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - connectorId
+ *               - accountName
+ *               - fileSystemName
+ *             properties:
+ *               connectorId:
+ *                 type: string
+ *                 description: Unique identifier for the connector
+ *               accountName:
+ *                 type: string
+ *                 description: Azure Storage account name
+ *               fileSystemName:
+ *                 type: string
+ *                 description: ADLS file system (container) name
+ *               authenticationType:
+ *                 type: string
+ *                 enum: [default_credential, storage_key, sas_token, connection_string]
+ *                 default: default_credential
+ *               basePath:
+ *                 type: string
+ *                 description: Base path to sync from
+ *               includeSubdirectories:
+ *                 type: boolean
+ *                 default: true
+ *               fileExtensions:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               batchSize:
+ *                 type: number
+ *                 default: 50
+ *     responses:
+ *       201:
+ *         description: Connector created and initialized
+ *       400:
+ *         description: Invalid configuration
+ *       409:
+ *         description: Connector already exists
+ */
+app.post('/api/adls/connectors', authenticateJwt, async (req, res) => {
+  try {
+    const {
+      connectorId,
+      accountName,
+      fileSystemName,
+      authenticationType,
+      storageKey,
+      sasToken,
+      connectionString,
+      basePath,
+      includeSubdirectories,
+      fileExtensions,
+      excludePaths,
+      batchSize,
+      maxFileSizeBytes,
+    } = req.body;
+
+    if (!connectorId || !accountName || !fileSystemName) {
+      return res.status(400).json({
+        error: 'connectorId, accountName, and fileSystemName are required',
+      });
+    }
+
+    if (adlsConnectors.has(connectorId)) {
+      return res.status(409).json({
+        error: `Connector '${connectorId}' already exists`,
+      });
+    }
+
+    const connector = createADLSGen2Connector(connectorId, {
+      accountName,
+      fileSystemName,
+      authenticationType,
+      storageKey,
+      sasToken,
+      connectionString,
+      basePath,
+      includeSubdirectories,
+      fileExtensions,
+      excludePaths,
+      batchSize,
+      maxFileSizeBytes,
+    });
+
+    await connector.initialize();
+    adlsConnectors.set(connectorId, connector);
+
+    // Register with connector health service
+    const connectorHealthService = getConnectorHealthService();
+    connectorHealthService.registerConnector(connectorId, ConnectorType.ADLS, {
+      accountName,
+      fileSystemName,
+    });
+
+    log.info('ADLS Gen2 connector created', {
+      connectorId,
+      accountName,
+      fileSystemName,
+      userId: req.user?.oid,
+    });
+
+    res.status(201).json({
+      success: true,
+      connector: connector.getStatus(),
+    });
+  } catch (error) {
+    log.error('Failed to create ADLS connector', { error: error.message });
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}:
+ *   get:
+ *     summary: Get ADLS connector status
+ *     description: Returns status and configuration of an ADLS connector
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector status
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/adls/connectors/:connectorId', (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  res.json(connector.getStatus());
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}:
+ *   delete:
+ *     summary: Delete ADLS connector
+ *     description: Disconnects and removes an ADLS connector
+ *     tags: [ADLS Gen2 Connector]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector deleted
+ *       404:
+ *         description: Connector not found
+ */
+app.delete('/api/adls/connectors/:connectorId', authenticateJwt, async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  await connector.disconnect();
+  adlsConnectors.delete(req.params.connectorId);
+
+  // Unregister from connector health service
+  const connectorHealthService = getConnectorHealthService();
+  connectorHealthService.unregisterConnector(req.params.connectorId);
+
+  log.info('ADLS Gen2 connector deleted', {
+    connectorId: req.params.connectorId,
+    userId: req.user?.oid,
+  });
+
+  res.json({
+    success: true,
+    connectorId: req.params.connectorId,
+  });
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}/health:
+ *   get:
+ *     summary: Health check for ADLS connector
+ *     description: Performs a health check on the ADLS connection
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Health check result
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/adls/connectors/:connectorId/health', async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  try {
+    const healthResult = await connector.performHealthCheck();
+    res.json(healthResult);
+  } catch (error) {
+    res.status(500).json({
+      healthy: false,
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}/documents:
+ *   get:
+ *     summary: List documents in ADLS
+ *     description: Lists documents from the connected ADLS file system
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: path
+ *         schema:
+ *           type: string
+ *         description: Path to list from
+ *       - in: query
+ *         name: recursive
+ *         schema:
+ *           type: boolean
+ *         description: Include subdirectories
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: number
+ *         description: Maximum documents to return
+ *       - in: query
+ *         name: continuationToken
+ *         schema:
+ *           type: string
+ *         description: Pagination token
+ *     responses:
+ *       200:
+ *         description: List of documents
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/adls/connectors/:connectorId/documents', async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  try {
+    const options = {
+      path: req.query.path,
+      recursive: req.query.recursive === 'true',
+      limit: req.query.limit ? parseInt(req.query.limit) : undefined,
+      continuationToken: req.query.continuationToken,
+    };
+
+    const result = await connector.listDocuments(options);
+    res.json(result);
+  } catch (error) {
+    log.error('Failed to list ADLS documents', {
+      connectorId: req.params.connectorId,
+      error: error.message,
+    });
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}/documents/{documentPath}:
+ *   get:
+ *     summary: Get document from ADLS
+ *     description: Downloads a document from ADLS with metadata
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: documentPath
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: URL-encoded path to the document
+ *       - in: query
+ *         name: metadataOnly
+ *         schema:
+ *           type: boolean
+ *         description: Return only metadata without content
+ *     responses:
+ *       200:
+ *         description: Document content and metadata
+ *       404:
+ *         description: Connector or document not found
+ */
+app.get('/api/adls/connectors/:connectorId/documents/*documentPath', async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  // Get the document path from the wildcard
+  const documentPath = req.params.documentPath;
+
+  if (!documentPath) {
+    return res.status(400).json({
+      error: 'Document path is required',
+    });
+  }
+
+  try {
+    if (req.query.metadataOnly === 'true') {
+      const metadata = await connector.getDocumentMetadata(documentPath);
+      return res.json({ metadata });
+    }
+
+    const document = await connector.getDocument(documentPath);
+
+    // Return JSON with base64-encoded content for binary files
+    const isBinary =
+      document.contentType &&
+      !document.contentType.startsWith('text/') &&
+      !document.contentType.includes('json') &&
+      !document.contentType.includes('xml');
+
+    res.json({
+      metadata: document.metadata,
+      contentType: document.contentType,
+      content: isBinary ? document.content.toString('base64') : document.content.toString('utf-8'),
+      encoding: isBinary ? 'base64' : 'utf-8',
+    });
+  } catch (error) {
+    if (error.code === 'NOT_FOUND') {
+      return res.status(404).json({
+        error: error.message,
+      });
+    }
+    log.error('Failed to get ADLS document', {
+      connectorId: req.params.connectorId,
+      documentPath,
+      error: error.message,
+    });
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}/directories:
+ *   get:
+ *     summary: List directories in ADLS
+ *     description: Lists directories at a given path
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: path
+ *         schema:
+ *           type: string
+ *         description: Path to list directories from
+ *     responses:
+ *       200:
+ *         description: List of directories
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/adls/connectors/:connectorId/directories', async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  try {
+    const directories = await connector.listDirectories(req.query.path);
+    res.json({ directories });
+  } catch (error) {
+    log.error('Failed to list ADLS directories', {
+      connectorId: req.params.connectorId,
+      error: error.message,
+    });
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/connectors/{connectorId}/file-system:
+ *   get:
+ *     summary: Get file system properties
+ *     description: Returns properties of the ADLS file system (container)
+ *     tags: [ADLS Gen2 Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: File system properties
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/adls/connectors/:connectorId/file-system', async (req, res) => {
+  const connector = adlsConnectors.get(req.params.connectorId);
+
+  if (!connector) {
+    return res.status(404).json({
+      error: `Connector '${req.params.connectorId}' not found`,
+    });
+  }
+
+  try {
+    const properties = await connector.getFileSystemProperties();
+    res.json(properties);
+  } catch (error) {
+    log.error('Failed to get ADLS file system properties', {
+      connectorId: req.params.connectorId,
+      error: error.message,
+    });
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/adls/auth-types:
+ *   get:
+ *     summary: List supported authentication types
+ *     description: Returns the list of authentication types supported by ADLS connector
+ *     tags: [ADLS Gen2 Connector]
+ *     responses:
+ *       200:
+ *         description: List of authentication types
+ */
+app.get('/api/adls/auth-types', (req, res) => {
+  res.json({
+    authenticationTypes: Object.values(ADLSAuthenticationType),
+    recommended: 'default_credential',
+    descriptions: {
+      default_credential: 'DefaultAzureCredential (recommended for production) - uses Managed Identity, Azure CLI, etc.',
+      storage_key: 'Storage account access key - requires ADLS_STORAGE_KEY',
+      sas_token: 'Shared Access Signature token - requires ADLS_SAS_TOKEN',
+      connection_string: 'Full connection string - requires ADLS_CONNECTION_STRING',
+    },
+  });
+});
+
+// ============================================================================
+// SharePoint Connector Endpoints (F4.2.1, F4.2.2)
+// ============================================================================
+
+// Map of active SharePoint connectors by ID
+const sharePointConnectors = new Map();
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors:
+ *   get:
+ *     summary: List SharePoint connectors
+ *     description: Returns all registered SharePoint connector instances
+ *     tags: [SharePoint Connector]
+ *     responses:
+ *       200:
+ *         description: List of SharePoint connectors
+ */
+app.get('/api/sharepoint/connectors', (req, res) => {
+  const connectors = [];
+  for (const [id, connector] of sharePointConnectors) {
+    connectors.push({
+      connectorId: id,
+      status: connector.status,
+      siteUrl: connector.config?.siteUrl,
+      sitePath: connector.config?.sitePath,
+      syncPermissions: connector.config?.syncPermissions,
+      lastSyncTime: connector.lastSyncTime,
+    });
+  }
+  res.json({
+    connectors,
+    count: connectors.length,
+  });
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors:
+ *   post:
+ *     summary: Create SharePoint connector
+ *     description: Creates and initializes a new SharePoint connector instance for document ingestion
+ *     tags: [SharePoint Connector]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - connectorId
+ *               - siteUrl
+ *             properties:
+ *               connectorId:
+ *                 type: string
+ *                 description: Unique identifier for the connector
+ *               tenantId:
+ *                 type: string
+ *                 description: Azure AD tenant ID (uses env var if not provided)
+ *               clientId:
+ *                 type: string
+ *                 description: Application (client) ID
+ *               clientSecret:
+ *                 type: string
+ *                 description: Client secret for app-only authentication
+ *               siteUrl:
+ *                 type: string
+ *                 description: SharePoint site URL (e.g., 'contoso.sharepoint.com')
+ *               sitePath:
+ *                 type: string
+ *                 description: Site path (e.g., '/sites/TeamSite')
+ *               libraryNames:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Document library names to sync (empty = all)
+ *               fileTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: File extensions to sync (empty = all supported)
+ *               syncPermissions:
+ *                 type: boolean
+ *                 description: Whether to sync document permissions (F4.2.2)
+ *                 default: true
+ *               includeInheritedPermissions:
+ *                 type: boolean
+ *                 description: Include permissions inherited from parent
+ *                 default: true
+ *     responses:
+ *       201:
+ *         description: Connector created and initialized
+ *       400:
+ *         description: Invalid configuration
+ *       409:
+ *         description: Connector already exists
+ */
+app.post('/api/sharepoint/connectors', authenticateJwt, async (req, res) => {
+  try {
+    const {
+      connectorId,
+      tenantId,
+      clientId,
+      clientSecret,
+      certificatePath,
+      siteUrl,
+      sitePath,
+      libraryNames,
+      includedFolders,
+      excludedFolders,
+      fileTypes,
+      pageSize,
+      timeoutMs,
+      syncPermissions,
+      includeInheritedPermissions,
+      permissionRolesToSync,
+    } = req.body;
+
+    if (!connectorId) {
+      return res.status(400).json({
+        error: 'connectorId is required',
+      });
+    }
+
+    if (!siteUrl) {
+      return res.status(400).json({
+        error: 'siteUrl is required',
+      });
+    }
+
+    if (sharePointConnectors.has(connectorId)) {
+      return res.status(409).json({
+        error: `Connector '${connectorId}' already exists`,
+      });
+    }
+
+    const connector = createSharePointConnector(connectorId, {
+      tenantId,
+      clientId,
+      clientSecret,
+      certificatePath,
+      siteUrl,
+      sitePath,
+      libraryNames,
+      includedFolders,
+      excludedFolders,
+      fileTypes,
+      pageSize,
+      timeoutMs,
+      syncPermissions: syncPermissions !== false, // Default true
+      includeInheritedPermissions: includeInheritedPermissions !== false, // Default true
+      permissionRolesToSync,
+    });
+
+    // Initialize the connector
+    await connector.initialize();
+
+    // Store in map
+    sharePointConnectors.set(connectorId, connector);
+
+    // Register with connector health service
+    const healthService = getConnectorHealthService();
+    healthService.registerConnector(connectorId, ConnectorType.SHAREPOINT, {
+      siteUrl: connector.config?.siteUrl,
+      sitePath: connector.config?.sitePath,
+    });
+
+    log.info('SharePoint connector created', { connectorId, siteUrl, sitePath });
+
+    res.status(201).json({
+      connectorId,
+      status: 'initialized',
+      message: 'SharePoint connector created and initialized successfully',
+      config: {
+        siteUrl: connector.config?.siteUrl,
+        sitePath: connector.config?.sitePath,
+        syncPermissions: connector.config?.syncPermissions,
+      },
+    });
+  } catch (error) {
+    log.errorWithStack('Failed to create SharePoint connector', error);
+    res.status(500).json({
+      error: 'Failed to create connector',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors/{connectorId}:
+ *   get:
+ *     summary: Get SharePoint connector status
+ *     description: Returns status of a specific SharePoint connector
+ *     tags: [SharePoint Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector status
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/sharepoint/connectors/:connectorId', (req, res) => {
+  const connector = sharePointConnectors.get(req.params.connectorId);
+  if (!connector) {
+    return res.status(404).json({ error: 'Connector not found' });
+  }
+  res.json({
+    connectorId: req.params.connectorId,
+    status: connector.status,
+    siteUrl: connector.config?.siteUrl,
+    sitePath: connector.config?.sitePath,
+    syncPermissions: connector.config?.syncPermissions,
+    lastSyncTime: connector.lastSyncTime,
+  });
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors/{connectorId}:
+ *   delete:
+ *     summary: Delete SharePoint connector
+ *     description: Disconnects and removes a SharePoint connector
+ *     tags: [SharePoint Connector]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector deleted
+ *       404:
+ *         description: Connector not found
+ */
+app.delete('/api/sharepoint/connectors/:connectorId', authenticateJwt, async (req, res) => {
+  try {
+    const connector = sharePointConnectors.get(req.params.connectorId);
+    if (!connector) {
+      return res.status(404).json({ error: 'Connector not found' });
+    }
+
+    // Disconnect the connector
+    await connector.disconnect();
+
+    // Remove from map
+    sharePointConnectors.delete(req.params.connectorId);
+
+    // Unregister from health service
+    const healthService = getConnectorHealthService();
+    healthService.unregisterConnector(req.params.connectorId);
+
+    log.info('SharePoint connector deleted', { connectorId: req.params.connectorId });
+
+    res.json({
+      message: 'Connector deleted successfully',
+      connectorId: req.params.connectorId,
+    });
+  } catch (error) {
+    log.errorWithStack('Failed to delete SharePoint connector', error);
+    res.status(500).json({
+      error: 'Failed to delete connector',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors/{connectorId}/health:
+ *   get:
+ *     summary: Test SharePoint connector health
+ *     description: Tests the connection to SharePoint and returns health status
+ *     tags: [SharePoint Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Health check result
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/sharepoint/connectors/:connectorId/health', async (req, res) => {
+  try {
+    const connector = sharePointConnectors.get(req.params.connectorId);
+    if (!connector) {
+      return res.status(404).json({ error: 'Connector not found' });
+    }
+
+    const healthResult = await connector.testConnection();
+    res.json(healthResult);
+  } catch (error) {
+    log.errorWithStack('SharePoint health check failed', error);
+    res.status(500).json({
+      healthy: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors/{connectorId}/libraries:
+ *   get:
+ *     summary: List SharePoint document libraries
+ *     description: Returns all document libraries available in the connected SharePoint site
+ *     tags: [SharePoint Connector]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of document libraries
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/sharepoint/connectors/:connectorId/libraries', async (req, res) => {
+  try {
+    const connector = sharePointConnectors.get(req.params.connectorId);
+    if (!connector) {
+      return res.status(404).json({ error: 'Connector not found' });
+    }
+
+    const libraries = await connector.listDocumentLibraries();
+    res.json({
+      libraries,
+      count: libraries.length,
+    });
+  } catch (error) {
+    log.errorWithStack('Failed to list SharePoint libraries', error);
+    res.status(500).json({
+      error: 'Failed to list libraries',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/connectors/{connectorId}/sync:
+ *   post:
+ *     summary: Start SharePoint document sync
+ *     description: Initiates document synchronization from SharePoint. Supports full and incremental (delta) sync.
+ *     tags: [SharePoint Connector]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullSync:
+ *                 type: boolean
+ *                 description: Force full sync instead of delta
+ *                 default: false
+ *               libraryNames:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Specific libraries to sync (empty = all configured)
+ *     responses:
+ *       200:
+ *         description: Sync completed
+ *       404:
+ *         description: Connector not found
+ */
+app.post('/api/sharepoint/connectors/:connectorId/sync', authenticateJwt, async (req, res) => {
+  try {
+    const connector = sharePointConnectors.get(req.params.connectorId);
+    if (!connector) {
+      return res.status(404).json({ error: 'Connector not found' });
+    }
+
+    const { fullSync = false, libraryNames } = req.body || {};
+
+    // Track sync start with health service
+    const healthService = getConnectorHealthService();
+    healthService.trackSyncStart(req.params.connectorId);
+
+    const syncResult = await connector.syncDocuments({
+      fullSync,
+      libraryNames,
+    });
+
+    // Track sync completion
+    healthService.trackSyncComplete(req.params.connectorId, {
+      documentsProcessed: syncResult.documentsProcessed,
+      duration: syncResult.durationMs,
+    });
+
+    log.info('SharePoint sync completed', {
+      connectorId: req.params.connectorId,
+      documentsProcessed: syncResult.documentsProcessed,
+      durationMs: syncResult.durationMs,
+    });
+
+    res.json(syncResult);
+  } catch (error) {
+    log.errorWithStack('SharePoint sync failed', error);
+
+    // Track sync error
+    const healthService = getConnectorHealthService();
+    healthService.trackSyncError(req.params.connectorId, error);
+
+    res.status(500).json({
+      error: 'Sync failed',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/sharepoint/file-types:
+ *   get:
+ *     summary: List supported file types
+ *     description: Returns the list of file types supported by SharePoint connector
+ *     tags: [SharePoint Connector]
+ *     responses:
+ *       200:
+ *         description: List of supported file types
+ */
+app.get('/api/sharepoint/file-types', (req, res) => {
+  res.json({
+    supportedFileTypes: SHAREPOINT_SUPPORTED_FILE_TYPES,
+    extensions: Object.keys(SHAREPOINT_SUPPORTED_FILE_TYPES),
+    count: Object.keys(SHAREPOINT_SUPPORTED_FILE_TYPES).length,
+  });
+});
+
+// ============================================================================
+// Incremental Sync Endpoints (F4.2.5)
+// ============================================================================
+
+const {
+  getIncrementalSyncService,
+  SyncStateStatus,
+  ChangeType,
+  SyncType,
+} = require('./services/incremental-sync-service');
+
+/**
+ * @swagger
+ * /api/sync/states:
+ *   get:
+ *     summary: Get all connector sync states
+ *     description: Returns sync state for all registered connectors
+ *     tags: [Incremental Sync]
+ *     responses:
+ *       200:
+ *         description: List of connector sync states
+ */
+app.get('/api/sync/states', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const states = await syncService.getAllSyncStates();
+
+  res.json({
+    states,
+    count: states.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/sync/stats:
+ *   get:
+ *     summary: Get incremental sync statistics
+ *     description: Returns overall statistics for the incremental sync service
+ *     tags: [Incremental Sync]
+ *     responses:
+ *       200:
+ *         description: Sync statistics
+ */
+app.get('/api/sync/stats', (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const stats = syncService.getStatistics();
+
+  res.json({
+    ...stats,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/sync/sessions:
+ *   get:
+ *     summary: Get active sync sessions
+ *     description: Returns all currently active sync sessions
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: query
+ *         name: connectorId
+ *         schema:
+ *           type: string
+ *         description: Filter by connector ID
+ *     responses:
+ *       200:
+ *         description: List of active sync sessions
+ */
+app.get('/api/sync/sessions', (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const { connectorId } = req.query;
+  const sessions = syncService.getActiveSessions(connectorId);
+
+  res.json({
+    sessions,
+    count: sessions.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/sync/sessions/{sessionId}:
+ *   get:
+ *     summary: Get sync session status
+ *     description: Returns the current status of a specific sync session
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     responses:
+ *       200:
+ *         description: Session status
+ *       404:
+ *         description: Session not found
+ */
+app.get('/api/sync/sessions/:sessionId', (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const session = syncService.getSessionStatus(req.params.sessionId);
+
+  if (!session) {
+    return res.status(404).json({
+      error: 'Session not found',
+      sessionId: req.params.sessionId,
+    });
+  }
+
+  res.json(session);
+});
+
+/**
+ * @swagger
+ * /api/sync/sessions/{sessionId}/cancel:
+ *   post:
+ *     summary: Cancel a sync session
+ *     description: Cancels an active sync session
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for cancellation
+ *     responses:
+ *       200:
+ *         description: Session cancelled
+ *       404:
+ *         description: Session not found
+ */
+app.post('/api/sync/sessions/:sessionId/cancel', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const { reason } = req.body;
+
+  const result = await syncService.cancelSync(req.params.sessionId, reason);
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      sessionId: req.params.sessionId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/state:
+ *   get:
+ *     summary: Get connector sync state
+ *     description: Returns the sync state for a specific connector
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Connector ID
+ *     responses:
+ *       200:
+ *         description: Connector sync state
+ */
+app.get('/api/connectors/:connectorId/sync/state', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const connectorHealthService = getConnectorHealthService();
+
+  const connectorStatus = connectorHealthService.getConnectorStatus(req.params.connectorId);
+  const connectorType = connectorStatus?.connectorType || 'unknown';
+
+  const state = await syncService.getSyncState(req.params.connectorId, connectorType);
+
+  res.json({
+    ...state.toJSON(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/incremental:
+ *   post:
+ *     summary: Start incremental sync
+ *     description: Initiates an incremental sync for a connector
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Connector ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               forceFull:
+ *                 type: boolean
+ *                 description: Force a full sync instead of incremental
+ *               expectedDocuments:
+ *                 type: number
+ *                 description: Expected number of documents to sync
+ *               supportsDelta:
+ *                 type: boolean
+ *                 description: Whether the source supports delta tokens
+ *               metadata:
+ *                 type: object
+ *                 description: Additional sync metadata
+ *     responses:
+ *       200:
+ *         description: Sync session started
+ *       409:
+ *         description: Sync already in progress
+ */
+app.post('/api/connectors/:connectorId/sync/incremental', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const connectorHealthService = getConnectorHealthService();
+
+  const connectorStatus = connectorHealthService.getConnectorStatus(req.params.connectorId);
+
+  if (!connectorStatus) {
+    return res.status(404).json({
+      error: 'Connector not registered',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  const result = await syncService.startSync(req.params.connectorId, {
+    connectorType: connectorStatus.connectorType,
+    ...req.body,
+  });
+
+  if (!result.success) {
+    return res.status(409).json({
+      error: result.error,
+      activeSessionId: result.activeSessionId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/incremental/{sessionId}/batch:
+ *   post:
+ *     summary: Process a batch of documents
+ *     description: Processes a batch of documents in an incremental sync session
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               documents:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     changeType:
+ *                       type: string
+ *                       enum: [added, modified, deleted, unchanged]
+ *                     bytes:
+ *                       type: number
+ *     responses:
+ *       200:
+ *         description: Batch processed
+ *       404:
+ *         description: Session not found
+ */
+app.post('/api/connectors/:connectorId/sync/incremental/:sessionId/batch', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const { documents } = req.body;
+
+  if (!Array.isArray(documents)) {
+    return res.status(400).json({
+      error: 'documents must be an array',
+    });
+  }
+
+  // Simple document processor that records changes
+  const processDocument = async (doc) => {
+    return {
+      changeType: doc.changeType || ChangeType.ADDED,
+      bytes: doc.bytes || 0,
+      skipped: doc.changeType === ChangeType.UNCHANGED,
+    };
+  };
+
+  const result = await syncService.processBatch(req.params.sessionId, documents, processDocument);
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      sessionId: req.params.sessionId,
+    });
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/incremental/{sessionId}/complete:
+ *   post:
+ *     summary: Complete an incremental sync session
+ *     description: Marks an incremental sync session as complete
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               deltaToken:
+ *                 type: string
+ *                 description: New delta token for future incremental syncs
+ *               status:
+ *                 type: string
+ *                 enum: [completed, failed]
+ *     responses:
+ *       200:
+ *         description: Session completed
+ *       404:
+ *         description: Session not found
+ */
+app.post('/api/connectors/:connectorId/sync/incremental/:sessionId/complete', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const connectorHealthService = getConnectorHealthService();
+
+  const result = await syncService.completeSync(req.params.sessionId, req.body);
+
+  if (!result.success) {
+    return res.status(404).json({
+      error: result.error,
+      sessionId: req.params.sessionId,
+    });
+  }
+
+  // Also update connector health service
+  connectorHealthService.trackSyncComplete(req.params.connectorId, {
+    status: result.session.status === 'completed' ? SyncStatus.SUCCESS :
+            result.session.status === 'failed' ? SyncStatus.FAILURE : SyncStatus.PARTIAL,
+    documentsProcessed: result.session.processedDocuments,
+    documentsFailed: result.session.failedDocuments,
+    bytesProcessed: result.session.processedBytes,
+  });
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/connectors/{connectorId}/sync/history:
+ *   get:
+ *     summary: Get sync history for a connector
+ *     description: Returns the sync history for a specific connector
+ *     tags: [Incremental Sync]
+ *     parameters:
+ *       - in: path
+ *         name: connectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Maximum entries to return
+ *     responses:
+ *       200:
+ *         description: Sync history
+ */
+app.get('/api/connectors/:connectorId/sync/history', async (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const limit = parseInt(req.query.limit) || 20;
+
+  const history = await syncService.getSyncHistory(req.params.connectorId, limit);
+
+  res.json({
+    history,
+    count: history.length,
+    connectorId: req.params.connectorId,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/sync/detect-changes:
+ *   post:
+ *     summary: Detect changes between source and existing documents
+ *     description: Compares source documents with existing documents to detect changes
+ *     tags: [Incremental Sync]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sourceDocs:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               existingDocs:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Change detection results
+ */
+app.post('/api/sync/detect-changes', (req, res) => {
+  const syncService = getIncrementalSyncService();
+  const { sourceDocs, existingDocs } = req.body;
+
+  if (!Array.isArray(sourceDocs)) {
+    return res.status(400).json({ error: 'sourceDocs must be an array' });
+  }
+
+  // Convert existingDocs array to Map
+  const existingMap = new Map();
+  if (Array.isArray(existingDocs)) {
+    for (const doc of existingDocs) {
+      const id = doc.id || doc.sourceId;
+      if (id) {
+        existingMap.set(id, doc);
+      }
+    }
+  }
+
+  const changes = syncService.detectChanges(sourceDocs, existingMap);
+
+  res.json({
+    added: changes.added.length,
+    modified: changes.modified.length,
+    deleted: changes.deleted.length,
+    unchanged: changes.unchanged.length,
+    details: changes,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/sync/types:
+ *   get:
+ *     summary: Get available sync types and statuses
+ *     description: Returns the available sync types, statuses, and change types
+ *     tags: [Incremental Sync]
+ *     responses:
+ *       200:
+ *         description: Sync type definitions
+ */
+app.get('/api/sync/types', (req, res) => {
+  res.json({
+    syncTypes: SyncType,
+    syncStatuses: SyncStateStatus,
+    changeTypes: ChangeType,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ============================================================================
+// Deletion Sync Endpoints (F4.2.6)
+// ============================================================================
+
+/**
+ * @swagger
+ * /api/deletion-sync/pending:
+ *   get:
+ *     summary: List pending deletions
+ *     description: Returns all documents pending deletion
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: connectorId
+ *         in: query
+ *         description: Filter by connector ID
+ *         schema:
+ *           type: string
+ *       - name: status
+ *         in: query
+ *         description: Filter by status
+ *         schema:
+ *           type: string
+ *           enum: [pending_deletion, deleted, recovered]
+ *       - name: expiredOnly
+ *         in: query
+ *         description: Only show expired deletions
+ *         schema:
+ *           type: boolean
+ *       - name: limit
+ *         in: query
+ *         description: Maximum results to return
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *     responses:
+ *       200:
+ *         description: List of pending deletions
+ */
+app.get('/api/deletion-sync/pending', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const pendingDeletions = deletionService.listPendingDeletions({
+    connectorId: req.query.connectorId,
+    status: req.query.status,
+    expiredOnly: req.query.expiredOnly === 'true',
+    limit: parseInt(req.query.limit) || 50,
+  });
+
+  res.json({
+    pendingDeletions,
+    count: pendingDeletions.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/pending/{documentId}:
+ *   get:
+ *     summary: Get pending deletion by document ID
+ *     description: Returns details of a specific pending deletion
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: documentId
+ *         in: path
+ *         required: true
+ *         description: Document ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pending deletion details
+ *       404:
+ *         description: Not found in pending deletions
+ */
+app.get('/api/deletion-sync/pending/:documentId', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const pending = deletionService.getPendingDeletion(req.params.documentId);
+
+  if (!pending) {
+    return res.status(404).json({
+      error: 'Document not found in pending deletions',
+      documentId: req.params.documentId,
+    });
+  }
+
+  res.json(pending);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/mark:
+ *   post:
+ *     summary: Mark a document for deletion
+ *     description: Marks a document for soft deletion with grace period
+ *     tags: [Deletion Sync]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - documentId
+ *             properties:
+ *               documentId:
+ *                 type: string
+ *                 description: Document ID to mark for deletion
+ *               connectorId:
+ *                 type: string
+ *                 description: Source connector ID
+ *               sourceId:
+ *                 type: string
+ *                 description: ID in the source system
+ *               reason:
+ *                 type: string
+ *                 enum: [source_deleted, manual, policy, expired, superseded]
+ *               gracePeriodMs:
+ *                 type: integer
+ *                 description: Custom grace period in milliseconds
+ *               notes:
+ *                 type: string
+ *                 description: Notes about the deletion
+ *     responses:
+ *       200:
+ *         description: Document marked for deletion
+ *       400:
+ *         description: Invalid request or already marked
+ */
+app.post('/api/deletion-sync/mark', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const { documentId, connectorId, sourceId, reason, gracePeriodMs, notes } = req.body;
+
+  if (!documentId) {
+    return res.status(400).json({ error: 'documentId is required' });
+  }
+
+  const result = await deletionService.markForDeletion(documentId, {
+    connectorId,
+    sourceId,
+    reason: reason || DeletionReason.MANUAL,
+    gracePeriodMs,
+    markedBy: req.user?.id || req.user?.email || 'user',
+    notes,
+  });
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/recover/{documentId}:
+ *   post:
+ *     summary: Recover a document from pending deletion
+ *     description: Recovers a document within the grace period
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: documentId
+ *         in: path
+ *         required: true
+ *         description: Document ID to recover
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *                 description: Recovery notes
+ *     responses:
+ *       200:
+ *         description: Document recovered
+ *       400:
+ *         description: Cannot recover
+ *       404:
+ *         description: Not found in pending deletions
+ */
+app.post('/api/deletion-sync/recover/:documentId', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const result = await deletionService.recoverDocument(req.params.documentId, {
+    recoveredBy: req.user?.id || req.user?.email || 'user',
+    notes: req.body?.notes,
+  });
+
+  if (!result.success) {
+    const status = result.error.includes('not found') ? 404 : 400;
+    return res.status(status).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/delete/{documentId}:
+ *   delete:
+ *     summary: Permanently delete a document
+ *     description: Permanently deletes a document (requires force=true if grace period not expired)
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: documentId
+ *         in: path
+ *         required: true
+ *         description: Document ID to delete
+ *         schema:
+ *           type: string
+ *       - name: force
+ *         in: query
+ *         description: Force delete before grace period expires
+ *         schema:
+ *           type: boolean
+ *     responses:
+ *       200:
+ *         description: Document permanently deleted
+ *       400:
+ *         description: Grace period not expired
+ */
+app.delete('/api/deletion-sync/delete/:documentId', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const result = await deletionService.permanentlyDelete(req.params.documentId, {
+    force: req.query.force === 'true',
+    deletedBy: req.user?.id || req.user?.email || 'user',
+    reason: req.body?.reason || DeletionReason.MANUAL,
+  });
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/detect:
+ *   post:
+ *     summary: Detect deleted documents from connector
+ *     description: Compares source IDs with existing documents to detect deletions
+ *     tags: [Deletion Sync]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - connectorId
+ *               - sourceIds
+ *             properties:
+ *               connectorId:
+ *                 type: string
+ *                 description: Connector ID
+ *               sourceIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Current source IDs (documents still in source)
+ *     responses:
+ *       200:
+ *         description: Detection results
+ *       400:
+ *         description: Invalid request
+ */
+app.post('/api/deletion-sync/detect', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const { connectorId, sourceIds } = req.body;
+
+  if (!connectorId) {
+    return res.status(400).json({ error: 'connectorId is required' });
+  }
+
+  if (!Array.isArray(sourceIds)) {
+    return res.status(400).json({ error: 'sourceIds must be an array' });
+  }
+
+  const result = await deletionService.detectDeletedDocuments(connectorId, sourceIds);
+
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/process-expired:
+ *   post:
+ *     summary: Process expired deletions
+ *     description: Permanently deletes all documents past their grace period
+ *     tags: [Deletion Sync]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               batchSize:
+ *                 type: integer
+ *                 default: 50
+ *                 description: Maximum documents to process
+ *     responses:
+ *       200:
+ *         description: Processing results
+ */
+app.post('/api/deletion-sync/process-expired', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const result = await deletionService.processExpiredDeletions({
+    batchSize: req.body?.batchSize,
+  });
+
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/history:
+ *   get:
+ *     summary: Get deletion history
+ *     description: Returns history of completed deletions and recoveries
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: connectorId
+ *         in: query
+ *         description: Filter by connector ID
+ *         schema:
+ *           type: string
+ *       - name: status
+ *         in: query
+ *         description: Filter by status
+ *         schema:
+ *           type: string
+ *           enum: [deleted, recovered]
+ *       - name: limit
+ *         in: query
+ *         description: Maximum results to return
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *     responses:
+ *       200:
+ *         description: Deletion history
+ */
+app.get('/api/deletion-sync/history', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const history = deletionService.getDeletionHistory({
+    connectorId: req.query.connectorId,
+    status: req.query.status,
+    limit: parseInt(req.query.limit) || 50,
+  });
+
+  res.json({
+    history,
+    count: history.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/connectors:
+ *   get:
+ *     summary: Get connector deletion states
+ *     description: Returns deletion statistics for all connectors
+ *     tags: [Deletion Sync]
+ *     responses:
+ *       200:
+ *         description: Connector deletion states
+ */
+app.get('/api/deletion-sync/connectors', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const connectorStates = deletionService.getAllConnectorStates();
+
+  res.json({
+    connectors: connectorStates,
+    count: connectorStates.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/connectors/{connectorId}:
+ *   get:
+ *     summary: Get connector deletion state
+ *     description: Returns deletion statistics for a specific connector
+ *     tags: [Deletion Sync]
+ *     parameters:
+ *       - name: connectorId
+ *         in: path
+ *         required: true
+ *         description: Connector ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Connector deletion state
+ *       404:
+ *         description: Connector not found
+ */
+app.get('/api/deletion-sync/connectors/:connectorId', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const state = deletionService.getConnectorState(req.params.connectorId);
+
+  if (!state) {
+    return res.status(404).json({
+      error: 'Connector not found',
+      connectorId: req.params.connectorId,
+    });
+  }
+
+  res.json(state);
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/stats:
+ *   get:
+ *     summary: Get deletion sync statistics
+ *     description: Returns overall statistics for the deletion sync service
+ *     tags: [Deletion Sync]
+ *     responses:
+ *       200:
+ *         description: Service statistics
+ */
+app.get('/api/deletion-sync/stats', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const stats = deletionService.getStatistics();
+
+  res.json({
+    ...stats,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/config:
+ *   get:
+ *     summary: Get deletion sync configuration
+ *     description: Returns the current deletion sync configuration
+ *     tags: [Deletion Sync]
+ *     responses:
+ *       200:
+ *         description: Configuration
+ */
+app.get('/api/deletion-sync/config', async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  res.json({
+    config: deletionService.config,
+    statuses: DeletionStatus,
+    reasons: DeletionReason,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/deletion-sync/config:
+ *   put:
+ *     summary: Update deletion sync configuration
+ *     description: Updates the deletion sync configuration
+ *     tags: [Deletion Sync]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               gracePeriodMs:
+ *                 type: integer
+ *                 description: Grace period in milliseconds
+ *               checkIntervalMs:
+ *                 type: integer
+ *                 description: Cleanup check interval in milliseconds
+ *               batchSize:
+ *                 type: integer
+ *                 description: Batch size for processing
+ *               cleanupGraphEntities:
+ *                 type: boolean
+ *                 description: Whether to clean up graph entities
+ *               cleanupSearchIndex:
+ *                 type: boolean
+ *                 description: Whether to clean up search index
+ *     responses:
+ *       200:
+ *         description: Updated configuration
+ */
+app.put('/api/deletion-sync/config', authenticateJwt, async (req, res) => {
+  const deletionService = getDeletionSyncService();
+  await deletionService.initialize();
+
+  const result = deletionService.updateConfig(req.body);
+
+  res.json({
+    ...result,
     timestamp: new Date().toISOString(),
   });
 });
@@ -4719,6 +7442,75 @@ app.get('/api/personas', (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/personas/{personaId}/filtering:
+ *   get:
+ *     summary: Get persona filtering configuration (F6.3.6)
+ *     description: Returns the filtering configuration for a specific persona, including hidden entity/relationship types and thresholds
+ *     tags: [GraphRAG]
+ *     parameters:
+ *       - in: path
+ *         name: personaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [ops, it, leadership, compliance, default]
+ *         description: The persona ID
+ *     responses:
+ *       200:
+ *         description: Filtering configuration and summary
+ *       404:
+ *         description: Persona not found
+ */
+app.get('/api/personas/:personaId/filtering', (req, res) => {
+  const { personaId } = req.params;
+  const personaService = getPersonaService();
+
+  if (!personaService.hasPersona(personaId)) {
+    return res.status(404).json({
+      error: 'Persona not found',
+      availablePersonas: personaService.getPersonaIds(),
+    });
+  }
+
+  const filteringSummary = personaService.getFilteringSummary(personaId);
+  const filteringConfig = personaService.getFilteringConfig(personaId);
+
+  res.json({
+    summary: filteringSummary,
+    config: filteringConfig,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/personas/filtering:
+ *   get:
+ *     summary: Get all personas filtering configuration (F6.3.6)
+ *     description: Returns filtering configuration for all personas
+ *     tags: [GraphRAG]
+ *     responses:
+ *       200:
+ *         description: All personas filtering configuration
+ */
+app.get('/api/personas/filtering', (req, res) => {
+  const personaService = getPersonaService();
+  const personaIds = personaService.getPersonaIds();
+
+  const filteringConfigs = personaIds.map((id) => ({
+    summary: personaService.getFilteringSummary(id),
+    config: personaService.getFilteringConfig(id),
+  }));
+
+  res.json({
+    personas: filteringConfigs,
+    count: filteringConfigs.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ==================== GraphRAG Endpoints ====================
 
 /**
@@ -4726,7 +7518,7 @@ app.get('/api/personas', (req, res) => {
  * /api/graphrag/query:
  *   post:
  *     summary: Submit a GraphRAG query
- *     description: Submit a natural language query to the GraphRAG system for processing
+ *     description: Submit a natural language query to the GraphRAG system for processing. Supports persona-based retrieval (F6.3.2), persona summary styles (F6.3.3), persona-based filtering (F6.3.6), and lazy GraphRAG mode (F6.2.5).
  *     tags: [GraphRAG]
  *     requestBody:
  *       required: true
@@ -4741,6 +7533,37 @@ app.get('/api/personas', (req, res) => {
  *                 type: string
  *                 description: Natural language query about business processes
  *                 example: What are the steps in the procurement process?
+ *               options:
+ *                 type: object
+ *                 properties:
+ *                   topK:
+ *                     type: integer
+ *                     description: Number of top results to retrieve
+ *                     default: 10
+ *                   graphDepth:
+ *                     type: integer
+ *                     description: Maximum graph traversal depth
+ *                     default: 2
+ *                   includeGraphContext:
+ *                     type: boolean
+ *                     description: Include graph context in response
+ *                     default: true
+ *                   semantic:
+ *                     type: boolean
+ *                     description: Enable semantic search
+ *                     default: true
+ *                   persona:
+ *                     type: string
+ *                     description: Persona for weighted retrieval and summary style (F6.3.2, F6.3.3)
+ *                     enum: [ops, it, leadership, compliance, default]
+ *                   filterByPersona:
+ *                     type: boolean
+ *                     description: Enable persona-based result filtering (F6.3.6)
+ *                     default: true when persona is specified
+ *                   lazySummaries:
+ *                     type: boolean
+ *                     description: Enable lazy GraphRAG mode with on-demand community summaries (F6.2.5)
+ *                     default: false
  *     responses:
  *       200:
  *         description: Query processed successfully
@@ -4784,6 +7607,9 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
       includeGraphContext: options.includeGraphContext !== false,
       semantic: options.semantic !== false,
       user: req.user, // Pass authenticated user for security trimming
+      persona: options.persona, // Support persona-based retrieval (F6.3.2, F6.3.3)
+      filterByPersona: options.filterByPersona, // Support persona-based filtering (F6.3.6)
+      lazySummaries: options.lazySummaries, // Support lazy GraphRAG mode (F6.2.5)
     });
 
     res.json(result);
@@ -4801,7 +7627,7 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
  * /api/graphrag/search:
  *   post:
  *     summary: Enhanced GraphRAG search
- *     description: Perform a graph-enhanced RAG search with entity resolution and multi-hop traversal
+ *     description: Perform a graph-enhanced RAG search with entity resolution and multi-hop traversal. Supports persona-based filtering (F6.3.6) to hide irrelevant results.
  *     tags: [GraphRAG]
  *     requestBody:
  *       required: true
@@ -4820,7 +7646,20 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
  *                 properties:
  *                   persona:
  *                     type: string
- *                     description: Persona ID (ops, it, leadership, compliance)
+ *                     description: Persona ID (ops, it, leadership, compliance, default)
+ *                     enum: [ops, it, leadership, compliance, default]
+ *                   filterByPersona:
+ *                     type: boolean
+ *                     description: Enable persona-based filtering (F6.3.6). Defaults to true when persona is specified.
+ *                     default: true
+ *                   forceFilter:
+ *                     type: boolean
+ *                     description: Force filtering even if persona has it disabled by default
+ *                     default: false
+ *                   filterRelationshipEndpoints:
+ *                     type: boolean
+ *                     description: Filter relationships based on filtered entity presence
+ *                     default: true
  *                   maxHops:
  *                     type: integer
  *                     description: Maximum graph traversal depth
@@ -4832,9 +7671,9 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
  *                     description: Include community summaries
  *     responses:
  *       200:
- *         description: GraphRAG search results
+ *         description: GraphRAG search results with optional persona filtering metadata
  */
-app.post('/api/graphrag/search', userQueryLimiter, async (req, res) => {
+app.post('/api/graphrag/search', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
   const { query, options = {} } = req.body;
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -4866,7 +7705,7 @@ app.post('/api/graphrag/search', userQueryLimiter, async (req, res) => {
  * /api/graphrag/answer:
  *   post:
  *     summary: Generate answer using GraphRAG
- *     description: Generate a natural language answer using graph-enhanced retrieval
+ *     description: Generate a natural language answer using graph-enhanced retrieval. Supports persona-based filtering (F6.3.6) to hide irrelevant entities from the response.
  *     tags: [GraphRAG]
  *     requestBody:
  *       required: true
@@ -4879,21 +7718,33 @@ app.post('/api/graphrag/search', userQueryLimiter, async (req, res) => {
  *             properties:
  *               query:
  *                 type: string
+ *                 description: Natural language query
  *               options:
  *                 type: object
  *                 properties:
  *                   persona:
  *                     type: string
- *                     description: Persona ID (ops, it, leadership, compliance)
+ *                     description: Persona ID for tailored responses and filtering
+ *                     enum: [ops, it, leadership, compliance, default]
+ *                   filterByPersona:
+ *                     type: boolean
+ *                     description: Enable persona-based filtering (F6.3.6). Defaults to true when persona is specified.
+ *                     default: true
+ *                   forceFilter:
+ *                     type: boolean
+ *                     description: Force filtering even if persona has it disabled by default
+ *                     default: false
  *                   maxTokens:
  *                     type: integer
+ *                     description: Maximum tokens in response
  *                   maxHops:
  *                     type: integer
+ *                     description: Maximum graph traversal depth
  *     responses:
  *       200:
- *         description: Generated answer with sources
+ *         description: Generated answer with sources and filtering metadata
  */
-app.post('/api/graphrag/answer', userQueryLimiter, async (req, res) => {
+app.post('/api/graphrag/answer', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
   const { query, options = {} } = req.body;
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -5239,7 +8090,7 @@ app.get('/api/graphrag/communities/:id', async (req, res) => {
  *                 metadata:
  *                   type: object
  */
-app.post('/api/graphrag/global-query', userQueryLimiter, async (req, res) => {
+app.post('/api/graphrag/global-query', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
   const { query, options = {} } = req.body;
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -7696,6 +10547,584 @@ app.post('/api/evaluation/chunking/benchmark', async (req, res) => {
 });
 
 // ============================================
+// Prompt Tuning API Routes (F4.3.6)
+// ============================================
+
+const { getPromptTuningService, ExperimentStatus } = require('./services/prompt-tuning-service');
+const { PromptVariantId, getPromptVariantList } = require('./prompts/prompt-variants');
+
+/**
+ * @swagger
+ * /api/prompt-tuning/variants:
+ *   get:
+ *     summary: Get available prompt variants
+ *     description: Returns all available prompt variants for A/B testing extraction prompts
+ *     tags: [Prompt Tuning]
+ *     responses:
+ *       200:
+ *         description: List of available variants
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 variants:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       hypothesis:
+ *                         type: string
+ */
+app.get('/api/prompt-tuning/variants', (req, res) => {
+  try {
+    const variants = getPromptTuningService().getAvailableVariants();
+    res.json({ variants });
+  } catch (error) {
+    log.errorWithStack('Failed to get prompt variants', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/variants/{variantId}:
+ *   get:
+ *     summary: Get variant details
+ *     description: Returns detailed information about a specific prompt variant
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: variantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The variant identifier
+ *     responses:
+ *       200:
+ *         description: Variant details
+ *       404:
+ *         description: Variant not found
+ */
+app.get('/api/prompt-tuning/variants/:variantId', (req, res) => {
+  try {
+    const variant = getPromptTuningService().getVariantInfo(req.params.variantId);
+    if (!variant) {
+      return res.status(404).json({ error: 'Variant not found' });
+    }
+    res.json(variant);
+  } catch (error) {
+    log.errorWithStack('Failed to get variant details', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments:
+ *   get:
+ *     summary: List all experiments
+ *     description: Returns all prompt tuning experiments with optional status filter
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, running, paused, completed, archived]
+ *         description: Filter by experiment status
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Maximum number of experiments to return
+ *     responses:
+ *       200:
+ *         description: List of experiments
+ */
+app.get('/api/prompt-tuning/experiments', (req, res) => {
+  try {
+    const { status, limit } = req.query;
+    const experiments = getPromptTuningService().listExperiments({
+      status,
+      limit: limit ? parseInt(limit, 10) : undefined
+    });
+    res.json({ experiments, count: experiments.length });
+  } catch (error) {
+    log.errorWithStack('Failed to list experiments', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments:
+ *   post:
+ *     summary: Create a new experiment
+ *     description: Create a new A/B test experiment for prompt tuning
+ *     tags: [Prompt Tuning]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Experiment name
+ *               description:
+ *                 type: string
+ *                 description: Experiment description
+ *               variants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Variant IDs to include (default baseline + few_shot)
+ *               allocation:
+ *                 type: object
+ *                 description: Percentage allocation per variant (must sum to 100)
+ *               minSamplesPerVariant:
+ *                 type: integer
+ *                 default: 10
+ *                 description: Minimum samples required before declaring winner
+ *               primaryMetric:
+ *                 type: string
+ *                 default: f1
+ *                 description: Metric to optimize for
+ *     responses:
+ *       201:
+ *         description: Experiment created
+ *       400:
+ *         description: Invalid configuration
+ */
+app.post('/api/prompt-tuning/experiments', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().createExperiment(req.body);
+    res.status(201).json(experiment);
+  } catch (error) {
+    log.errorWithStack('Failed to create experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/active:
+ *   get:
+ *     summary: Get the active experiment
+ *     description: Returns the currently running experiment, if any
+ *     tags: [Prompt Tuning]
+ *     responses:
+ *       200:
+ *         description: Active experiment or null
+ */
+app.get('/api/prompt-tuning/experiments/active', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().getActiveExperiment();
+    res.json({ experiment });
+  } catch (error) {
+    log.errorWithStack('Failed to get active experiment', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}:
+ *   get:
+ *     summary: Get experiment by ID
+ *     description: Returns details of a specific experiment
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Experiment details
+ *       404:
+ *         description: Experiment not found
+ */
+app.get('/api/prompt-tuning/experiments/:experimentId', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().getExperiment(req.params.experimentId);
+    if (!experiment) {
+      return res.status(404).json({ error: 'Experiment not found' });
+    }
+    res.json(experiment);
+  } catch (error) {
+    log.errorWithStack('Failed to get experiment', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/start:
+ *   post:
+ *     summary: Start an experiment
+ *     description: Start running an experiment (only one can be active at a time)
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Experiment started
+ *       400:
+ *         description: Cannot start experiment
+ */
+app.post('/api/prompt-tuning/experiments/:experimentId/start', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().startExperiment(req.params.experimentId);
+    res.json(experiment);
+  } catch (error) {
+    log.errorWithStack('Failed to start experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/pause:
+ *   post:
+ *     summary: Pause an experiment
+ *     description: Pause a running experiment
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Experiment paused
+ *       400:
+ *         description: Cannot pause experiment
+ */
+app.post('/api/prompt-tuning/experiments/:experimentId/pause', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().pauseExperiment(req.params.experimentId);
+    res.json(experiment);
+  } catch (error) {
+    log.errorWithStack('Failed to pause experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/complete:
+ *   post:
+ *     summary: Complete an experiment
+ *     description: Complete an experiment and calculate final analysis
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Experiment completed with final analysis
+ *       400:
+ *         description: Cannot complete experiment
+ */
+app.post('/api/prompt-tuning/experiments/:experimentId/complete', (req, res) => {
+  try {
+    const experiment = getPromptTuningService().completeExperiment(req.params.experimentId);
+    res.json(experiment);
+  } catch (error) {
+    log.errorWithStack('Failed to complete experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}:
+ *   delete:
+ *     summary: Delete an experiment
+ *     description: Delete an experiment (cannot delete running experiments)
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Experiment deleted
+ *       400:
+ *         description: Cannot delete experiment
+ */
+app.delete('/api/prompt-tuning/experiments/:experimentId', (req, res) => {
+  try {
+    getPromptTuningService().deleteExperiment(req.params.experimentId);
+    res.status(204).send();
+  } catch (error) {
+    log.errorWithStack('Failed to delete experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/analysis:
+ *   get:
+ *     summary: Analyze experiment results
+ *     description: Get current analysis of experiment results including winner determination
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Experiment analysis
+ */
+app.get('/api/prompt-tuning/experiments/:experimentId/analysis', (req, res) => {
+  try {
+    const analysis = getPromptTuningService().analyzeExperiment(req.params.experimentId);
+    res.json(analysis);
+  } catch (error) {
+    log.errorWithStack('Failed to analyze experiment', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/report:
+ *   get:
+ *     summary: Generate comparison report
+ *     description: Generate a formatted comparison report for an experiment
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [json, markdown, text]
+ *           default: json
+ *         description: Output format
+ *     responses:
+ *       200:
+ *         description: Comparison report
+ */
+app.get('/api/prompt-tuning/experiments/:experimentId/report', (req, res) => {
+  try {
+    const format = req.query.format || 'json';
+    const report = getPromptTuningService().generateComparisonReport(req.params.experimentId, format);
+
+    if (format === 'markdown' || format === 'text') {
+      res.type('text/plain').send(report);
+    } else {
+      res.json(report);
+    }
+  } catch (error) {
+    log.errorWithStack('Failed to generate report', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/experiments/{experimentId}/results:
+ *   get:
+ *     summary: Get extraction results
+ *     description: Get extraction results for an experiment
+ *     tags: [Prompt Tuning]
+ *     parameters:
+ *       - in: path
+ *         name: experimentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: variantId
+ *         schema:
+ *           type: string
+ *         description: Filter by variant ID
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Maximum results to return
+ *     responses:
+ *       200:
+ *         description: Extraction results
+ */
+app.get('/api/prompt-tuning/experiments/:experimentId/results', (req, res) => {
+  try {
+    const { variantId, limit } = req.query;
+    const results = getPromptTuningService().getExtractionResults(req.params.experimentId, {
+      variantId,
+      limit: limit ? parseInt(limit, 10) : undefined
+    });
+    res.json({ results, count: results.length });
+  } catch (error) {
+    log.errorWithStack('Failed to get results', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/extract/entities:
+ *   post:
+ *     summary: Extract entities with a specific variant
+ *     description: Extract entities using a specific prompt variant (for testing)
+ *     tags: [Prompt Tuning]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 description: Text to extract entities from
+ *               variantId:
+ *                 type: string
+ *                 description: Variant to use (default baseline)
+ *               documentContext:
+ *                 type: object
+ *                 description: Document context (title, section, pageNumber)
+ *     responses:
+ *       200:
+ *         description: Extracted entities
+ */
+app.post('/api/prompt-tuning/extract/entities', userQueryLimiter, async (req, res) => {
+  try {
+    const { text, variantId, documentContext } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+
+    const result = await getPromptTuningService().extractEntitiesWithVariant(
+      text,
+      documentContext || {},
+      variantId
+    );
+
+    res.json(result);
+  } catch (error) {
+    log.errorWithStack('Entity extraction failed', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/extract/relationships:
+ *   post:
+ *     summary: Extract relationships with a specific variant
+ *     description: Extract relationships using a specific prompt variant (for testing)
+ *     tags: [Prompt Tuning]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *               - entities
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 description: Text to extract relationships from
+ *               entities:
+ *                 type: array
+ *                 description: Entities found in the text
+ *               variantId:
+ *                 type: string
+ *                 description: Variant to use (default baseline)
+ *               documentContext:
+ *                 type: object
+ *                 description: Document context
+ *     responses:
+ *       200:
+ *         description: Extracted relationships
+ */
+app.post('/api/prompt-tuning/extract/relationships', userQueryLimiter, async (req, res) => {
+  try {
+    const { text, entities, variantId, documentContext } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    if (!entities || !Array.isArray(entities)) {
+      return res.status(400).json({ error: 'entities array is required' });
+    }
+
+    const result = await getPromptTuningService().extractRelationshipsWithVariant(
+      text,
+      entities,
+      documentContext || {},
+      variantId
+    );
+
+    res.json(result);
+  } catch (error) {
+    log.errorWithStack('Relationship extraction failed', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/prompt-tuning/stats:
+ *   get:
+ *     summary: Get service statistics
+ *     description: Get statistics about the prompt tuning service
+ *     tags: [Prompt Tuning]
+ *     responses:
+ *       200:
+ *         description: Service statistics
+ */
+app.get('/api/prompt-tuning/stats', (req, res) => {
+  try {
+    const stats = getPromptTuningService().getStats();
+    res.json(stats);
+  } catch (error) {
+    log.errorWithStack('Failed to get stats', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // Ontology API Routes (F2.1.5)
 // ============================================
 
@@ -9427,7 +12856,7 @@ app.post('/api/graphrag/query-with-type-filter', async (req, res) => {
  *       400:
  *         description: Missing required parameters
  */
-app.post('/api/graphrag/temporal/query', userQueryLimiter, async (req, res) => {
+app.post('/api/graphrag/temporal/query', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
   try {
     const { query, pointInTime, ...options } = req.body;
 
@@ -9511,7 +12940,7 @@ app.post('/api/graphrag/temporal/query', userQueryLimiter, async (req, res) => {
  *                 metadata:
  *                   type: object
  */
-app.post('/api/graphrag/temporal/answer', userQueryLimiter, async (req, res) => {
+app.post('/api/graphrag/temporal/answer', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
   try {
     const { query, pointInTime, ...options } = req.body;
 
@@ -10068,6 +13497,202 @@ app.post('/api/chunking/semantic', userProcessingLimiter, async (req, res) => {
   } catch (error) {
     log.errorWithStack('Semantic chunking error', error);
     res.status(500).json({ error: 'Failed to chunk text', message: error.message });
+  }
+});
+
+// ============================================
+// Evaluation API Routes (F6.2.4)
+// ============================================
+
+/**
+ * @swagger
+ * /api/evaluation/lazy-vs-eager:
+ *   post:
+ *     summary: Compare Lazy vs Eager GraphRAG (F6.2.4)
+ *     description: Runs a comparison between Lazy (on-demand) and Eager (pre-computed) GraphRAG summarization.
+ *     tags: [Evaluation]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - queries
+ *             properties:
+ *               queries:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     question:
+ *                       type: string
+ *                     expectedAnswer:
+ *                       type: string
+ *               options:
+ *                 type: object
+ *                 properties:
+ *                   iterations:
+ *                     type: integer
+ *                     default: 1
+ *                   judgeCriteria:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Comparison results
+ */
+app.post('/api/evaluation/lazy-vs-eager', async (req, res) => {
+  try {
+    const { queries, options = {} } = req.body;
+
+    if (!queries || !Array.isArray(queries) || queries.length === 0) {
+      return res.status(400).json({ error: 'Queries array is required' });
+    }
+
+    const result = await compareStrategies(queries, options);
+    const report = formatComparisonReport(result);
+    const recommendation = getRecommendation(result.summary);
+
+    res.json({
+      ...result,
+      report,
+      recommendation,
+    });
+  } catch (error) {
+    log.errorWithStack('Lazy vs Eager comparison error', error);
+    res.status(500).json({ error: 'Comparison failed', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/evaluation/lazy-vs-eager/sample-dataset:
+ *   get:
+ *     summary: Get sample comparison dataset
+ *     description: Returns a sample dataset for testing Lazy vs Eager comparison
+ *     tags: [Evaluation]
+ *     responses:
+ *       200:
+ *         description: Sample dataset
+ */
+app.get('/api/evaluation/lazy-vs-eager/sample-dataset', (req, res) => {
+  try {
+    const dataset = createSampleComparisonDataset();
+    res.json(dataset);
+  } catch (error) {
+    log.errorWithStack('Sample dataset generation error', error);
+    res.status(500).json({ error: 'Failed to generate sample dataset' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/evaluation/lazy-vs-eager/benchmark:
+ *   post:
+ *     summary: Run Lazy vs Eager benchmark from dataset
+ *     description: Runs comparison using the built-in benchmark dataset
+ *     tags: [Evaluation]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               datasetPath:
+ *                 type: string
+ *                 description: Path to dataset file (optional, uses default if not provided)
+ *               options:
+ *                 type: object
+ *                 properties:
+ *                   iterations:
+ *                     type: integer
+ *                     default: 1
+ *     responses:
+ *       200:
+ *         description: Benchmark results
+ */
+app.post('/api/evaluation/lazy-vs-eager/benchmark', async (req, res) => {
+  try {
+    const { datasetPath, options = {} } = req.body;
+
+    // Use default benchmark dataset if not specified
+    const actualPath = datasetPath || path.join(__dirname, 'evaluation', 'datasets', 'lazy_vs_eager_benchmark.json');
+
+    const result = await runLazyEagerBenchmark(actualPath, options);
+    const recommendation = getRecommendation(result.summary);
+
+    res.json({
+      ...result,
+      recommendation,
+    });
+  } catch (error) {
+    log.errorWithStack('Lazy vs Eager benchmark error', error);
+    res.status(500).json({ error: 'Benchmark failed', message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/evaluation/lazy-vs-eager/report:
+ *   post:
+ *     summary: Generate formatted comparison report
+ *     description: Generate a report in text, markdown, or JSON format
+ *     tags: [Evaluation]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - queries
+ *             properties:
+ *               queries:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               format:
+ *                 type: string
+ *                 enum: [text, markdown, json]
+ *                 default: text
+ *               options:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Formatted report
+ */
+app.post('/api/evaluation/lazy-vs-eager/report', async (req, res) => {
+  try {
+    const { queries, format = 'text', options = {} } = req.body;
+
+    if (!queries || !Array.isArray(queries) || queries.length === 0) {
+      return res.status(400).json({ error: 'Queries array is required' });
+    }
+
+    const result = await compareStrategies(queries, options);
+    let report;
+
+    switch (format.toLowerCase()) {
+      case 'markdown':
+      case 'md':
+        report = formatComparisonReportMarkdown(result);
+        res.type('text/markdown').send(report);
+        break;
+      case 'json':
+        report = formatComparisonReportJSON(result);
+        res.type('application/json').send(report);
+        break;
+      case 'text':
+      default:
+        report = formatComparisonReport(result);
+        res.type('text/plain').send(report);
+        break;
+    }
+  } catch (error) {
+    log.errorWithStack('Report generation error', error);
+    res.status(500).json({ error: 'Report generation failed', message: error.message });
   }
 });
 
