@@ -1118,14 +1118,14 @@ app.get('/api/performance/rate-limits', (req, res) => {
  *     parameters:
  *       - in: query
  *         name: startTime
+ *         description: "Start timestamp in milliseconds (default: 1 hour ago)"
  *         schema:
  *           type: integer
- *         description: Start timestamp in milliseconds (default: 1 hour ago)
  *       - in: query
  *         name: endTime
+ *         description: "End timestamp in milliseconds (default: now)"
  *         schema:
  *           type: integer
- *         description: End timestamp in milliseconds (default: now)
  *     responses:
  *       200:
  *         description: Historical performance data

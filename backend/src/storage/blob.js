@@ -123,6 +123,7 @@ async function deleteBlob(blobName) {
 }
 
 module.exports = {
+  getContainerClient,
   uploadBuffer,
   generateSasUrl,
   getBlobNameFromUrl,

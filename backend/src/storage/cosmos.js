@@ -181,6 +181,7 @@ async function queryDocuments(querySpec) {
 }
 
 module.exports = {
+  getClient,
   createDocument,
   listDocuments,
   listDocumentsPaginated,

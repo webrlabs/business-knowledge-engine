@@ -220,7 +220,7 @@ export default function CommunityVisualization({
             'text-valign': 'top',
             'text-halign': 'center',
             'text-margin-y': -10,
-            'padding': 30,
+            'padding': '30px',
             'shape': 'roundrectangle',
           },
         },

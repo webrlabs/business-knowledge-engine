@@ -17,7 +17,7 @@ interface Document {
   tags: string[];
   size: number;
   uploadedAt: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: string;
   processingResults?: {
     extractedText: string;
     tables: Array<{
@@ -185,13 +185,40 @@ export default function DocumentsPage() {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'processing': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+  const isProcessingStatus = (status: string): boolean => {
+    return status === 'processing' || [
+      'extracting_content', 'extracting_visuals', 'chunking',
+      'extracting_entities', 'validating_extraction', 'resolving_entities',
+      'generating_embeddings', 'indexing_search', 'updating_graph',
+      'tracking_mentions', 'discovering_cross_document_links',
+    ].includes(status);
+  };
+
+  const getStatusLabel = (status: string): string => {
+    if (isProcessingStatus(status)) {
+      const labels: Record<string, string> = {
+        extracting_content: 'Extracting content',
+        extracting_visuals: 'Extracting visuals',
+        chunking: 'Chunking',
+        extracting_entities: 'Extracting entities',
+        validating_extraction: 'Validating',
+        resolving_entities: 'Resolving entities',
+        generating_embeddings: 'Generating embeddings',
+        indexing_search: 'Indexing',
+        updating_graph: 'Updating graph',
+        tracking_mentions: 'Tracking mentions',
+        discovering_cross_document_links: 'Discovering links',
+      };
+      return labels[status] || 'Processing';
     }
+    return status;
+  };
+
+  const getStatusColor = (status: string): string => {
+    if (status === 'completed') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    if (isProcessingStatus(status)) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    if (status === 'failed') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
   };
 
   if (!user) {
@@ -259,7 +286,7 @@ export default function DocumentsPage() {
                         </p>
                         <div className="mt-2 flex items-center gap-2 flex-wrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                            {doc.status}
+                            {getStatusLabel(doc.status)}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {formatFileSize(doc.size)}
@@ -270,7 +297,7 @@ export default function DocumentsPage() {
                         </div>
                       </div>
                       <div className="ml-4 flex-shrink-0 flex items-center gap-2">
-                        {(doc.status === 'pending' || doc.status === 'failed' || doc.status === 'completed') && (
+                        {(doc.status === 'pending' || doc.status === 'failed' || doc.status === 'completed') && !isProcessingStatus(doc.status) && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -585,11 +612,11 @@ export default function DocumentsPage() {
                         {processing === selectedDocument.id ? 'Processing...' : 'Process Document'}
                       </button>
                     </div>
-                  ) : selectedDocument.status === 'processing' ? (
+                  ) : isProcessingStatus(selectedDocument.status) ? (
                     <div className="text-center py-8">
-                      <InlineLoader text="Processing..." />
+                      <InlineLoader text={getStatusLabel(selectedDocument.status) + '...'} />
                       <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                        Processing document with Azure AI Document Intelligence...
+                        {getStatusLabel(selectedDocument.status)}... This may take a few minutes for large documents.
                       </p>
                     </div>
                   ) : (

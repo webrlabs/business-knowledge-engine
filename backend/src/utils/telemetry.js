@@ -85,7 +85,8 @@ function trackEvent(name, properties = {}, measurements = {}) {
       measurements,
     });
   } catch (error) {
-    log.warn('Failed to track event', { name, error: error.message });
+    log.warn('Telemetry disabled - trackEvent failed, disabling further tracking', { error: error.message });
+    client = null;
   }
 }
 
@@ -103,7 +104,8 @@ function trackException(error, properties = {}) {
       properties,
     });
   } catch (err) {
-    log.warn('Failed to track exception', { error: err.message });
+    log.warn('Telemetry disabled - trackException failed', { error: err.message });
+    client = null;
   }
 }
 
@@ -123,7 +125,8 @@ function trackMetric(name, value, properties = {}) {
       properties,
     });
   } catch (error) {
-    log.warn('Failed to track metric', { name, error: error.message });
+    log.warn('Telemetry disabled - trackMetric failed', { error: error.message });
+    client = null;
   }
 }
 
@@ -146,7 +149,8 @@ function trackDependency(options) {
       properties: options.properties || {},
     });
   } catch (error) {
-    log.warn('Failed to track dependency', { name: options.name, error: error.message });
+    log.warn('Telemetry disabled - trackDependency failed', { error: error.message });
+    client = null;
   }
 }
 
@@ -167,7 +171,8 @@ function trackRequest(options) {
       properties: options.properties || {},
     });
   } catch (error) {
-    log.warn('Failed to track request', { name: options.name, error: error.message });
+    log.warn('Telemetry disabled - trackRequest failed', { error: error.message });
+    client = null;
   }
 }
 
@@ -187,7 +192,8 @@ function trackPageView(name, url, properties = {}) {
       properties,
     });
   } catch (error) {
-    log.warn('Failed to track page view', { name, error: error.message });
+    log.warn('Telemetry disabled - trackPageView failed', { error: error.message });
+    client = null;
   }
 }
 
