@@ -102,31 +102,31 @@ class GraphService {
     const cb = this._getCircuitBreaker();
     const { logQuery = false } = options;
 
-    // Wrap Gremlin query execution with circuit breaker
-    const gremlinOperation = async () => {
+    // Define operation that takes query and bindings as arguments (avoid closure caching issue)
+    const gremlinOperation = async (q, b, shouldLog) => {
       const start = Date.now();
       try {
-        if (logQuery) {
-          log.debug(`Executing Gremlin query: ${query.substring(0, 200)}...`, { bindings });
+        if (shouldLog) {
+          log.debug(`Executing Gremlin query: ${q.substring(0, 200)}...`, { bindings: b });
         }
 
-        const result = await client.submit(query, bindings);
-        
+        const result = await client.submit(q, b);
+
         const duration = Date.now() - start;
         if (duration > 200) { // Log slow queries (>200ms)
-          log.warn(`Slow Gremlin query detected (${duration}ms)`, { 
-            query: query.substring(0, 500), 
+          log.warn(`Slow Gremlin query detected (${duration}ms)`, {
+            query: q.substring(0, 500),
             duration,
-            bindings: JSON.stringify(bindings)
+            bindings: JSON.stringify(b)
           });
         }
 
         return result._items || [];
       } catch (error) {
         const duration = Date.now() - start;
-        log.error(`Gremlin query failed after ${duration}ms`, { 
-          error: error.message, 
-          query: query.substring(0, 500) 
+        log.error(`Gremlin query failed after ${duration}ms`, {
+          error: error.message,
+          query: q.substring(0, 500)
         });
 
         // Handle token expiration by reconnecting
@@ -134,15 +134,17 @@ class GraphService {
           log.info('Retrying Gremlin query after auth error...');
           this.client = null;
           const newClient = await this._getClient();
-          const result = await newClient.submit(query, bindings);
+          const result = await newClient.submit(q, b);
           return result._items || [];
         }
         throw error;
       }
     };
 
+    // Get or create the circuit breaker once (it's now stateless w.r.t. query/bindings)
     const breaker = cb.getBreaker('gremlin', gremlinOperation, { name: 'submit' });
-    return breaker.fire();
+    // Pass query and bindings as arguments to fire() instead of closing over them
+    return breaker.fire(query, bindings, logQuery);
   }
 
   async addVertex(entity) {

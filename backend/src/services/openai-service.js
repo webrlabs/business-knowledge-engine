@@ -67,15 +67,16 @@ class OpenAIService {
       throw new Error('AZURE_OPENAI_DEPLOYMENT_NAME is required');
     }
 
-    // Wrap the operation with circuit breaker
-    const cb = this._getCircuitBreaker();
-    const operation = async () => {
+    // Create the operation that accepts messages as a parameter
+    // IMPORTANT: The circuit breaker caches the function by key, so we must
+    // pass arguments through fire() rather than capturing them in a closure.
+    const operation = async (msgs, opts) => {
       return this._retryWithBackoff(async () => {
         const response = await client.chat.completions.create({
-          model,
-          messages,
-          max_completion_tokens: options.maxTokens ?? 4096,
-          response_format: options.responseFormat,
+          model: opts.model,
+          messages: msgs,
+          max_completion_tokens: opts.maxTokens ?? 4096,
+          response_format: opts.responseFormat,
         });
 
         return {
@@ -86,9 +87,11 @@ class OpenAIService {
       });
     };
 
-    // Use circuit breaker with fallback support
+    // Use circuit breaker - pass messages as arguments to fire() so each
+    // call gets its own messages rather than reusing a cached closure
+    const cb = this._getCircuitBreaker();
     const breaker = cb.getBreaker('openai', operation, { name: 'getChatCompletion' });
-    return breaker.fire();
+    return breaker.fire(messages, { model, maxTokens: options.maxTokens, responseFormat: options.responseFormat });
   }
 
   async getJsonCompletion(messages, options = {}) {
@@ -134,13 +137,13 @@ class OpenAIService {
       throw new Error('AZURE_OPENAI_EMBEDDING_DEPLOYMENT is required');
     }
 
-    // Wrap the operation with circuit breaker
+    // Pass text as argument to fire() to avoid closure caching issue
     const cb = this._getCircuitBreaker();
-    const operation = async () => {
+    const operation = async (inputText) => {
       return this._retryWithBackoff(async () => {
         const response = await client.embeddings.create({
           model,
-          input: text,
+          input: inputText,
         });
         return {
           embedding: response.data[0].embedding,
@@ -150,7 +153,7 @@ class OpenAIService {
     };
 
     const breaker = cb.getBreaker('openai', operation, { name: 'getEmbedding' });
-    return breaker.fire();
+    return breaker.fire(text);
   }
 
   async getEmbeddings(texts) {

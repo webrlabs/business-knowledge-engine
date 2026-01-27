@@ -477,7 +477,7 @@ class DocumentProcessor {
       edgesSkipped: 0,
     };
 
-    // Add/update entities as vertices using upsert
+    // Add/update entities as vertices using upsert (with throttling to avoid 429s)
     for (const entity of entities) {
       try {
         const result = await this.graph.upsertVertex({
@@ -499,6 +499,8 @@ class DocumentProcessor {
           error: error.message,
         });
       }
+      // Throttle to avoid Cosmos DB rate limiting (429 errors)
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     // Add/update relationships as edges (addEdge now handles duplicates)
@@ -522,6 +524,8 @@ class DocumentProcessor {
           error: error.message,
         });
       }
+      // Throttle to avoid Cosmos DB rate limiting (429 errors)
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     log.info('Graph update completed', {

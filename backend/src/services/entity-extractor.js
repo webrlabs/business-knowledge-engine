@@ -73,19 +73,28 @@ class EntityExtractorService {
   }
 
   async processChunk(chunk, existingEntities = [], documentContext = {}) {
+    const text = chunk.content || chunk;
+
     // Extract entities from this chunk
-    const newEntities = await this.extractEntities(chunk.content || chunk, documentContext);
+    const newEntities = await this.extractEntities(text, documentContext);
 
     // Resolve against existing entities to avoid duplicates
     const resolvedEntities = this._resolveEntities(newEntities, existingEntities);
 
     // Extract relationships using all entities (existing + new)
     const allEntities = [...existingEntities, ...resolvedEntities.added];
+
+    console.log(`[EntityExtractor] Chunk: ${newEntities.length} raw entities, ${resolvedEntities.added.length} new, ${resolvedEntities.merged.length} merged, ${allEntities.length} total for relationship extraction`);
+
     const relationships = await this.extractRelationships(
-      chunk.content || chunk,
+      text,
       allEntities,
       documentContext
     );
+
+    if (relationships.length > 0) {
+      console.log(`[EntityExtractor] Found ${relationships.length} relationships in chunk`);
+    }
 
     return {
       entities: resolvedEntities.added,
@@ -141,6 +150,41 @@ class EntityExtractorService {
         for (const rel of result.relationships) {
           rel.sourceDocumentId = documentId;
           allRelationships.push(rel);
+        }
+      }
+    }
+
+    // Second pass: Extract relationships from chunks using the FULL entity list
+    // This produces better results than per-chunk extraction because:
+    // 1. The full entity list provides more context for the LLM
+    // 2. Cross-chunk entity references can be resolved
+    if (allEntities.length >= 2) {
+      console.log(`[EntityExtractor] Second pass: extracting relationships with ${allEntities.length} entities across ${chunks.length} chunks`);
+
+      // Sample chunks evenly across the document for relationship extraction
+      const RELATIONSHIP_BATCH_SIZE = 3;
+      const chunksToProcess = chunks.length <= 20 ? chunks : this._sampleChunks(chunks, 20);
+
+      for (let i = 0; i < chunksToProcess.length; i += RELATIONSHIP_BATCH_SIZE) {
+        const batch = chunksToProcess.slice(i, i + RELATIONSHIP_BATCH_SIZE);
+        console.log(`[EntityExtractor] Relationship extraction batch ${Math.floor(i / RELATIONSHIP_BATCH_SIZE) + 1}/${Math.ceil(chunksToProcess.length / RELATIONSHIP_BATCH_SIZE)}`);
+
+        const relPromises = batch.map(chunk => {
+          // Combine adjacent chunks for more context
+          const text = chunk.content || chunk;
+          return this.extractRelationships(text, allEntities)
+            .catch(err => {
+              console.error(`[EntityExtractor] Relationship extraction error:`, err.message);
+              return [];
+            });
+        });
+
+        const relResults = await Promise.all(relPromises);
+        for (const rels of relResults) {
+          for (const rel of rels) {
+            rel.sourceDocumentId = documentId;
+            allRelationships.push(rel);
+          }
         }
       }
     }
@@ -248,6 +292,16 @@ class EntityExtractorService {
     }
 
     return { added, merged };
+  }
+
+  _sampleChunks(chunks, maxChunks) {
+    if (chunks.length <= maxChunks) return chunks;
+    const step = chunks.length / maxChunks;
+    const sampled = [];
+    for (let i = 0; i < maxChunks; i++) {
+      sampled.push(chunks[Math.floor(i * step)]);
+    }
+    return sampled;
   }
 
   _deduplicateRelationships(relationships) {
