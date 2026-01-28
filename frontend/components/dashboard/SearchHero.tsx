@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
-import type { SearchMode, SearchSuggestion } from '@/lib/gamification-types';
+import type { SearchSuggestion } from '@/lib/gamification-types';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -15,12 +15,6 @@ function getGreeting(): string {
 interface SearchHeroProps {
   firstName?: string;
 }
-
-const SEARCH_MODES: { value: SearchMode; label: string; description: string }[] = [
-  { value: 'natural', label: 'Natural Language', description: 'Ask questions in plain English' },
-  { value: 'entity', label: 'Entity', description: 'Search for specific entities' },
-  { value: 'fulltext', label: 'Full-Text', description: 'Search across all document content' },
-];
 
 const SAMPLE_QUESTIONS = [
   'What are the key risks identified in our latest audit?',
@@ -38,7 +32,6 @@ export default function SearchHero({ firstName }: SearchHeroProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<SearchMode>('natural');
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion | null>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -116,7 +109,7 @@ export default function SearchHero({ firstName }: SearchHeroProps) {
     const trimmed = query.trim();
     if (!trimmed) return;
     setSuggestions(null);
-    router.push(`/dashboard/query?q=${encodeURIComponent(trimmed)}&mode=${mode}`);
+    router.push(`/dashboard/query?q=${encodeURIComponent(trimmed)}`);
   };
 
   // Select a suggestion
@@ -124,14 +117,14 @@ export default function SearchHero({ firstName }: SearchHeroProps) {
     setQuery(text);
     setSuggestions(null);
     setSelectedSuggestionIndex(-1);
-    router.push(`/dashboard/query?q=${encodeURIComponent(text)}&mode=${mode}`);
+    router.push(`/dashboard/query?q=${encodeURIComponent(text)}`);
   };
 
   // Select a sample question
   const handleSelectSample = (question: string) => {
     setQuery(question);
     setSuggestions(null);
-    router.push(`/dashboard/query?q=${encodeURIComponent(question)}&mode=natural`);
+    router.push(`/dashboard/query?q=${encodeURIComponent(question)}`);
   };
 
   // "/" keyboard shortcut to focus search
@@ -257,13 +250,7 @@ export default function SearchHero({ firstName }: SearchHeroProps) {
                 onKeyDown={handleKeyDown}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                placeholder={
-                  mode === 'natural'
-                    ? 'Ask a question about your knowledge base...'
-                    : mode === 'entity'
-                    ? 'Search for an entity by name or type...'
-                    : 'Search across all document content...'
-                }
+                placeholder="Ask a question about your knowledge base..."
                 rows={1}
                 className="w-full resize-none border-0 bg-transparent px-3 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 dark:text-white dark:placeholder-gray-500 sm:text-base"
                 autoComplete="off"
@@ -280,29 +267,10 @@ export default function SearchHero({ firstName }: SearchHeroProps) {
 
               {/* Loading spinner */}
               {isLoadingSuggestions && (
-                <div className="pr-2">
+                <div className="pr-2 pt-3">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
                 </div>
               )}
-
-              {/* Mode toggle (inline) */}
-              <div className="flex items-center border-l border-gray-200 dark:border-gray-700 pl-2 mr-2 pt-1.5">
-                {SEARCH_MODES.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    onClick={() => setMode(m.value)}
-                    title={m.description}
-                    className={`px-2 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                      mode === m.value
-                        ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30'
-                        : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
 
               {/* Keyboard shortcut hint */}
               {!isFocused && !query && (

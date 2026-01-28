@@ -77,7 +77,57 @@ To help me provide better answers, you can:
 
 Would you like me to help with something else?`;
 
+/**
+ * Build rich citation objects from vector search results.
+ * Returns Citation objects with documentId, passage, and metadata for document viewer.
+ * @param {Array} vectorResults - Search results from vector/hybrid search
+ * @returns {Array<Citation>} Rich citation objects
+ */
 function buildCitationsList(vectorResults) {
+  if (!vectorResults || vectorResults.length === 0) {
+    return [];
+  }
+
+  // Track unique citations by documentId + pageNumber to avoid duplicates
+  const seen = new Map();
+  const citations = [];
+
+  vectorResults.forEach((result, idx) => {
+    const documentId = result.documentId || result.id;
+    const pageNumber = result.pageNumber || 0;
+    const key = `${documentId}_${pageNumber}`;
+
+    // Skip duplicates (same document + page)
+    if (seen.has(key)) {
+      return;
+    }
+    seen.set(key, true);
+
+    // Extract a meaningful passage (first 200 chars of content)
+    const passage = result.content
+      ? result.content.substring(0, 200).trim()
+      : '';
+
+    citations.push({
+      id: `cite_${citations.length + 1}`,
+      documentId: documentId,
+      documentName: result.sourceFile || result.title || 'Unknown Document',
+      chunkId: result.id,
+      passage: passage,
+      pageNumber: result.pageNumber || null,
+      sectionTitle: result.sectionTitle || null,
+    });
+  });
+
+  return citations;
+}
+
+/**
+ * Build legacy string citations for backward compatibility.
+ * @param {Array} vectorResults - Search results from vector/hybrid search
+ * @returns {Array<string>} String citations in legacy format
+ */
+function buildCitationsListLegacy(vectorResults) {
   if (!vectorResults || vectorResults.length === 0) {
     return [];
   }
@@ -131,4 +181,5 @@ module.exports = {
   NO_CONTEXT_RESPONSE,
   buildQuerySynthesisPrompt,
   buildCitationsList,
+  buildCitationsListLegacy,
 };

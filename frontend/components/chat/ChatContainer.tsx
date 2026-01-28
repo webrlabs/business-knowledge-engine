@@ -6,7 +6,7 @@ import { API_BASE_URL, useAuthFetch, useAuthToken } from '@/lib/api';
 import { streamChatResponse } from '@/lib/chat-stream';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { useChatStore } from '@/lib/chat-store';
-import type { ChatMessage } from '@/lib/chat-types';
+import type { ChatMessage, Citation } from '@/lib/chat-types';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import WelcomeState from './WelcomeState';
@@ -14,6 +14,7 @@ import TypingIndicator from './TypingIndicator';
 import DisclaimerFooter from './DisclaimerFooter';
 import ConversationSidebar from './ConversationSidebar';
 import ConversationHeader from './ConversationHeader';
+import DocumentPanel from './DocumentPanel';
 
 export default function ChatContainer() {
   const toast = useToast();
@@ -32,6 +33,8 @@ export default function ChatContainer() {
     renameConversation,
     sidebarOpen,
     setSidebarOpen,
+    documentPanelOpen,
+    setActiveDocument,
   } = useChatStore();
 
   const messagesAreaRef = useRef<HTMLDivElement>(null);
@@ -329,6 +332,14 @@ export default function ChatContainer() {
     return -1;
   })();
 
+  // Handle citation click to open document panel
+  const handleCitationClick = useCallback(
+    (citation: Citation) => {
+      setActiveDocument(citation, authFetch);
+    },
+    [setActiveDocument, authFetch]
+  );
+
   return (
     <>
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
@@ -368,47 +379,60 @@ export default function ChatContainer() {
             sidebarOpen={sidebarOpen}
           />
 
-          {/* Chat container */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
-            {/* Messages Area */}
-            <div ref={messagesAreaRef} className={`flex-1 overflow-y-auto px-4 py-6 sm:px-6 transition-opacity duration-150 ${isSwitching ? 'opacity-0' : 'opacity-100'}`}>
-              {messages.length === 0 && !isLoading ? (
-                <WelcomeState onSendQuery={sendQuery} />
-              ) : (
-                <div className="mx-auto max-w-3xl space-y-6">
-                  {messages.map((message, idx) => (
-                    <div key={message.id} data-message-role={message.role}>
-                      <MessageBubble
-                        message={message}
-                        onFeedback={handleFeedback}
-                        onRetry={handleRetry}
-                        isLastAssistant={idx === lastAssistantIdx}
+          {/* Chat + Document Panel container */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Chat container */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900 min-w-0">
+              {/* Messages Area */}
+              <div ref={messagesAreaRef} className={`flex-1 overflow-y-auto px-4 py-6 sm:px-6 transition-opacity duration-150 ${isSwitching ? 'opacity-0' : 'opacity-100'}`}>
+                {messages.length === 0 && !isLoading ? (
+                  <WelcomeState onSendQuery={sendQuery} />
+                ) : (
+                  <div className="mx-auto max-w-3xl space-y-6">
+                    {messages.map((message, idx) => (
+                      <div key={message.id} data-message-role={message.role}>
+                        <MessageBubble
+                          message={message}
+                          onFeedback={handleFeedback}
+                          onRetry={handleRetry}
+                          isLastAssistant={idx === lastAssistantIdx}
+                          onCitationClick={handleCitationClick}
+                        />
+                      </div>
+                    ))}
+
+                    {isLoading && !isStreaming && <TypingIndicator />}
+
+                    {/* Spacer to allow scrolling user query to top during streaming */}
+                    {streamingSpacer > 0 && (
+                      <div
+                        style={{ height: streamingSpacer }}
+                        className="transition-all duration-300 ease-out"
                       />
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                )}
+              </div>
 
-                  {isLoading && !isStreaming && <TypingIndicator />}
-
-                  {/* Spacer to allow scrolling user query to top during streaming */}
-                  {streamingSpacer > 0 && (
-                    <div
-                      style={{ height: streamingSpacer }}
-                      className="transition-all duration-300 ease-out"
-                    />
-                  )}
-                </div>
-              )}
+              {/* Input Area */}
+              <ChatInput
+                onSubmit={sendQuery}
+                onStop={handleStop}
+                isLoading={isLoading}
+                isStreaming={isStreaming}
+                selectedPersona={personaRef.current}
+                onPersonaChange={handlePersonaChange}
+              />
             </div>
 
-            {/* Input Area */}
-            <ChatInput
-              onSubmit={sendQuery}
-              onStop={handleStop}
-              isLoading={isLoading}
-              isStreaming={isStreaming}
-              selectedPersona={personaRef.current}
-              onPersonaChange={handlePersonaChange}
-            />
+            {/* Document Panel - Right side */}
+            <div
+              className={`hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+                documentPanelOpen ? 'w-96' : 'w-0'
+              }`}
+            >
+              <DocumentPanel className="w-96 h-full" />
+            </div>
           </div>
 
           <DisclaimerFooter />

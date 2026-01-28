@@ -87,9 +87,9 @@ export default function ChatInput({
   const showStop = isStreaming && onStop;
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50">
+    <div className="px-3 sm:px-4 pb-2 pt-1">
       <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-shadow">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-shadow">
           {/* Textarea */}
           <textarea
             ref={textareaRef}

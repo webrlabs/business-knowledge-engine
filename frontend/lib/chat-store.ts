@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ChatMessage, Conversation } from './chat-types';
+import type { ChatMessage, Conversation, Citation, ActiveDocument } from './chat-types';
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -16,6 +16,11 @@ interface ChatState {
   conversations: Conversation[];
   activeConversationId: string | null;
   sidebarOpen: boolean;
+
+  // Document panel state
+  activeDocument: ActiveDocument | null;
+  documentPanelOpen: boolean;
+  documentLoading: boolean;
 
   // Computed-like getters
   getActiveConversation: () => Conversation | undefined;
@@ -35,6 +40,11 @@ interface ChatState {
   // UI
   setSidebarOpen: (open: boolean) => void;
 
+  // Document panel actions
+  setActiveDocument: (citation: Citation, authFetch: (url: string, options?: RequestInit) => Promise<Response>) => Promise<void>;
+  clearActiveDocument: () => void;
+  toggleDocumentPanel: () => void;
+
   // Search
   searchConversations: (query: string) => Conversation[];
 }
@@ -45,6 +55,11 @@ export const useChatStore = create<ChatState>()(
       conversations: [],
       activeConversationId: null,
       sidebarOpen: true,
+
+      // Document panel state (not persisted)
+      activeDocument: null,
+      documentPanelOpen: false,
+      documentLoading: false,
 
       getActiveConversation: () => {
         const { conversations, activeConversationId } = get();
@@ -146,6 +161,46 @@ export const useChatStore = create<ChatState>()(
 
       setSidebarOpen: (open) => {
         set({ sidebarOpen: open });
+      },
+
+      // Document panel actions
+      setActiveDocument: async (citation, authFetch) => {
+        set({ documentLoading: true, documentPanelOpen: true });
+
+        try {
+          const response = await authFetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/documents/${citation.documentId}`
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch document');
+          }
+
+          const document = await response.json();
+          const extractedText = document.extractedText || '';
+
+          set({
+            activeDocument: {
+              documentId: citation.documentId,
+              documentName: citation.documentName,
+              content: extractedText,
+              highlightPassages: [citation.passage],
+              scrollToPassage: citation.passage,
+            },
+            documentLoading: false,
+          });
+        } catch (error) {
+          console.error('Error fetching document:', error);
+          set({ documentLoading: false, documentPanelOpen: false });
+        }
+      },
+
+      clearActiveDocument: () => {
+        set({ activeDocument: null, documentPanelOpen: false });
+      },
+
+      toggleDocumentPanel: () => {
+        set((state) => ({ documentPanelOpen: !state.documentPanelOpen }));
       },
 
       searchConversations: (query) => {

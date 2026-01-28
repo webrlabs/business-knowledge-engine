@@ -1,15 +1,17 @@
 'use client';
 
-import type { ChatMessage } from '@/lib/chat-types';
+import type { ChatMessage, Citation } from '@/lib/chat-types';
 import MessageActions from './MessageActions';
 import ThinkingBlock from './ThinkingBlock';
 import StreamingText from './StreamingText';
+import CitationBadge from './CitationBadge';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   onFeedback: (messageId: string, feedback: 'up' | 'down' | null) => void;
   onRetry?: () => void;
   isLastAssistant?: boolean;
+  onCitationClick?: (citation: Citation) => void;
 }
 
 function formatTimestamp(iso: string): string {
@@ -24,6 +26,7 @@ export default function MessageBubble({
   onFeedback,
   onRetry,
   isLastAssistant = false,
+  onCitationClick,
 }: MessageBubbleProps) {
   if (message.role === 'user') {
     const handleCopyUser = async () => {
@@ -87,12 +90,12 @@ export default function MessageBubble({
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Sources</p>
             <div className="flex flex-wrap gap-1.5">
               {message.citations.map((citation, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-600 dark:text-gray-300"
-                >
-                  {idx + 1}. {citation}
-                </span>
+                <CitationBadge
+                  key={typeof citation === 'string' ? idx : citation.id}
+                  citation={citation}
+                  index={idx}
+                  onClick={onCitationClick}
+                />
               ))}
             </div>
           </div>
