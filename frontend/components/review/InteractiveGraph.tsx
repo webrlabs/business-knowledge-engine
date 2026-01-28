@@ -221,18 +221,21 @@ export default function InteractiveGraph({
           },
         },
       ],
-      layout: {
-        name: 'cose',
-        animate: false,
-        fit: true,
-        padding: 50,
-        nodeRepulsion: () => 500000,
-        idealEdgeLength: () => 100,
-      },
       minZoom: 0.2,
       maxZoom: 3,
       wheelSensitivity: 0.2,
     });
+
+    // Run layout separately so we can stop it on cleanup
+    const layout = cy.layout({
+      name: 'cose',
+      animate: false,
+      fit: true,
+      padding: 50,
+      nodeRepulsion: () => 500000,
+      idealEdgeLength: () => 100,
+    });
+    layout.run();
 
     // Enable node dragging
     cy.on('dragfree', 'node', (event) => {
@@ -310,6 +313,10 @@ export default function InteractiveGraph({
     cyRef.current = cy;
 
     return () => {
+      // Clear ref first so other effects/handlers don't use the destroyed instance
+      cyRef.current = null;
+      // Stop the layout to cancel any pending async callbacks
+      layout.stop();
       if (edgeHandlesRef.current) {
         edgeHandlesRef.current.destroy();
       }

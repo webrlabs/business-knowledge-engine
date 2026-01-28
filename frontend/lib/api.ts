@@ -30,3 +30,21 @@ export function useAuthFetch() {
     [accounts, instance]
   );
 }
+
+export function useAuthToken() {
+  const { instance, accounts } = useMsal();
+
+  return useCallback(async (): Promise<string> => {
+    const account = accounts[0];
+    if (!account) {
+      throw new Error('Not authenticated');
+    }
+
+    const tokenResponse = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account,
+    });
+
+    return tokenResponse.accessToken;
+  }, [accounts, instance]);
+}

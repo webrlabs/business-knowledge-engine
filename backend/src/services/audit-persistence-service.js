@@ -84,28 +84,49 @@ async function initContainer() {
     const retentionDays = getConfig('AUDIT_LOG_RETENTION_DAYS') || 90;
     const defaultTtl = retentionDays * 24 * 60 * 60; // Convert to seconds
 
+    // Composite indexes required for ORDER BY on multiple fields
+    const indexingPolicy = {
+      compositeIndexes: [
+        [
+          { path: '/timestamp', order: 'descending' },
+          { path: '/id', order: 'descending' },
+        ],
+        [
+          { path: '/timestamp', order: 'ascending' },
+          { path: '/id', order: 'ascending' },
+        ],
+      ],
+    };
+
     // Create or get audit container
     const { container: cont, resource: containerDef } = await database.containers.createIfNotExists({
       id: CONFIG.CONTAINER_ID,
       partitionKey: {
         paths: [CONFIG.PARTITION_KEY_PATH],
       },
-      // Set default TTL at container level
       defaultTtl: defaultTtl,
+      indexingPolicy,
     });
     container = cont;
 
-    // Check if TTL needs update (if container already existed with different TTL)
-    if (containerDef && containerDef.defaultTtl !== defaultTtl) {
-      log.info(`Updating audit container TTL from ${containerDef.defaultTtl} to ${defaultTtl} seconds`);
+    // Ensure container settings are up-to-date (TTL + composite indexes)
+    const needsTtlUpdate = containerDef && containerDef.defaultTtl !== defaultTtl;
+    const hasCompositeIndexes = containerDef?.indexingPolicy?.compositeIndexes?.length > 0;
+
+    if (needsTtlUpdate || !hasCompositeIndexes) {
+      log.info('Updating audit container settings', {
+        needsTtlUpdate,
+        hasCompositeIndexes,
+      });
       try {
         await container.replace({
           id: CONFIG.CONTAINER_ID,
           partitionKey: { paths: [CONFIG.PARTITION_KEY_PATH] },
           defaultTtl: defaultTtl,
+          indexingPolicy,
         });
       } catch (err) {
-        log.warn('Failed to update container TTL, continuing with existing setting', err);
+        log.warn('Failed to update container settings, continuing with existing', err);
       }
     }
 

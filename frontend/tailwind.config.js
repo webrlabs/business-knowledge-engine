@@ -103,11 +103,52 @@ module.exports = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(400%)' },
         },
+        'count-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in': {
+          '0%': { opacity: '0', transform: 'translateX(100%)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'slide-out': {
+          '0%': { opacity: '1', transform: 'translateX(0)' },
+          '100%': { opacity: '0', transform: 'translateX(100%)' },
+        },
+        'pulse-gold': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.4)' },
+          '50%': { boxShadow: '0 0 0 8px rgba(245, 158, 11, 0)' },
+        },
+        'badge-pop': {
+          '0%': { transform: 'scale(0)', opacity: '0' },
+          '60%': { transform: 'scale(1.2)' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'cursor-blink': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
+        'fade-slide-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'progress-indeterminate': 'progress-indeterminate 1.5s ease-in-out infinite',
+        'count-up': 'count-up 0.5s ease-out',
+        'slide-in': 'slide-in 0.3s ease-out',
+        'slide-out': 'slide-out 0.3s ease-in',
+        'pulse-gold': 'pulse-gold 2s ease-in-out infinite',
+        'badge-pop': 'badge-pop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'cursor-blink': 'cursor-blink 1s step-end infinite',
+        'fade-slide-in': 'fade-slide-in 0.3s ease-out forwards',
       },
     },
   },
-  plugins: [],
+  plugins: [require('@tailwindcss/typography')],
 }

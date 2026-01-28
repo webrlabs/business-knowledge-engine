@@ -27,9 +27,11 @@ const shortcutsForDisplay: Shortcut[] = [
   { keys: 'g s', description: 'Go to Settings', category: 'navigation' },
 
   // Action shortcuts
+  { keys: 'Ctrl+Shift+N', description: 'New chat', category: 'actions' },
   { keys: 'Ctrl+S', description: 'Save (where applicable)', category: 'actions' },
   { keys: 'Ctrl+Enter', description: 'Submit form', category: 'actions' },
   { keys: '/', description: 'Focus search', category: 'actions' },
+  { keys: 'Esc', description: 'Stop generation / close dialogs', category: 'actions' },
 ];
 
 export default function KeyboardShortcuts() {
@@ -61,6 +63,16 @@ export default function KeyboardShortcuts() {
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         setShowHelp(true);
+        return;
+      }
+
+      // Handle Ctrl+Shift+N for new chat
+      if (e.key === 'N' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+        e.preventDefault();
+        router.push('/dashboard/query');
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('bke:new-chat'));
+        }, 100);
         return;
       }
 

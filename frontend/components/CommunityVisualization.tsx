@@ -300,11 +300,14 @@ export default function CommunityVisualization({
           },
         },
       ],
-      layout: getLayoutConfig(currentLayout),
       minZoom: 0.1,
       maxZoom: 3,
       wheelSensitivity: 0.2,
     });
+
+    // Run layout separately so we can stop it on cleanup
+    const layout = cy.layout(getLayoutConfig(currentLayout));
+    layout.run();
 
     // Handle community (parent node) selection
     cy.on('tap', 'node[?isParent]', (event) => {
@@ -347,6 +350,8 @@ export default function CommunityVisualization({
     cyRef.current = cy;
 
     return () => {
+      cyRef.current = null;
+      layout.stop();
       cy.destroy();
     };
   }, [communities, edges, currentLayout, showLabels, colorMode, buildElements, onCommunitySelect, onNodeSelect]);

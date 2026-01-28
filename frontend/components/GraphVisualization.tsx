@@ -100,6 +100,7 @@ export default function GraphVisualization({ data, height = '600px' }: GraphVisu
     if (!containerRef.current) return;
 
     // Transform data to Cytoscape format
+    const nodeIds = new Set(data.nodes.map(n => n.id));
     const elements: ElementDefinition[] = [
       ...data.nodes.map(node => ({
         data: {
@@ -108,14 +109,17 @@ export default function GraphVisualization({ data, height = '600px' }: GraphVisu
           type: node.type
         }
       })),
-      ...data.edges.map(edge => ({
-        data: {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          label: edge.label
-        }
-      }))
+      // Filter out edges whose source or target node doesn't exist
+      ...data.edges
+        .filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+        .map(edge => ({
+          data: {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            label: edge.label
+          }
+        }))
     ];
 
     // Initialize Cytoscape
@@ -206,11 +210,14 @@ export default function GraphVisualization({ data, height = '600px' }: GraphVisu
           }
         }
       ],
-      layout: getLayoutConfig(currentLayout),
       minZoom: 0.1,
       maxZoom: 3,
       wheelSensitivity: 0.2
     });
+
+    // Run layout separately so we can stop it on cleanup
+    const layout = cy.layout(getLayoutConfig(currentLayout));
+    layout.run();
 
     // Handle node selection
     cy.on('tap', 'node', (event) => {
@@ -232,9 +239,10 @@ export default function GraphVisualization({ data, height = '600px' }: GraphVisu
     cyRef.current = cy;
 
     return () => {
-      // Stop any running layout before destroying to prevent
-      // async layout callbacks calling .notify() on a destroyed instance
-      cy.stop();
+      // Clear ref first so other effects/handlers don't use the destroyed instance
+      cyRef.current = null;
+      // Stop the layout to cancel any pending async callbacks
+      layout.stop();
       cy.destroy();
     };
   }, [data, currentLayout]);

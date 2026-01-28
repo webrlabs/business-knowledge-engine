@@ -90,8 +90,26 @@ class OpenAIService {
     // Use circuit breaker - pass messages as arguments to fire() so each
     // call gets its own messages rather than reusing a cached closure
     const cb = this._getCircuitBreaker();
-    const breaker = cb.getBreaker('openai', operation, { name: 'getChatCompletion' });
+    const breaker = cb.getBreaker('openai-chat', operation, { name: 'getChatCompletion' });
     return breaker.fire(messages, { model, maxTokens: options.maxTokens, responseFormat: options.responseFormat });
+  }
+
+  async getStreamingChatCompletion(messages, options = {}) {
+    const client = await this._getClient();
+    const model = options.deploymentName || this.config.deploymentName;
+
+    if (!model) {
+      throw new Error('AZURE_OPENAI_DEPLOYMENT_NAME is required');
+    }
+
+    const stream = await client.chat.completions.create({
+      model,
+      messages,
+      max_completion_tokens: options.maxTokens ?? 4096,
+      stream: true,
+    });
+
+    return stream;
   }
 
   async getJsonCompletion(messages, options = {}) {
@@ -152,7 +170,7 @@ class OpenAIService {
       });
     };
 
-    const breaker = cb.getBreaker('openai', operation, { name: 'getEmbedding' });
+    const breaker = cb.getBreaker('openai-embedding', operation, { name: 'getEmbedding' });
     return breaker.fire(text);
   }
 
@@ -180,7 +198,7 @@ class OpenAIService {
     };
 
     // Get or create the circuit breaker once (it's now stateless w.r.t. input)
-    const breaker = cb.getBreaker('openai', embeddingOperation, { name: 'getEmbeddingsBatch' });
+    const breaker = cb.getBreaker('openai-embedding-batch', embeddingOperation, { name: 'getEmbeddingsBatch' });
 
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const batch = texts.slice(i, i + BATCH_SIZE);

@@ -57,11 +57,11 @@ const PersonaIcons: Record<string, React.ReactNode> = {
  * Background colors for each persona
  */
 const PersonaColors: Record<string, string> = {
-  ops: 'bg-green-100 text-green-800 border-green-300',
-  it: 'bg-blue-100 text-blue-800 border-blue-300',
-  leadership: 'bg-purple-100 text-purple-800 border-purple-300',
-  compliance: 'bg-amber-100 text-amber-800 border-amber-300',
-  default: 'bg-gray-100 text-gray-800 border-gray-300',
+  ops: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700',
+  it: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700',
+  leadership: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700',
+  compliance: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+  default: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600',
 };
 
 /**
@@ -179,9 +179,9 @@ export default function PersonaSelector({
             aria-hidden="true"
           />
 
-          {/* Dropdown panel */}
+          {/* Dropdown panel - opens upward */}
           <div
-            className="absolute left-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden"
+            className="absolute left-0 bottom-full mb-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 overflow-hidden"
             role="listbox"
             aria-label="Available personas"
           >
@@ -205,8 +205,8 @@ export default function PersonaSelector({
                   className={`
                     w-full px-4 py-3 text-left transition-colors
                     ${selectedPersona === persona.id
-                      ? 'bg-blue-50 border-l-4 border-blue-500'
-                      : 'hover:bg-gray-50 border-l-4 border-transparent'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-l-4 border-transparent'
                     }
                   `}
                 >
@@ -216,14 +216,14 @@ export default function PersonaSelector({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{persona.name}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{persona.name}</span>
                         {selectedPersona === persona.id && (
                           <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{persona.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{persona.description}</p>
                     </div>
                   </div>
                 </button>
@@ -231,8 +231,8 @@ export default function PersonaSelector({
             </div>
 
             {/* Footer with hint */}
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-              <p className="text-xs text-gray-500">
+            <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Persona tailors responses to your role and information needs
               </p>
             </div>

@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Syntax highlighting for code blocks */
+@import 'highlight.js/styles/github-dark.css';
+
+/* Streaming text fade-in animation */
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;

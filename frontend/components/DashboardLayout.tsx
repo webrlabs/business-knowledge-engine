@@ -6,37 +6,6 @@ import { useAuth } from '@/lib/auth';
 import Navigation from './Navigation';
 import ErrorBoundary from './ErrorBoundary';
 
-// Search bar component
-function SearchBar() {
-  const router = useRouter();
-  const [query, setQuery] = useState('');
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/dashboard/query?q=${encodeURIComponent(query.trim())}`);
-      setQuery('');
-    }
-  };
-
-  return (
-    <form onSubmit={handleSearch} className="relative">
-      <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a question about your processes..."
-          className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-        />
-      </div>
-    </form>
-  );
-}
-
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
@@ -98,31 +67,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile header with hamburger menu */}
         <header className="lg:hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-4 py-3 sticky top-0 z-20">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                aria-label="Open navigation menu"
-                aria-expanded={sidebarOpen}
-                aria-controls="sidebar-navigation"
-              >
-                <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <h1 className="ml-3 text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Knowledge Platform
-              </h1>
-            </div>
-          </div>
-          <SearchBar />
-        </header>
-
-        {/* Desktop header with search */}
-        <header className="hidden lg:block bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-8 py-4 sticky top-0 z-20">
-          <div className="max-w-2xl">
-            <SearchBar />
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Open navigation menu"
+              aria-expanded={sidebarOpen}
+              aria-controls="sidebar-navigation"
+            >
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <span className="ml-3 text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" aria-hidden="true">
+              Knowledge Platform
+            </span>
           </div>
         </header>
 
@@ -131,7 +90,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Page Content */}
           <main id="main-content" className="flex-1 overflow-auto focus:outline-none" role="main" aria-label="Main content">
             <ErrorBoundary>
-              <div className="h-full px-8 pb-8">
+              <div className="h-full px-2 pb-4 lg:px-4">
                 {children}
               </div>
             </ErrorBoundary>

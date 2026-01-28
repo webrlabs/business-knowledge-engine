@@ -400,11 +400,14 @@ export default function ImpactVisualization({
           },
         },
       ],
-      layout: getLayoutConfig(currentLayout, currentViewMode),
       minZoom: 0.1,
       maxZoom: 3,
       wheelSensitivity: 0.2,
     });
+
+    // Run layout separately so we can stop it on cleanup
+    const layout = cy.layout(getLayoutConfig(currentLayout, currentViewMode));
+    layout.run();
 
     // Handle node selection
     cy.on('tap', 'node', (event) => {
@@ -450,6 +453,8 @@ export default function ImpactVisualization({
     cyRef.current = cy;
 
     return () => {
+      cyRef.current = null;
+      layout.stop();
       cy.destroy();
     };
   }, [data, currentLayout, currentViewMode, labelsVisible, currentColorBy, buildElements, onNodeSelect]);

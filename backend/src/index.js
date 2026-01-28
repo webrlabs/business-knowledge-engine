@@ -49,8 +49,14 @@ const { getAuditPersistenceService, startAuditRetentionScheduler } = require('./
 const { getAuditExportService, EXPORT_FORMATS } = require('./services/audit-export-service');
 const { DocumentProcessor } = require('./pipelines/document-processor');
 const { getGraphRAGQueryPipeline } = require('./pipelines/graphrag-query');
+const { getGraphRAGQueryStreamPipeline } = require('./pipelines/graphrag-query-stream');
 const { getGraphService } = require('./services/graph-service');
-const { LeaderboardService } = require('./services/leaderboard-service');
+const { getGamificationService } = require('./services/gamification-service');
+const { getAchievementService } = require('./services/achievement-service');
+const { getGraphAnalyticsService } = require('./services/graph-analytics-service');
+const { getSearchSuggestService } = require('./services/search-suggest-service');
+const { getActivityFeedService } = require('./services/activity-feed-service');
+const { getDailyChallengeService } = require('./services/daily-challenge-service');
 const { getStagingService } = require('./services/staging-service');
 const { getGraphRAGService } = require('./services/graph-rag-service');
 const { getEntityResolutionService } = require('./services/entity-resolution-service');
@@ -5554,6 +5560,16 @@ app.post('/api/documents/upload', userUploadLimiter, upload.single('file'), asyn
       },
     });
 
+    // Award gamification points for upload (non-blocking)
+    const uploadUser = req.user || {};
+    const uploadUserId = uploadUser.oid || uploadUser.sub || uploadUser.preferred_username || 'unknown';
+    safeAwardPoints(uploadUserId, 'upload', {
+      userName: uploadUser.name || uploadUser.preferred_username || 'Unknown',
+      userEmail: uploadUser.preferred_username || uploadUser.upn || '',
+      documentId: saved.id,
+      documentTitle: saved.title,
+    }).catch(err => log.warn('Upload point award failed', err));
+
     // Process document asynchronously (after response is sent)
     const cosmosService = {
       updateDocument,
@@ -5763,12 +5779,40 @@ app.get('/api/stats/dashboard', async (req, res) => {
     };
   }
 
+  // Calculate weekly uploads
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const weeklyUploads = docs.filter(doc => new Date(doc.uploadedAt) >= oneWeekAgo).length;
+
+  // Calculate density
+  const nodes = graphStats.vertexCount;
+  const edges = graphStats.edgeCount;
+  const densityPercent = nodes > 1
+    ? Math.round(((2 * edges) / (nodes * (nodes - 1))) * 100)
+    : 0;
+
+  // Lazy-trigger daily graph snapshot
+  try {
+    const graphAnalyticsService = getGraphAnalyticsService();
+    const hasSnapshot = await graphAnalyticsService.hasTodaySnapshot();
+    if (!hasSnapshot) {
+      graphAnalyticsService.recordDailySnapshot({
+        nodes,
+        edges,
+        documents: totalDocuments,
+        density: densityPercent / 100,
+      }).catch(err => log.warn('Failed to record lazy daily snapshot', err));
+    }
+  } catch { /* Graph analytics may not be initialized */ }
+
   const stats = {
     totalDocuments,
     totalEntities: graphStats.vertexCount,
     pendingReviews,
     completedDocuments,
     failedDocuments,
+    weeklyUploads,
+    densityPercent,
     graphSize: {
       nodes: graphStats.vertexCount,
       edges: graphStats.edgeCount,
@@ -6028,6 +6072,15 @@ app.post('/api/documents/:id/entities/approve-all', validateDocumentId, async (r
     reviewedBy: user.oid || user.sub || user.preferred_username || 'unknown',
   });
 
+  // Award gamification points for approval review
+  const approveUserId = user.oid || user.sub || user.preferred_username || 'unknown';
+  safeAwardPoints(approveUserId, 'review_approve', {
+    userName: user.name || user.preferred_username || 'Unknown',
+    userEmail: user.preferred_username || user.upn || '',
+    documentId: id,
+    entityCount: entities.length,
+  }).catch(err => log.warn('Approve point award failed', err));
+
   res.json({
     success: true,
     message: `All ${entities.length} entities approved successfully`,
@@ -6108,6 +6161,15 @@ app.post('/api/documents/:id/entities/reject-all', validateDocumentId, validateB
     rejectionReason: reason,
   });
 
+  // Award gamification points for rejection review
+  const rejectUserId = user.oid || user.sub || user.preferred_username || 'unknown';
+  safeAwardPoints(rejectUserId, 'review_reject', {
+    userName: user.name || user.preferred_username || 'Unknown',
+    userEmail: user.preferred_username || user.upn || '',
+    documentId: id,
+    entityCount: entities.length,
+  }).catch(err => log.warn('Reject point award failed', err));
+
   res.json({
     success: true,
     message: `All ${entities.length} entities rejected successfully`,
@@ -6166,6 +6228,15 @@ app.post('/api/documents/:id/entities/:entityId/approve', validateDocumentId, as
   });
 
   await getAuditPersistenceService().createLog(auditEntry);
+
+  // Award points for single entity approval
+  const singleApproveUserId = user.oid || user.sub || user.preferred_username || 'unknown';
+  safeAwardPoints(singleApproveUserId, 'verify', {
+    userName: user.name || user.preferred_username || 'Unknown',
+    userEmail: user.preferred_username || user.upn || '',
+    documentId: id,
+    entityId,
+  }).catch(err => log.warn('Single approve point award failed', err));
 
   res.json({
     success: true,
@@ -6238,6 +6309,15 @@ app.post('/api/documents/:id/entities/:entityId/reject', validateDocumentId, asy
   });
 
   await getAuditPersistenceService().createLog(auditEntry);
+
+  // Award points for single entity rejection
+  const singleRejectUserId = user.oid || user.sub || user.preferred_username || 'unknown';
+  safeAwardPoints(singleRejectUserId, 'verify', {
+    userName: user.name || user.preferred_username || 'Unknown',
+    userEmail: user.preferred_username || user.upn || '',
+    documentId: id,
+    entityId,
+  }).catch(err => log.warn('Single reject point award failed', err));
 
   res.json({
     success: true,
@@ -7615,6 +7695,109 @@ app.post('/api/graphrag/query', userQueryLimiter, promptInjectionGuard({ fields:
     res.json(result);
   } catch (error) {
     log.errorWithStack('GraphRAG query error', error);
+    res.status(500).json({
+      error: 'Query processing failed',
+      message: error.message,
+    });
+  }
+});
+
+// Streaming GraphRAG query endpoint (SSE)
+app.post('/api/graphrag/query/stream', userQueryLimiter, promptInjectionGuard({ fields: ['query'] }), async (req, res) => {
+  const { query, options = {} } = req.body;
+
+  if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    return res.status(400).json({ error: 'Query is required and must be a non-empty string' });
+  }
+
+  // Set up SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  // Handle client disconnect
+  req.on('close', () => {
+    log.info('Stream client disconnected');
+  });
+
+  try {
+    const pipeline = getGraphRAGQueryStreamPipeline();
+    await pipeline.streamQuery(res, query, {
+      topK: options.topK || 10,
+      graphDepth: options.graphDepth || 2,
+      includeGraphContext: options.includeGraphContext !== false,
+      semantic: options.semantic !== false,
+      user: req.user,
+      persona: options.persona,
+    });
+  } catch (error) {
+    log.errorWithStack('GraphRAG streaming query error', error);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: error.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/query/upload:
+ *   post:
+ *     summary: Query with file attachment
+ *     description: Submit a GraphRAG query with an attached file for contextual analysis.
+ *     tags: [GraphRAG]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - query
+ *             properties:
+ *               query:
+ *                 type: string
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               persona:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Query result with file context
+ */
+app.post('/api/graphrag/query/upload', userQueryLimiter, upload.array('files', 5), async (req, res) => {
+  const { query, persona } = req.body;
+
+  if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    return res.status(400).json({ error: 'Query is required and must be a non-empty string' });
+  }
+
+  try {
+    const pipeline = getGraphRAGQueryPipeline();
+
+    // Build file context from uploaded files
+    let fileContext = '';
+    if (req.files && req.files.length > 0) {
+      const fileDescriptions = req.files.map(f => `[Attached file: ${f.originalname} (${(f.size / 1024).toFixed(1)} KB, ${f.mimetype})]`);
+      fileContext = '\n\nUser attached files: ' + fileDescriptions.join(', ');
+    }
+
+    const enrichedQuery = query + fileContext;
+
+    const result = await pipeline.processQueryWithFallback(enrichedQuery, {
+      topK: 10,
+      graphDepth: 2,
+      includeGraphContext: true,
+      semantic: true,
+      user: req.user,
+      persona: persona,
+    });
+
+    res.json(result);
+  } catch (error) {
+    log.errorWithStack('GraphRAG upload query error', error);
     res.status(500).json({
       error: 'Query processing failed',
       message: error.message,
@@ -9380,27 +9563,170 @@ app.get('/api/entities/mention-analysis', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/leaderboard:
- *   get:
- *     summary: Get user leaderboard
- *     description: Retrieve the gamification leaderboard
- *     tags: [Gamification]
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *         description: Number of top users to return
- *     responses:
- *       200:
- *         description: Leaderboard retrieved successfully
- */
-app.get('/api/leaderboard', async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-  const scores = await LeaderboardService.getLeaderboard(limit);
-  res.json(scores);
+// ============================================
+// Gamification API Routes
+// ============================================
+
+// Helper to safely award points (non-blocking, best-effort)
+async function safeAwardPoints(userId, action, details = {}) {
+  try {
+    const gamificationService = getGamificationService();
+    const result = await gamificationService.awardPoints(userId, action, details);
+    if (result) {
+      // Check for new badges
+      const achievementService = getAchievementService();
+      const profile = await gamificationService.getUserProfile(userId);
+      const newBadges = await achievementService.checkAndAwardBadges(userId, profile);
+      return { ...result, newBadges };
+    }
+    return result;
+  } catch (error) {
+    log.warn(`Failed to award points for ${action}`, error);
+    return null;
+  }
+}
+
+app.get('/api/gamification/profile', async (req, res) => {
+  try {
+    const user = req.user || {};
+    const userId = user.oid || user.sub || user.preferred_username || 'unknown';
+    const gamificationService = getGamificationService();
+    const profile = await gamificationService.getUserProfile(userId);
+    res.json(profile);
+  } catch (error) {
+    log.error('Failed to get gamification profile', error);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
+});
+
+app.get('/api/gamification/achievements', async (req, res) => {
+  try {
+    const user = req.user || {};
+    const userId = user.oid || user.sub || user.preferred_username || 'unknown';
+    const gamificationService = getGamificationService();
+    const achievementService = getAchievementService();
+    const profile = await gamificationService.getUserProfile(userId);
+    const achievements = await achievementService.getUserAchievements(userId, profile);
+    res.json(achievements);
+  } catch (error) {
+    log.error('Failed to get achievements', error);
+    res.status(500).json({ error: 'Failed to get achievements' });
+  }
+});
+
+app.get('/api/gamification/activity-feed', async (req, res) => {
+  try {
+    const user = req.user || {};
+    const userId = user.oid || user.sub || user.preferred_username || 'unknown';
+    const filter = req.query.filter || 'all';
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    const activityFeedService = getActivityFeedService();
+    const feed = await activityFeedService.getActivityFeed({ userId, filter, limit, offset });
+    res.json(feed);
+  } catch (error) {
+    log.error('Failed to get activity feed', error);
+    res.status(500).json({ error: 'Failed to get activity feed' });
+  }
+});
+
+app.get('/api/gamification/leaderboard', async (req, res) => {
+  try {
+    const period = req.query.period || 'all_time';
+    const limit = parseInt(req.query.limit) || 10;
+    const gamificationService = getGamificationService();
+    const leaderboard = await gamificationService.getLeaderboard(period, limit);
+    res.json(leaderboard);
+  } catch (error) {
+    log.error('Failed to get gamification leaderboard', error);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
+});
+
+app.get('/api/gamification/graph-growth', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const graphAnalyticsService = getGraphAnalyticsService();
+    const data = await graphAnalyticsService.getGrowthData(days);
+    res.json(data);
+  } catch (error) {
+    log.error('Failed to get graph growth data', error);
+    res.status(500).json({ error: 'Failed to get graph growth data' });
+  }
+});
+
+app.post('/api/gamification/record-snapshot', async (req, res) => {
+  try {
+    const graphAnalyticsService = getGraphAnalyticsService();
+
+    // Get current graph stats
+    let graphStats = { vertexCount: 0, edgeCount: 0 };
+    try {
+      const graphService = getGraphService();
+      graphStats = await graphService.getStats();
+    } catch { /* Graph may not be configured */ }
+
+    const docs = await listDocuments();
+
+    const snapshot = await graphAnalyticsService.recordDailySnapshot({
+      nodes: graphStats.vertexCount,
+      edges: graphStats.edgeCount,
+      documents: docs.length,
+      density: graphStats.vertexCount > 1
+        ? (2 * graphStats.edgeCount) / (graphStats.vertexCount * (graphStats.vertexCount - 1))
+        : 0,
+    });
+
+    res.json({ success: true, snapshot });
+  } catch (error) {
+    log.error('Failed to record snapshot', error);
+    res.status(500).json({ error: 'Failed to record snapshot' });
+  }
+});
+
+app.get('/api/gamification/daily-challenge', async (req, res) => {
+  try {
+    const user = req.user || {};
+    const userId = user.oid || user.sub || user.preferred_username || 'unknown';
+    const dailyChallengeService = getDailyChallengeService();
+    const gamificationService = getGamificationService();
+
+    const transactions = await gamificationService.getRecentTransactions(userId, 50);
+    const challenge = dailyChallengeService.getChallengeProgress(transactions);
+    res.json(challenge);
+  } catch (error) {
+    log.error('Failed to get daily challenge', error);
+    res.status(500).json({ error: 'Failed to get daily challenge' });
+  }
+});
+
+// Search suggest endpoints
+app.get('/api/search/suggest', async (req, res) => {
+  try {
+    const prefix = req.query.q || '';
+    const searchSuggestService = getSearchSuggestService();
+    let searchService = null;
+    try { searchService = getSearchService(); } catch { /* Search may not be configured */ }
+    const suggestions = await searchSuggestService.getSuggestions(prefix, searchService);
+    res.json(suggestions);
+  } catch (error) {
+    log.error('Failed to get search suggestions', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+app.get('/api/search/popular', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    const searchSuggestService = getSearchSuggestService();
+    res.json({
+      popular: searchSuggestService.getPopularQueries(limit),
+      samples: searchSuggestService.getSampleQuestions(4),
+    });
+  } catch (error) {
+    log.error('Failed to get popular searches', error);
+    res.status(500).json({ error: 'Failed to get popular searches' });
+  }
 });
 
 // ============================================

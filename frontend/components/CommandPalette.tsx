@@ -62,8 +62,8 @@ export default function CommandPalette() {
     },
     {
       id: 'nav-query',
-      label: 'GraphRAG Query',
-      description: 'Navigate to GraphRAG query interface',
+      label: 'Chat',
+      description: 'Navigate to chat',
       category: 'navigation',
       icon: '💬',
       keywords: ['query', 'ask', 'search', 'graphrag', 'chat'],
@@ -105,6 +105,71 @@ export default function CommandPalette() {
       keywords: ['settings', 'preferences', 'configuration'],
       action: () => {
         router.push('/dashboard/settings');
+        closeAndReset();
+      }
+    },
+    {
+      id: 'nav-leaderboard',
+      label: 'Leaderboard',
+      description: 'View gamification rankings',
+      category: 'navigation',
+      icon: '🏆',
+      keywords: ['leaderboard', 'rankings', 'points', 'gamification'],
+      action: () => {
+        router.push('/dashboard/leaderboard');
+        closeAndReset();
+      }
+    },
+    {
+      id: 'nav-achievements',
+      label: 'My Achievements',
+      description: 'View your badges and achievements',
+      category: 'navigation',
+      icon: '🎖️',
+      keywords: ['badges', 'achievements', 'rewards', 'progress'],
+      action: () => {
+        router.push('/dashboard/leaderboard');
+        closeAndReset();
+      }
+    },
+    {
+      id: 'nav-communities',
+      label: 'Communities',
+      description: 'Explore entity communities',
+      category: 'navigation',
+      icon: '👥',
+      keywords: ['communities', 'groups', 'clusters'],
+      action: () => {
+        router.push('/dashboard/communities');
+        closeAndReset();
+      }
+    },
+    {
+      id: 'nav-impact',
+      label: 'Impact Analysis',
+      description: 'Analyze entity dependencies',
+      category: 'navigation',
+      icon: '📊',
+      keywords: ['impact', 'analysis', 'dependencies'],
+      action: () => {
+        router.push('/dashboard/impact');
+        closeAndReset();
+      }
+    },
+    // Chat commands
+    {
+      id: 'action-new-chat',
+      label: 'New Chat',
+      description: 'Start a new chat conversation',
+      category: 'actions',
+      icon: '💬',
+      keywords: ['new', 'chat', 'conversation', 'query'],
+      action: () => {
+        router.push('/dashboard/query');
+        // Trigger new chat after navigation
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('bke:new-chat'));
+        }, 100);
         closeAndReset();
       }
     },

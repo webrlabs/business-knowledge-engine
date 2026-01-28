@@ -54,19 +54,28 @@ export default function StagingPage() {
   const graphData = useMemo(() => {
     if (!document) return { nodes: [], edges: [] };
 
-    // Cast types to satisfy GraphVisualization props
+    // Build name-to-id lookup since relationships reference entities by name
+    const nameToId = new Map<string, string>();
+    for (const e of document.entities) {
+      nameToId.set(e.name, e.id);
+    }
+
+    const nodeIds = new Set(document.entities.map(e => e.id));
+
     return {
       nodes: document.entities.map(e => ({
         id: e.id,
         label: e.name,
         type: e.type as any
       })),
-      edges: document.relationships.map(r => ({
-        id: r.id,
-        source: r.source,
-        target: r.target,
-        label: r.type
-      }))
+      edges: document.relationships
+        .map(r => ({
+          id: r.id,
+          source: nameToId.get(r.source) || r.source,
+          target: nameToId.get(r.target) || r.target,
+          label: r.type
+        }))
+        .filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
     };
   }, [document]);
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string | null>(null);
