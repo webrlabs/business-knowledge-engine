@@ -126,7 +126,7 @@ function TypeDistributionBar({
         <div className="flex items-center gap-1.5">
           <div
             className="w-2.5 h-2.5 rounded-full"
-            style={{ backgroundColor: NODE_COLORS[type] || '#64748B' }}
+            style={{ backgroundColor: getNodeColor(type) }}
           />
           <span className="text-gray-700 dark:text-gray-300">{type}</span>
         </div>
@@ -139,7 +139,7 @@ function TypeDistributionBar({
           className="h-full rounded-full transition-all duration-300"
           style={{
             width: `${percentage}%`,
-            backgroundColor: NODE_COLORS[type] || '#64748B',
+            backgroundColor: getNodeColor(type),
           }}
         />
       </div>
@@ -378,7 +378,7 @@ export default function AnalyticsDashboard({
                           </span>
                           <div
                             className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: NODE_COLORS[node.type] || '#64748B' }}
+                            style={{ backgroundColor: getNodeColor(node.type) }}
                           />
                           <span className="text-sm text-gray-900 dark:text-white truncate max-w-[150px]">
                             {node.name}

@@ -300,7 +300,7 @@ export default function SearchAutocomplete({
             >
               <div
                 className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
-                style={{ backgroundColor: NODE_COLORS[item.type] || '#64748B' }}
+                style={{ backgroundColor: getNodeColor(item.type) }}
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -339,7 +339,7 @@ export default function SearchAutocomplete({
             />
           </svg>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            No nodes found for "{query}"
+            No nodes found for &quot;{query}&quot;
           </p>
         </div>
       )}

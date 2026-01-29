@@ -117,7 +117,7 @@ function AutocompleteInput({
             >
               <div
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: NODE_COLORS[node.type] || '#64748B' }}
+                style={{ backgroundColor: getNodeColor(node.type) }}
               />
               <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
                 {node.label}
@@ -165,13 +165,13 @@ function PathResultItem({
             <div
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs"
               style={{
-                backgroundColor: `${NODE_COLORS[node.type] || '#64748B'}20`,
-                color: NODE_COLORS[node.type] || '#64748B',
+                backgroundColor: `${getNodeColor(node.type)}20`,
+                color: getNodeColor(node.type),
               }}
             >
               <div
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: NODE_COLORS[node.type] || '#64748B' }}
+                style={{ backgroundColor: getNodeColor(node.type) }}
               />
               <span className="truncate max-w-[100px]" title={node.name}>
                 {node.name}
@@ -381,7 +381,7 @@ export default function PathFinderPanel({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Click "Find Path" to search for connections
+              Click &quot;Find Path&quot; to search for connections
             </p>
           </div>
         )}

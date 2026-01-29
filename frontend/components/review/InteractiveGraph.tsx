@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import cytoscape, { Core, ElementDefinition, NodeSingular } from 'cytoscape';
 import { StagedEntity, StagedRelationship, ChangeStatus } from '@/lib/staging-store';
-import { NODE_COLORS } from '@/lib/graph-constants';
+import { NODE_COLORS, getNodeColor } from '@/lib/graph-constants';
 
 // We'll dynamically import edgehandles since it's optional
 let edgehandles: any = null;
@@ -96,7 +96,7 @@ export default function InteractiveGraph({
         {
           selector: 'node',
           style: {
-            'background-color': (ele: any) => NODE_COLORS[ele.data('type')] || '#64748B',
+            'background-color': (ele: any) => getNodeColor(ele.data('type')),
             label: 'data(label)',
             color: '#1F2937',
             'font-size': '11px',

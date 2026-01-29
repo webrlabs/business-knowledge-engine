@@ -135,7 +135,7 @@ export default function FilterPanel({
                   />
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: NODE_COLORS[type] || '#64748B' }}
+                    style={{ backgroundColor: getNodeColor(type) }}
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{type}</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">

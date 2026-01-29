@@ -55,7 +55,7 @@ function RelatedEntityItem({
       <div className="flex items-center gap-2 min-w-0">
         <div
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: NODE_COLORS[entity.type] || '#64748B' }}
+          style={{ backgroundColor: getNodeColor(entity.type) }}
         />
         <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{entity.name}</span>
       </div>
@@ -111,7 +111,7 @@ export default function NodeDetailsPanel({
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-4 h-4 rounded-full flex-shrink-0"
-            style={{ backgroundColor: NODE_COLORS[details.type] || '#64748B' }}
+            style={{ backgroundColor: getNodeColor(details.type) }}
           />
           <h4 className="font-semibold text-gray-900 dark:text-white truncate">{details.name}</h4>
         </div>

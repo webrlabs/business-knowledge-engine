@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { API_BASE_URL, useAuthFetch } from '@/lib/api';
 import HelpTooltip from '@/components/HelpTooltip';
-import CommunityPanel from '@/components/CommunityPanel';
 import dynamic from 'next/dynamic';
-import { Community, CommunityMember, CommunityEdge } from '@/components/CommunityVisualization';
+import { Community, CommunityMember, CommunityEdge, CommunityVisualizationHandle } from '@/components/CommunityVisualization';
+import {
+  CommunityStatsBar,
+  CommunityControlsBar,
+  LegendBar,
+  CommunitySlidePanel,
+} from '@/components/community';
 
 // Dynamically import SafeCommunityVisualization to avoid SSR issues with Cytoscape
 const CommunityVisualization = dynamic(
@@ -48,11 +53,12 @@ export default function CommunitiesPage() {
   const authFetch = useAuthFetch();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [edges, setEdges] = useState<CommunityEdge[]>([]);
-  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<CommunitiesResponse['metadata'] | null>(null);
+
+  const visualizationRef = useRef<CommunityVisualizationHandle>(null);
 
   const fetchCommunities = useCallback(async () => {
     try {
@@ -118,8 +124,6 @@ export default function CommunitiesPage() {
         } catch {
           // Raw communities endpoint might not exist, that's okay
           // Assign nodes to communities based on available data
-          const nodesByCommunity: Record<string, CommunityMember[]> = {};
-
           // If we have key entities, use them as members
           communityList.forEach((community) => {
             if (community.keyEntities && community.keyEntities.length > 0) {
@@ -190,7 +194,7 @@ export default function CommunitiesPage() {
     <>
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -353,143 +357,37 @@ export default function CommunitiesPage() {
 
         {/* Communities Display */}
         {!isEmpty && !isLoading && !error && (
-          <div className="space-y-6">
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Communities</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {communities.length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-blue-600 dark:text-blue-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Members</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {communities.reduce((acc, c) => acc + c.memberCount, 0)}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-green-600 dark:text-green-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Size</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {communities.length > 0
-                        ? Math.round(
-                            communities.reduce((acc, c) => acc + c.memberCount, 0) /
-                              communities.length
-                          )
-                        : 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-purple-600 dark:text-purple-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              {metadata?.lastModularity !== undefined && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Modularity</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                        {metadata.lastModularity.toFixed(3)}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-lg flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-amber-600 dark:text-amber-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="space-y-4">
+            {/* Compact Stats Bar */}
+            <CommunityStatsBar
+              communities={communities}
+              modularity={metadata?.lastModularity}
+            />
 
-            {/* Main Content: Visualization + Panel */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Visualization Container */}
+            <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+              {/* Controls Bar */}
+              <CommunityControlsBar
+                communities={communities}
+                onFocusCommunity={(id) => visualizationRef.current?.focusCommunity(id)}
+                onZoomIn={() => visualizationRef.current?.zoomIn()}
+                onZoomOut={() => visualizationRef.current?.zoomOut()}
+                onResetView={() => visualizationRef.current?.resetView()}
+              />
+
               {/* Visualization */}
-              <div className="lg:col-span-2">
-                <CommunityVisualization
-                  communities={communities}
-                  edges={edges}
-                  height="700px"
-                  onCommunitySelect={setSelectedCommunity}
-                />
-              </div>
+              <CommunityVisualization
+                ref={visualizationRef}
+                communities={communities}
+                edges={edges}
+                height="calc(100vh - 320px)"
+              />
 
-              {/* Community Panel */}
-              <div className="lg:col-span-1">
-                <CommunityPanel
-                  community={selectedCommunity}
-                  onClose={() => setSelectedCommunity(null)}
-                />
-              </div>
+              {/* Legend Bar */}
+              <LegendBar communities={communities} />
+
+              {/* Slide Panel */}
+              <CommunitySlidePanel />
             </div>
 
             {/* Help Text */}
@@ -510,14 +408,14 @@ export default function CommunitiesPage() {
                 </svg>
                 <div>
                   <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                    Exploring communities:
+                    Keyboard shortcuts:
                   </p>
-                  <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
-                    <li>Hover over community names to highlight them in the graph</li>
-                    <li>Click on communities or nodes to view details</li>
-                    <li>Use the controls to change layout and color modes</li>
-                    <li>Zoom and pan to explore larger graphs</li>
-                  </ul>
+                  <div className="text-sm text-blue-800 dark:text-blue-300 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1">
+                    <span><kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">Arrow</kbd> Navigate</span>
+                    <span><kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">Enter</kbd> Select</span>
+                    <span><kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">Esc</kbd> Close panel</span>
+                    <span><kbd className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 rounded text-xs">Tab</kbd> Cycle</span>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import cytoscape, { Core, ElementDefinition, NodeSingular } from 'cytoscape';
+import { useCommunityStore } from '@/lib/community-store';
 
 // Community colors - distinct palette for different communities
 const communityColors = [
@@ -59,13 +60,19 @@ export interface CommunityEdge {
   label?: string;
 }
 
+export interface CommunityVisualizationHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+  focusCommunity: (communityId: string | number) => void;
+}
+
 export interface CommunityVisualizationProps {
   communities: Community[];
   edges?: CommunityEdge[];
   height?: string;
   onCommunitySelect?: (community: Community | null) => void;
   onNodeSelect?: (node: CommunityMember | null, communityId: string | number | null) => void;
-  colorMode?: 'community' | 'entityType';
 }
 
 const getLayoutConfig = (layoutName: 'cose' | 'circle' | 'concentric') => {
@@ -118,21 +125,65 @@ const getLayoutConfig = (layoutName: 'cose' | 'circle' | 'concentric') => {
   }
 };
 
-export default function CommunityVisualization({
+const CommunityVisualization = forwardRef<CommunityVisualizationHandle, CommunityVisualizationProps>(({
   communities,
   edges = [],
   height = '600px',
   onCommunitySelect,
   onNodeSelect,
-  colorMode = 'community',
-}: CommunityVisualizationProps) {
+}, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
-  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
-  const [selectedNode, setSelectedNode] = useState<CommunityMember | null>(null);
-  const [currentLayout, setCurrentLayout] = useState<'cose' | 'circle' | 'concentric'>('cose');
-  const [showLabels, setShowLabels] = useState(true);
-  const [highlightedCommunity, setHighlightedCommunity] = useState<string | number | null>(null);
+
+  const {
+    selectedCommunity,
+    highlightedCommunityId,
+    showLabels,
+    currentLayout,
+    colorMode,
+    focusedCommunityIndex,
+    selectCommunity,
+    selectMember,
+    setHighlightedCommunity,
+    setFocusedCommunityIndex,
+    navigateCommunity,
+    closePanel,
+  } = useCommunityStore();
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => {
+      if (cyRef.current) {
+        const zoom = cyRef.current.zoom();
+        cyRef.current.zoom({
+          level: zoom * 1.2,
+          renderedPosition: { x: cyRef.current.width() / 2, y: cyRef.current.height() / 2 },
+        });
+      }
+    },
+    zoomOut: () => {
+      if (cyRef.current) {
+        const zoom = cyRef.current.zoom();
+        cyRef.current.zoom({
+          level: zoom * 0.8,
+          renderedPosition: { x: cyRef.current.width() / 2, y: cyRef.current.height() / 2 },
+        });
+      }
+    },
+    resetView: () => {
+      if (cyRef.current) {
+        cyRef.current.fit(undefined, 50);
+      }
+    },
+    focusCommunity: (communityId: string | number) => {
+      if (cyRef.current) {
+        const parentNode = cyRef.current.$(`#community_${communityId}`);
+        if (parentNode.length > 0) {
+          cyRef.current.fit(parentNode, 50);
+        }
+      }
+    },
+  }));
 
   // Build Cytoscape elements from communities
   const buildElements = useCallback((): ElementDefinition[] => {
@@ -224,7 +275,7 @@ export default function CommunityVisualization({
             'shape': 'roundrectangle',
           },
         },
-        // Member nodes - community color mode
+        // Member nodes
         {
           selector: 'node[!isParent]',
           style: {
@@ -316,8 +367,8 @@ export default function CommunityVisualization({
       const community = communities.find(
         (c) => String(c.communityId) === communityId
       );
-      setSelectedCommunity(community || null);
-      setSelectedNode(null);
+      selectCommunity(community || null);
+      selectMember(null);
       onCommunitySelect?.(community || null);
       onNodeSelect?.(null, null);
     });
@@ -331,17 +382,20 @@ export default function CommunityVisualization({
         name: node.data('label'),
         type: node.data('type'),
       };
-      setSelectedNode(member);
-      setSelectedCommunity(null);
+      // Find the community for this member
+      const community = communities.find(
+        (c) => String(c.communityId) === communityId
+      );
+      selectCommunity(community || null);
+      selectMember(member);
       onNodeSelect?.(member, communityId);
-      onCommunitySelect?.(null);
+      onCommunitySelect?.(community || null);
     });
 
     // Handle background tap (deselect)
     cy.on('tap', (event) => {
       if (event.target === cy) {
-        setSelectedCommunity(null);
-        setSelectedNode(null);
+        closePanel();
         onCommunitySelect?.(null);
         onNodeSelect?.(null, null);
       }
@@ -354,7 +408,7 @@ export default function CommunityVisualization({
       layout.stop();
       cy.destroy();
     };
-  }, [communities, edges, currentLayout, showLabels, colorMode, buildElements, onCommunitySelect, onNodeSelect]);
+  }, [communities, edges, currentLayout, showLabels, colorMode, buildElements, onCommunitySelect, onNodeSelect, selectCommunity, selectMember, closePanel]);
 
   // Handle community highlighting
   useEffect(() => {
@@ -365,8 +419,8 @@ export default function CommunityVisualization({
     cy.nodes().removeClass('community-highlighted dimmed');
     cy.edges().removeClass('highlighted dimmed');
 
-    if (highlightedCommunity !== null) {
-      const communityIdStr = String(highlightedCommunity);
+    if (highlightedCommunityId !== null) {
+      const communityIdStr = String(highlightedCommunityId);
 
       // Highlight nodes in the selected community
       cy.nodes().forEach((node) => {
@@ -392,313 +446,99 @@ export default function CommunityVisualization({
         }
       });
     }
-  }, [highlightedCommunity]);
+  }, [highlightedCommunityId]);
 
-  const handleZoomIn = () => {
-    if (cyRef.current) {
-      const zoom = cyRef.current.zoom();
-      cyRef.current.zoom({
-        level: zoom * 1.2,
-        renderedPosition: { x: cyRef.current.width() / 2, y: cyRef.current.height() / 2 },
-      });
-    }
-  };
+  // Update node colors when colorMode changes
+  useEffect(() => {
+    if (!cyRef.current) return;
+    const cy = cyRef.current;
 
-  const handleZoomOut = () => {
-    if (cyRef.current) {
-      const zoom = cyRef.current.zoom();
-      cyRef.current.zoom({
-        level: zoom * 0.8,
-        renderedPosition: { x: cyRef.current.width() / 2, y: cyRef.current.height() / 2 },
-      });
-    }
-  };
+    cy.nodes('[!isParent]').forEach((node) => {
+      const newColor = colorMode === 'community'
+        ? node.data('communityColor')
+        : node.data('entityColor');
+      node.style('background-color', newColor);
+    });
+  }, [colorMode]);
 
-  const handleResetView = () => {
-    if (cyRef.current) {
-      cyRef.current.fit(undefined, 50);
-    }
-  };
-
-  const handleFocusCommunity = (communityId: string | number) => {
-    if (cyRef.current) {
-      const parentNode = cyRef.current.$(`#community_${communityId}`);
-      if (parentNode.length > 0) {
-        cyRef.current.fit(parentNode, 50);
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle if we're focused on the visualization or body
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
       }
+
+      switch (event.key) {
+        case 'ArrowDown':
+        case 'ArrowRight':
+          event.preventDefault();
+          navigateCommunity('next', communities.length);
+          break;
+        case 'ArrowUp':
+        case 'ArrowLeft':
+          event.preventDefault();
+          navigateCommunity('prev', communities.length);
+          break;
+        case 'Enter':
+          if (focusedCommunityIndex >= 0 && focusedCommunityIndex < communities.length) {
+            event.preventDefault();
+            const community = communities[focusedCommunityIndex];
+            selectCommunity(community);
+            onCommunitySelect?.(community);
+          }
+          break;
+        case 'Escape':
+          event.preventDefault();
+          closePanel();
+          setFocusedCommunityIndex(-1);
+          setHighlightedCommunity(null);
+          onCommunitySelect?.(null);
+          break;
+        case 'Tab':
+          if (!event.shiftKey && communities.length > 0) {
+            event.preventDefault();
+            const nextIndex = (focusedCommunityIndex + 1) % communities.length;
+            setFocusedCommunityIndex(nextIndex);
+            setHighlightedCommunity(communities[nextIndex].communityId);
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [
+    communities,
+    focusedCommunityIndex,
+    navigateCommunity,
+    selectCommunity,
+    closePanel,
+    setFocusedCommunityIndex,
+    setHighlightedCommunity,
+    onCommunitySelect,
+  ]);
+
+  // Highlight focused community
+  useEffect(() => {
+    if (focusedCommunityIndex >= 0 && focusedCommunityIndex < communities.length) {
+      setHighlightedCommunity(communities[focusedCommunityIndex].communityId);
     }
-  };
+  }, [focusedCommunityIndex, communities, setHighlightedCommunity]);
 
   return (
-    <div className="relative">
-      {/* Controls Panel - Top Left */}
-      <div className="absolute top-4 left-4 z-10 space-y-2">
-        {/* Community List */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-3 max-w-xs">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-            Communities ({communities.length})
-          </h4>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {communities.map((community, index) => (
-              <button
-                key={community.communityId}
-                onClick={() => handleFocusCommunity(community.communityId)}
-                onMouseEnter={() => setHighlightedCommunity(community.communityId)}
-                onMouseLeave={() => setHighlightedCommunity(null)}
-                className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
-                  highlightedCommunity === community.communityId
-                    ? 'bg-blue-50 dark:bg-blue-900/30'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: communityColors[index % communityColors.length] }}
-                />
-                <span className="truncate text-gray-700 dark:text-gray-300">
-                  {community.title || `Community ${community.communityId}`}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
-                  {community.memberCount}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* View Options */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showLabels}
-              onChange={(e) => setShowLabels(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Show Labels</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Controls Panel - Top Right */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        {/* Layout Selector */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-2">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Layout
-          </label>
-          <select
-            value={currentLayout}
-            onChange={(e) => setCurrentLayout(e.target.value as 'cose' | 'circle' | 'concentric')}
-            className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="cose">Force-Directed</option>
-            <option value="circle">Circular</option>
-            <option value="concentric">Concentric</option>
-          </select>
-        </div>
-
-        {/* Color Mode */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-2">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Color By
-          </label>
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                // Force re-render with new color mode
-                if (cyRef.current) {
-                  cyRef.current.nodes('[!isParent]').forEach((node) => {
-                    node.style('background-color', node.data('communityColor'));
-                  });
-                }
-              }}
-              className={`flex-1 px-2 py-1 text-xs rounded ${
-                colorMode === 'community'
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              Community
-            </button>
-            <button
-              onClick={() => {
-                if (cyRef.current) {
-                  cyRef.current.nodes('[!isParent]').forEach((node) => {
-                    node.style('background-color', node.data('entityColor'));
-                  });
-                }
-              }}
-              className={`flex-1 px-2 py-1 text-xs rounded ${
-                colorMode === 'entityType'
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              Entity Type
-            </button>
-          </div>
-        </div>
-
-        {/* Zoom Controls */}
-        <button
-          onClick={handleZoomIn}
-          className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors"
-          title="Zoom In"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors"
-          title="Zoom Out"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-          </svg>
-        </button>
-        <button
-          onClick={handleResetView}
-          className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors"
-          title="Reset View"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-        </button>
-      </div>
-
-      {/* Selected Item Panel - Bottom Left */}
-      {(selectedCommunity || selectedNode) && (
-        <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 max-w-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-gray-900 dark:text-white">
-              {selectedCommunity ? 'Community Details' : 'Node Details'}
-            </h4>
-            <button
-              onClick={() => {
-                setSelectedCommunity(null);
-                setSelectedNode(null);
-              }}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {selectedCommunity && (
-            <div className="space-y-2">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Title</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {selectedCommunity.title || `Community ${selectedCommunity.communityId}`}
-                </p>
-              </div>
-              {selectedCommunity.summary && (
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Summary</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-                    {selectedCommunity.summary}
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Members</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selectedCommunity.memberCount}
-                  </p>
-                </div>
-                {selectedCommunity.dominantType && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Dominant Type</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {selectedCommunity.dominantType}
-                    </p>
-                  </div>
-                )}
-              </div>
-              {selectedCommunity.keyEntities && selectedCommunity.keyEntities.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Key Entities</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedCommunity.keyEntities.slice(0, 5).map((entity, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded"
-                      >
-                        {entity}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedNode && (
-            <div className="space-y-2">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Name</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedNode.name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Type</p>
-                <div className="flex items-center mt-1">
-                  <div
-                    className="w-3 h-3 rounded-full mr-2"
-                    style={{ backgroundColor: entityTypeColors[selectedNode.type] || '#64748B' }}
-                  />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedNode.type}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">ID</p>
-                <p className="text-xs font-mono text-gray-700 dark:text-gray-300">{selectedNode.id}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Graph Container */}
-      <div
-        ref={containerRef}
-        style={{ height }}
-        className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-gray-200 dark:border-gray-700"
-      />
-
-      {/* Legend */}
-      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Legend</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {communities.slice(0, 6).map((community, index) => (
-            <div key={community.communityId} className="flex items-center">
-              <div
-                className="w-4 h-4 rounded mr-2 border border-gray-300 dark:border-gray-600"
-                style={{ backgroundColor: communityColors[index % communityColors.length] }}
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {community.title || `C${community.communityId}`}
-              </span>
-            </div>
-          ))}
-        </div>
-        {communities.length > 6 && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            + {communities.length - 6} more communities
-          </p>
-        )}
-      </div>
-    </div>
+    <div
+      ref={containerRef}
+      style={{ height }}
+      className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-gray-200 dark:border-gray-700"
+      tabIndex={0}
+      role="application"
+      aria-label="Community visualization graph"
+    />
   );
-}
+});
+
+CommunityVisualization.displayName = 'CommunityVisualization';
+
+export default CommunityVisualization;
