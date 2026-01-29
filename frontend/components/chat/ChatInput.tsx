@@ -52,7 +52,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
     },
   }), [autoResizeTextarea]);
 
-  const validateQuery = (): string => {
+  const validateQuery = (query: string): string => {
     return '';
   };
 
