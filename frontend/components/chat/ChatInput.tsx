@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import PersonaSelector from '@/components/PersonaSelector';
 import StopButton from './StopButton';
 import FileUpload from './FileUpload';
@@ -15,14 +15,19 @@ interface ChatInputProps {
   onPersonaChange: (persona: string) => void;
 }
 
-export default function ChatInput({
+export interface ChatInputHandle {
+  focus: () => void;
+  insertText: (text: string) => void;
+}
+
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
   onSubmit,
   onStop,
   isLoading,
   isStreaming = false,
   selectedPersona,
   onPersonaChange,
-}: ChatInputProps) {
+}, ref) {
   const [inputValue, setInputValue] = useState('');
   const [inputError, setInputError] = useState('');
   const [inputTouched, setInputTouched] = useState(false);
@@ -38,10 +43,16 @@ export default function ChatInput({
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, []);
 
-  const validateQuery = (value: string): string => {
-    if (!value || !value.trim()) return 'Please enter a question';
-    if (value.trim().length < 3) return 'Question must be at least 3 characters';
-    if (value.trim().length > 500) return 'Question must be less than 500 characters';
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+    insertText: (text: string) => {
+      setInputValue((prev) => prev + text);
+      textareaRef.current?.focus();
+      setTimeout(autoResizeTextarea, 0);
+    },
+  }), [autoResizeTextarea]);
+
+  const validateQuery = (): string => {
     return '';
   };
 
@@ -170,23 +181,9 @@ export default function ChatInput({
             {inputError}
           </p>
         )}
-        <div className="flex items-center justify-between mt-1.5 px-1">
-          <p className="text-[11px] text-gray-400 dark:text-gray-500">
-            Press Enter to send, Shift+Enter for a new line
-          </p>
-          {inputValue.length > 0 && (
-            <p className={`text-[11px] tabular-nums ${
-              inputValue.trim().length > 450
-                ? inputValue.trim().length > 500
-                  ? 'text-red-500'
-                  : 'text-amber-500 dark:text-amber-400'
-                : 'text-gray-400 dark:text-gray-500'
-            }`}>
-              {inputValue.trim().length}/500
-            </p>
-          )}
-        </div>
       </form>
     </div>
   );
-}
+});
+
+export default ChatInput;

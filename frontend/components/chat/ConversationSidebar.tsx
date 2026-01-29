@@ -106,8 +106,8 @@ export default function ConversationSidebar({ onNewChat }: ConversationSidebarPr
           </div>
         ) : (
           Object.entries(groups).map(([label, ids]) => (
-            <div key={label} className="mt-3 first:mt-0">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            <div key={label} className="mt-1.5 first:mt-0">
+              <p className="px-2 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                 {label}
               </p>
               <div className="space-y-0.5">

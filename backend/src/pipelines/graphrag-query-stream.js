@@ -40,8 +40,8 @@ class GraphRAGQueryStreamPipeline {
     };
 
     try {
-      // Send thinking event
-      sendEvent('thinking', { content: 'Searching knowledge base...' });
+      // Send thinking event - status type
+      sendEvent('thinking', { type: 'status', message: 'Searching knowledge base...' });
 
       // Step 1: Generate query embedding
       const result = await this.openai.getEmbedding(query);
@@ -58,8 +58,6 @@ class GraphRAGQueryStreamPipeline {
           : securityFilter,
       };
 
-      sendEvent('thinking', { content: 'Analyzing graph relationships...' });
-
       // Step 3: Hybrid search
       const rawSearchResults = await this._performHybridSearch(query, queryEmbedding, searchOptions);
 
@@ -69,8 +67,40 @@ class GraphRAGQueryStreamPipeline {
         user
       );
 
+      // Send documents found event with structured data (deduplicated by documentId)
+      if (searchResults.length > 0) {
+        const uniqueDocs = new Map();
+        for (const r of searchResults) {
+          if (!uniqueDocs.has(r.documentId)) {
+            uniqueDocs.set(r.documentId, {
+              title: r.title || r.sourceFile || 'Untitled',
+              id: r.documentId,
+            });
+          }
+        }
+        const uniqueDocList = Array.from(uniqueDocs.values());
+        sendEvent('thinking', {
+          type: 'documents',
+          message: `Found ${uniqueDocList.length} relevant document${uniqueDocList.length !== 1 ? 's' : ''} (${searchResults.length} passages)`,
+          items: uniqueDocList.slice(0, 5),
+          count: uniqueDocList.length,
+        });
+      }
+
+      sendEvent('thinking', { type: 'status', message: 'Analyzing graph relationships...' });
+
       // Step 5: Extract entities
       const entityNames = this._extractEntityNames(searchResults);
+
+      // Send entities discovered event
+      if (entityNames.length > 0) {
+        sendEvent('thinking', {
+          type: 'entities',
+          message: `Discovered ${entityNames.length} entit${entityNames.length !== 1 ? 'ies' : 'y'}`,
+          items: entityNames.slice(0, 10),
+          count: entityNames.length,
+        });
+      }
 
       // Step 6: Graph context
       let graphContext = null;
@@ -92,6 +122,14 @@ class GraphRAGQueryStreamPipeline {
             entities: filteredEntities,
             relationships: filteredRelationships,
           };
+
+          // Send relationships event
+          if (filteredRelationships.length > 0) {
+            sendEvent('thinking', {
+              type: 'relationships',
+              message: `Mapped ${filteredRelationships.length} relationships`,
+            });
+          }
         }
       }
 
@@ -122,19 +160,30 @@ class GraphRAGQueryStreamPipeline {
         return;
       }
 
-      sendEvent('thinking', { content: 'Synthesizing answer...' });
+      sendEvent('thinking', { type: 'status', message: 'Synthesizing answer...' });
 
       // Step 7: Stream LLM synthesis
       const userPrompt = buildQuerySynthesisPrompt(query, searchResults, graphContext);
-      const stream = await this.openai.getStreamingChatCompletion([
-        { role: 'system', content: QUERY_SYNTHESIS_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ], {
-        maxTokens: 2048,
-      });
+      const stream = await this.openai.getStreamingChatCompletion(
+        [
+          { role: 'system', content: QUERY_SYNTHESIS_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        {
+          maxTokens: 2048,
+          reasoning: options.reasoning || undefined, // Enable extended thinking if configured
+        }
+      );
 
       let fullContent = '';
       for await (const chunk of stream) {
+        // Handle reasoning content (from o1/o3 extended thinking models)
+        const reasoning = chunk.choices[0]?.delta?.reasoning_content;
+        if (reasoning) {
+          sendEvent('thinking', { type: 'reasoning', content: reasoning });
+        }
+
+        // Handle regular content
         const delta = chunk.choices[0]?.delta?.content;
         if (delta) {
           fullContent += delta;

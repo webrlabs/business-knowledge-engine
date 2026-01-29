@@ -8,6 +8,14 @@ export interface Citation {
   sectionTitle?: string;   // Section title if available
 }
 
+export interface ThinkingStep {
+  type: 'status' | 'documents' | 'entities' | 'relationships' | 'reasoning';
+  message?: string;
+  content?: string;
+  items?: Array<string | { title: string; id?: string }>;
+  count?: number; // Total count (items may be truncated)
+}
+
 export interface ActiveDocument {
   documentId: string;
   documentName: string;
@@ -25,7 +33,8 @@ export interface ChatMessage {
   persona?: string;
   feedback?: 'up' | 'down' | null;
   isStreaming?: boolean;
-  thinkingContent?: string;
+  thinkingContent?: string;       // Legacy: accumulated thinking text
+  thinkingSteps?: ThinkingStep[]; // New: structured thinking steps
   isError?: boolean;
 }
 

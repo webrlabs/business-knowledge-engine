@@ -58,10 +58,10 @@ export default function ConversationItem({
 
   return (
     <div
-      className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+      className={`group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer transition-colors ${
         isActive
-          ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-          : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
+          ? 'bg-blue-50 dark:bg-blue-900/20'
+          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
       onClick={() => !isEditing && onClick()}
       role="button"
@@ -90,11 +90,11 @@ export default function ConversationItem({
           />
         ) : (
           <>
-            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+            <p className="text-[13px] font-medium text-gray-900 dark:text-white truncate leading-tight">
               {title}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {messageCount} messages &middot; {formatDate(updatedAt)}
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+              {messageCount} messages · {formatDate(updatedAt)}
             </p>
           </>
         )}

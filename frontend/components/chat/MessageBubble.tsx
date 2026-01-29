@@ -80,8 +80,8 @@ export default function MessageBubble({
         </svg>
       </div>
       <div className="min-w-0 flex-1">
-        {message.thinkingContent && (
-          <ThinkingBlock content={message.thinkingContent} />
+        {(message.thinkingSteps || message.thinkingContent) && (
+          <ThinkingBlock steps={message.thinkingSteps} content={message.thinkingContent} />
         )}
         <StreamingText content={message.content} isStreaming={message.isStreaming || false} />
 

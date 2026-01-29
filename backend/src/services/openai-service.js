@@ -102,12 +102,19 @@ class OpenAIService {
       throw new Error('AZURE_OPENAI_DEPLOYMENT_NAME is required');
     }
 
-    const stream = await client.chat.completions.create({
+    const createParams = {
       model,
       messages,
       max_completion_tokens: options.maxTokens ?? 4096,
       stream: true,
-    });
+    };
+
+    // Add reasoning_effort for extended thinking models (o1/o3)
+    if (options.reasoning) {
+      createParams.reasoning_effort = options.reasoning; // 'low' | 'medium' | 'high'
+    }
+
+    const stream = await client.chat.completions.create(createParams);
 
     return stream;
   }

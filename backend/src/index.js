@@ -13659,6 +13659,363 @@ app.get('/api/graphrag/temporal/neighbors', async (req, res) => {
 });
 
 // ============================================
+// Graph Analytics & Enhancement Endpoints
+// ============================================
+
+/**
+ * @swagger
+ * /api/graphrag/paths:
+ *   get:
+ *     summary: Find paths between two entities
+ *     description: Find shortest paths between two entities in the knowledge graph
+ *     tags: [GraphRAG]
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Source entity name
+ *       - in: query
+ *         name: to
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Target entity name
+ *       - in: query
+ *         name: maxDepth
+ *         schema:
+ *           type: integer
+ *           default: 4
+ *         description: Maximum path length
+ *     responses:
+ *       200:
+ *         description: Paths found successfully
+ */
+app.get('/api/graphrag/paths', async (req, res) => {
+  const { from, to, maxDepth = 4 } = req.query;
+
+  if (!from || !to) {
+    return res.status(400).json({
+      error: 'Both "from" and "to" query parameters are required',
+    });
+  }
+
+  try {
+    const graphService = getGraphService();
+    const result = await graphService.findPathBetween(
+      decodeURIComponent(from),
+      decodeURIComponent(to),
+      parseInt(maxDepth)
+    );
+
+    res.json({
+      from: from,
+      to: to,
+      maxDepth: parseInt(maxDepth),
+      paths: result.entities ? [result] : [],
+      ...result,
+    });
+  } catch (error) {
+    log.errorWithStack('Path finding error', error, { from, to, maxDepth });
+    res.status(500).json({
+      error: 'Failed to find path',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/neighborhood:
+ *   get:
+ *     summary: Get node neighborhood
+ *     description: Get a node's neighborhood subgraph within a specified depth
+ *     tags: [GraphRAG]
+ *     parameters:
+ *       - in: query
+ *         name: entityName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Entity name to explore from
+ *       - in: query
+ *         name: depth
+ *         schema:
+ *           type: integer
+ *           default: 2
+ *         description: Traversal depth (1-3 recommended)
+ *     responses:
+ *       200:
+ *         description: Neighborhood data retrieved successfully
+ */
+app.get('/api/graphrag/neighborhood', async (req, res) => {
+  const { entityName, depth = 2 } = req.query;
+
+  if (!entityName) {
+    return res.status(400).json({
+      error: 'entityName query parameter is required',
+    });
+  }
+
+  try {
+    const graphService = getGraphService();
+    const result = await graphService.findRelatedEntities(
+      [decodeURIComponent(entityName)],
+      parseInt(depth)
+    );
+
+    res.json({
+      centerEntity: entityName,
+      depth: parseInt(depth),
+      ...result,
+    });
+  } catch (error) {
+    log.errorWithStack('Neighborhood fetch error', error, { entityName, depth });
+    res.status(500).json({
+      error: 'Failed to fetch neighborhood',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/analytics/top-connected:
+ *   get:
+ *     summary: Get most connected nodes
+ *     description: Get nodes sorted by degree (number of connections)
+ *     tags: [GraphRAG Analytics]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Maximum number of nodes to return
+ *     responses:
+ *       200:
+ *         description: Top connected nodes retrieved successfully
+ */
+app.get('/api/graphrag/analytics/top-connected', async (req, res) => {
+  const { limit = 10 } = req.query;
+
+  try {
+    const graphService = getGraphService();
+    // Get all entities with their connections
+    const data = await graphService.getAllEntities(500);
+
+    // Calculate degree for each node
+    const degreeMap = new Map();
+    data.nodes.forEach((node) => {
+      degreeMap.set(node.id, { ...node, degree: 0 });
+    });
+
+    data.edges.forEach((edge) => {
+      if (degreeMap.has(edge.source)) {
+        degreeMap.get(edge.source).degree++;
+      }
+      if (degreeMap.has(edge.target)) {
+        degreeMap.get(edge.target).degree++;
+      }
+    });
+
+    // Sort by degree and return top N
+    const nodes = Array.from(degreeMap.values())
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, parseInt(limit))
+      .map((node) => ({
+        id: node.id,
+        name: node.label || node.name,
+        type: node.type,
+        degree: node.degree,
+      }));
+
+    res.json({
+      nodes,
+      total: data.nodes.length,
+      limit: parseInt(limit),
+    });
+  } catch (error) {
+    log.errorWithStack('Top connected nodes error', error);
+    res.status(500).json({
+      error: 'Failed to fetch top connected nodes',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/analytics/isolated:
+ *   get:
+ *     summary: Get isolated nodes
+ *     description: Get nodes with no connections (degree = 0)
+ *     tags: [GraphRAG Analytics]
+ *     responses:
+ *       200:
+ *         description: Isolated nodes retrieved successfully
+ */
+app.get('/api/graphrag/analytics/isolated', async (req, res) => {
+  try {
+    const graphService = getGraphService();
+    const data = await graphService.getAllEntities(1000);
+
+    // Find all connected node IDs
+    const connectedIds = new Set();
+    data.edges.forEach((edge) => {
+      connectedIds.add(edge.source);
+      connectedIds.add(edge.target);
+    });
+
+    // Filter to nodes that are not connected
+    const isolatedNodes = data.nodes
+      .filter((node) => !connectedIds.has(node.id))
+      .map((node) => ({
+        id: node.id,
+        name: node.label || node.name,
+        type: node.type,
+      }));
+
+    res.json({
+      nodes: isolatedNodes,
+      count: isolatedNodes.length,
+      totalNodes: data.nodes.length,
+    });
+  } catch (error) {
+    log.errorWithStack('Isolated nodes error', error);
+    res.status(500).json({
+      error: 'Failed to fetch isolated nodes',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/analytics/metrics:
+ *   get:
+ *     summary: Get graph metrics
+ *     description: Get graph-level metrics including density, average degree, etc.
+ *     tags: [GraphRAG Analytics]
+ *     responses:
+ *       200:
+ *         description: Graph metrics retrieved successfully
+ */
+app.get('/api/graphrag/analytics/metrics', async (req, res) => {
+  try {
+    const graphService = getGraphService();
+    const stats = await graphService.getStats();
+    const data = await graphService.getAllEntities(500);
+
+    const nodeCount = stats.totalNodes || data.nodes.length;
+    const edgeCount = stats.totalEdges || data.edges.length;
+
+    // Calculate density: D = 2E / (N * (N-1)) for undirected graph
+    const density = nodeCount > 1
+      ? (2 * edgeCount) / (nodeCount * (nodeCount - 1))
+      : 0;
+
+    // Calculate average degree: avgDegree = 2E / N
+    const avgDegree = nodeCount > 0 ? (2 * edgeCount) / nodeCount : 0;
+
+    // Count connected components (simplified - just count isolated nodes)
+    const connectedIds = new Set();
+    data.edges.forEach((edge) => {
+      connectedIds.add(edge.source);
+      connectedIds.add(edge.target);
+    });
+    const isolatedCount = data.nodes.filter((n) => !connectedIds.has(n.id)).length;
+
+    res.json({
+      nodeCount,
+      edgeCount,
+      density: Math.round(density * 10000) / 10000,
+      avgDegree: Math.round(avgDegree * 100) / 100,
+      isolatedNodes: isolatedCount,
+      connectedNodes: nodeCount - isolatedCount,
+      labelCounts: stats.labelCounts || {},
+    });
+  } catch (error) {
+    log.errorWithStack('Graph metrics error', error);
+    res.status(500).json({
+      error: 'Failed to fetch graph metrics',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/graphrag/search/autocomplete:
+ *   get:
+ *     summary: Autocomplete search for nodes
+ *     description: Search nodes by name prefix for autocomplete functionality
+ *     tags: [GraphRAG]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Maximum number of results
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+app.get('/api/graphrag/search/autocomplete', async (req, res) => {
+  const { q, limit = 10 } = req.query;
+
+  if (!q || q.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Query parameter "q" is required',
+    });
+  }
+
+  try {
+    const graphService = getGraphService();
+    const data = await graphService.getAllEntities(500);
+
+    const query = q.toLowerCase().trim();
+
+    // Search by name, type, or description
+    const results = data.nodes
+      .filter((node) => {
+        const name = (node.label || node.name || '').toLowerCase();
+        const type = (node.type || '').toLowerCase();
+        const description = (node.description || '').toLowerCase();
+        return name.includes(query) || type.includes(query) || description.includes(query);
+      })
+      .slice(0, parseInt(limit))
+      .map((node) => ({
+        id: node.id,
+        name: node.label || node.name,
+        type: node.type,
+        description: node.description,
+        confidence: node.confidence,
+      }));
+
+    res.json({
+      query: q,
+      nodes: results,
+      total: results.length,
+    });
+  } catch (error) {
+    log.errorWithStack('Search autocomplete error', error);
+    res.status(500).json({
+      error: 'Search failed',
+      message: error.message,
+    });
+  }
+});
+
+// ============================================
 // Chunking API Routes (F4.1.3)
 // ============================================
 

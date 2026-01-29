@@ -1,6 +1,8 @@
+import type { ThinkingStep } from './chat-types';
+
 export interface StreamCallbacks {
   onContent: (text: string) => void;
-  onThinking: (content: string) => void;
+  onThinking: (step: ThinkingStep) => void;
   onMetadata: (data: { citations?: string[]; responseTime?: number }) => void;
   onDone: () => void;
   onError: (error: Error) => void;
@@ -63,9 +65,18 @@ export async function streamChatResponse(
               case 'content':
                 callbacks.onContent(parsed.text || '');
                 break;
-              case 'thinking':
-                callbacks.onThinking(parsed.content || '');
+              case 'thinking': {
+                // Parse structured thinking events
+                const step: ThinkingStep = {
+                  type: parsed.type || 'status',
+                  message: parsed.message || parsed.content,
+                  content: parsed.content,
+                  items: parsed.items,
+                  count: parsed.count,
+                };
+                callbacks.onThinking(step);
                 break;
+              }
               case 'metadata':
                 callbacks.onMetadata(parsed);
                 break;

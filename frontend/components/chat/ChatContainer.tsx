@@ -6,9 +6,9 @@ import { API_BASE_URL, useAuthFetch, useAuthToken } from '@/lib/api';
 import { streamChatResponse } from '@/lib/chat-stream';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { useChatStore } from '@/lib/chat-store';
-import type { ChatMessage, Citation } from '@/lib/chat-types';
+import type { ChatMessage, Citation, ThinkingStep } from '@/lib/chat-types';
 import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
+import ChatInput, { ChatInputHandle } from './ChatInput';
 import WelcomeState from './WelcomeState';
 import TypingIndicator from './TypingIndicator';
 import DisclaimerFooter from './DisclaimerFooter';
@@ -38,6 +38,7 @@ export default function ChatContainer() {
   } = useChatStore();
 
   const messagesAreaRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<ChatInputHandle>(null);
   const hasAutoSent = useRef(false);
   const personaRef = useRef('default');
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -179,7 +180,7 @@ export default function ChatContainer() {
           // Use streaming endpoint
           const token = await getAuthToken();
           let accumulatedContent = '';
-          let thinkingContent = '';
+          const thinkingSteps: ThinkingStep[] = [];
           let citations: string[] = [];
 
           await streamChatResponse(
@@ -191,15 +192,25 @@ export default function ChatContainer() {
                 accumulatedContent += text;
                 updateMessage(assistantMsgId, {
                   content: accumulatedContent,
-                  thinkingContent: thinkingContent || undefined,
+                  thinkingSteps: thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
                   isStreaming: true,
                 });
               },
-              onThinking: (content) => {
-                thinkingContent += content;
+              onThinking: (step: ThinkingStep) => {
+                // For reasoning type, accumulate content into the last reasoning step
+                if (step.type === 'reasoning') {
+                  const lastStep = thinkingSteps[thinkingSteps.length - 1];
+                  if (lastStep && lastStep.type === 'reasoning') {
+                    lastStep.content = (lastStep.content || '') + (step.content || '');
+                  } else {
+                    thinkingSteps.push({ ...step });
+                  }
+                } else {
+                  thinkingSteps.push(step);
+                }
                 updateMessage(assistantMsgId, {
                   content: accumulatedContent,
-                  thinkingContent,
+                  thinkingSteps: [...thinkingSteps],
                   isStreaming: true,
                 });
               },
@@ -212,7 +223,7 @@ export default function ChatContainer() {
                 updateMessage(assistantMsgId, {
                   content: accumulatedContent,
                   citations,
-                  thinkingContent: thinkingContent || undefined,
+                  thinkingSteps: thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
                   isStreaming: false,
                 });
               },
@@ -306,11 +317,28 @@ export default function ChatContainer() {
     }
   }, [sidebarOpen, setSidebarOpen]);
 
-  // Escape key stops generation
+  // Keyboard shortcuts: Escape stops generation, letter keys auto-focus input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key stops generation
       if (e.key === 'Escape' && isStreaming) {
         handleStop();
+        return;
+      }
+
+      // Auto-focus chat input when typing a letter key
+      // Skip if modifier keys are held or if already focused on an input/textarea
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        activeEl?.getAttribute('contenteditable') === 'true';
+      if (isInputFocused) return;
+
+      // Check if it's a single printable character (letter, number, etc.)
+      if (e.key.length === 1 && /^[a-zA-Z0-9]$/.test(e.key)) {
+        e.preventDefault();
+        chatInputRef.current?.insertText(e.key);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -416,6 +444,7 @@ export default function ChatContainer() {
 
               {/* Input Area */}
               <ChatInput
+                ref={chatInputRef}
                 onSubmit={sendQuery}
                 onStop={handleStop}
                 isLoading={isLoading}
